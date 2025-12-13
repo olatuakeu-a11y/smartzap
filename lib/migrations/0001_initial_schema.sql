@@ -138,6 +138,79 @@ CREATE INDEX IF NOT EXISTS idx_campaign_contacts_failure ON campaign_contacts(fa
 CREATE INDEX IF NOT EXISTS idx_campaign_contacts_campaign_phone ON campaign_contacts(campaign_id, phone);
 
 -- Migração segura: alguns bancos antigos podem ter UNIQUE(campaign_id, phone).
+
+-- =============================================================================
+-- Guard-rails de integridade (recomendado)
+-- - Evita contact_id órfão quando um contato é removido: ON DELETE SET NULL
+-- - Evita "skipped" sem motivo: exige failure_reason ou error
+--
+-- Observação:
+-- - Usamos NOT VALID para não quebrar bancos legados; a constraint passa a
+--   valer para novos dados imediatamente. A validação é tentada e, se falhar,
+--   seguimos com um NOTICE (para não travar deploy).
+-- =============================================================================
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conrelid = 'campaign_contacts'::regclass
+      AND contype = 'f'
+      AND conname = 'campaign_contacts_contact_id_fkey'
+  ) THEN
+    ALTER TABLE campaign_contacts
+      ADD CONSTRAINT campaign_contacts_contact_id_fkey
+      FOREIGN KEY (contact_id)
+      REFERENCES contacts(id)
+      ON DELETE SET NULL
+      NOT VALID;
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  BEGIN
+    ALTER TABLE campaign_contacts
+      VALIDATE CONSTRAINT campaign_contacts_contact_id_fkey;
+  EXCEPTION
+    WHEN undefined_object THEN
+      NULL;
+    WHEN others THEN
+      RAISE NOTICE 'Não foi possível validar FK campaign_contacts_contact_id_fkey (existem linhas inválidas). A constraint permanece NOT VALID, mas já é aplicada para novos dados.';
+  END;
+END $$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conrelid = 'campaign_contacts'::regclass
+      AND contype = 'c'
+      AND conname = 'campaign_contacts_skipped_reason_check'
+  ) THEN
+    ALTER TABLE campaign_contacts
+      ADD CONSTRAINT campaign_contacts_skipped_reason_check
+      CHECK (
+        status <> 'skipped'
+        OR failure_reason IS NOT NULL
+        OR error IS NOT NULL
+      )
+      NOT VALID;
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  BEGIN
+    ALTER TABLE campaign_contacts
+      VALIDATE CONSTRAINT campaign_contacts_skipped_reason_check;
+  EXCEPTION
+    WHEN undefined_object THEN
+      NULL;
+    WHEN others THEN
+      RAISE NOTICE 'Não foi possível validar CHECK campaign_contacts_skipped_reason_check (existem linhas inválidas). A constraint permanece NOT VALID, mas já é aplicada para novos dados.';
+  END;
+END $$;
 -- Isso causa colisões quando o telefone é normalizado. A regra do produto é 1 contato (contact_id) por campanha.
 
 -- 1) Limpa duplicados por (campaign_id, contact_id) mantendo o registro mais "avançado".

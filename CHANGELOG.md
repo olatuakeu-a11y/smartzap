@@ -7,7 +7,7 @@ O formato é baseado em **[Keep a Changelog](https://keepachangelog.com/pt-BR/1.
 ## [Unreleased]
 
 ### Added
-- N/A
+- `docs/RELATORIO_EVOLUCAO_PARA_ALUNOS.md`: relatório de evolução do projeto para apresentação em aula.
 
 ### Changed
 - N/A
@@ -97,30 +97,32 @@ O formato é baseado em **[Keep a Changelog](https://keepachangelog.com/pt-BR/1.
 ### Engineering notes (histórico por commit)
 
 > Referência explícita dos commits que compõem este release, do mais antigo ao mais recente.
+>
+> Horário no fuso **America/Sao_Paulo (UTC-3)**.
 
-- 2025-12-12 `8505c0f`: first commit (base do app: `app/`, `components/`, `hooks/`, `lib/`, `services/`, `supabase/`, configs de deploy).
-- 2025-12-12 `fe463d0`: chore: update `@upstash/workflow` para `0.3.0-rc` e `overrides`.
-- 2025-12-12 `c57e94e`: remove dependência `@google/genai`.
-- 2025-12-12 `4248fe0`: configuração do ESLint e ajustes correlatos.
-- 2025-12-12 `05f24b6`: refactor geral de estrutura/legibilidade.
-- 2025-12-13 `76b5375`: adiciona configuração inicial do Vitest (unit/integration) e arquivos auxiliares (posteriormente enxugados).
-- 2025-12-13 `3c6520f`: fix timestamps nulos (`completedAt`) e tipos.
-- 2025-12-13 `7aa3aa1`: melhora rastreamento de parâmetros no precheck de templates.
-- 2025-12-13 `a4150d8`: adiciona pre-check em campanhas/contatos/variáveis e melhorias em rotas de setup.
-- 2025-12-13 `14607c3`: modal de quick edit + humanização de mensagens do precheck + docs.
-- 2025-12-13 `4d082d3`: feat(auth) multi-sessão + ajustes em serviços/docs.
-- 2025-12-13 `d8b8dfd`: remove CORS headers do `next.config.ts`.
-- 2025-12-13 `a64695b`: fix de import/tipos de rotas.
-- 2025-12-13 `dfc196e`: refactor em custom-fields e lógica de update de contatos.
-- 2025-12-13 `c9232ef`: stats/real em detalhes da campanha.
-- 2025-12-13 `64234dd`: suporte a email em contatos.
-- 2025-12-13 `a540152`: refactor e limpeza de artefatos.
-- 2025-12-13 `4cf7629`: melhora foco/edição rápida e múltiplos custom fields.
-- 2025-12-13 `26d705c`: remove testes e grande volume de conteúdo de referência (.tmp).
-- 2025-12-13 `6c0f5e2`: considera status SKIPPED em exibição/reenvio.
-- 2025-12-13 `22e04cd`: melhora cache headers e hooks/serviços de contatos.
-- 2025-12-13 `613baf7`: melhorias em realtime/alertas/cache/validação e ajustes no schema.
-- 2025-12-13 `885be45`: campanhas: adiciona `campaign_id` em updates e filtra updates inválidos.
+- 12/12/2025 -15:04 `8505c0f`: first commit (base do app: `app/`, `components/`, `hooks/`, `lib/`, `services/`, `supabase/`, configs de deploy).
+- 12/12/2025 -15:51 `fe463d0`: chore: update `@upstash/workflow` para `0.3.0-rc` e `overrides`.
+- 12/12/2025 -15:54 `c57e94e`: remove dependência `@google/genai`.
+- 12/12/2025 -21:15 `4248fe0`: configuração do ESLint e ajustes correlatos.
+- 12/12/2025 -22:01 `05f24b6`: refactor geral de estrutura/legibilidade.
+- 13/12/2025 -10:03 `76b5375`: adiciona configuração inicial do Vitest (unit/integration) e arquivos auxiliares (posteriormente enxugados).
+- 13/12/2025 -10:18 `3c6520f`: fix timestamps nulos (`completedAt`) e tipos.
+- 13/12/2025 -10:30 `7aa3aa1`: melhora rastreamento de parâmetros no precheck de templates.
+- 13/12/2025 -11:07 `a4150d8`: adiciona pre-check em campanhas/contatos/variáveis e melhorias em rotas de setup.
+- 13/12/2025 -11:29 `14607c3`: modal de quick edit + humanização de mensagens do precheck + docs.
+- 13/12/2025 -12:06 `4d082d3`: feat(auth) multi-sessão + ajustes em serviços/docs.
+- 13/12/2025 -12:20 `d8b8dfd`: remove CORS headers do `next.config.ts`.
+- 13/12/2025 -12:20 `a64695b`: fix de import/tipos de rotas.
+- 13/12/2025 -12:36 `dfc196e`: refactor em custom-fields e lógica de update de contatos.
+- 13/12/2025 -12:47 `c9232ef`: stats/real em detalhes da campanha.
+- 13/12/2025 -13:03 `64234dd`: suporte a email em contatos.
+- 13/12/2025 -13:03 `a540152`: refactor e limpeza de artefatos.
+- 13/12/2025 -13:06 `4cf7629`: melhora foco/edição rápida e múltiplos custom fields.
+- 13/12/2025 -13:08 `26d705c`: remove testes e grande volume de conteúdo de referência (.tmp).
+- 13/12/2025 -13:23 `6c0f5e2`: considera status SKIPPED em exibição/reenvio.
+- 13/12/2025 -13:31 `22e04cd`: melhora cache headers e hooks/serviços de contatos.
+- 13/12/2025 -14:27 `613baf7`: melhorias em realtime/alertas/cache/validação e ajustes no schema.
+- 13/12/2025 -14:38 `885be45`: campanhas: adiciona `campaign_id` em updates e filtra updates inválidos.
 
 [Unreleased]: https://github.com/thaleslaray/smartzap/compare/885be45...HEAD
 [2.0.0]: https://github.com/thaleslaray/smartzap/compare/8505c0f...885be45
