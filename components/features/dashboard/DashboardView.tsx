@@ -1,5 +1,6 @@
 import React from 'react';
 import { PrefetchLink } from '@/components/ui/PrefetchLink';
+import { Page, PageActions, PageDescription, PageHeader, PageTitle } from '@/components/ui/page';
 import { Send, TrendingUp, AlertCircle, CheckCircle2, MoreHorizontal, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Campaign, CampaignStatus } from '../../../types';
@@ -103,19 +104,21 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ stats, recentCampa
   );
 
   return (
-    <div className="space-y-8">
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+    <Page>
+      <PageHeader>
         <div>
-          <h1 className="text-3xl font-bold text-white tracking-tight mb-2">Dashboard</h1>
-          <p className="text-gray-400">Visão geral da performance de mensagens</p>
+          <PageTitle>Dashboard</PageTitle>
+          <PageDescription>Visão geral da performance de mensagens</PageDescription>
         </div>
-        <PrefetchLink 
-          href="/campaigns/new"
-          className="bg-white text-black hover:bg-gray-200 px-5 py-2.5 rounded-xl font-semibold text-sm transition-colors shadow-lg shadow-white/5"
-        >
-          Campanha Rápida
-        </PrefetchLink>
-      </div>
+        <PageActions>
+          <PrefetchLink 
+            href="/campaigns/new"
+            className="bg-white text-black hover:bg-gray-200 px-5 py-2.5 rounded-xl font-semibold text-sm transition-colors shadow-lg shadow-white/5"
+          >
+            Campanha Rápida
+          </PrefetchLink>
+        </PageActions>
+      </PageHeader>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -192,7 +195,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ stats, recentCampa
             aria-labelledby="chart-title"
             aria-describedby="chart-description"
           >
-            <div className="h-[300px] w-full">
+            <div className="h-75 w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={stats.chartData} aria-hidden="true">
                   <defs>
@@ -285,6 +288,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ stats, recentCampa
           </div>
         </div>
       </div>
-    </div>
+    </Page>
   );
 };

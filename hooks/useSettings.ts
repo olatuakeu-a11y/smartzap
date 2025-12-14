@@ -25,6 +25,16 @@ interface WebhookInfo {
   } | null;
 }
 
+interface WebhookSubscriptionStatus {
+  ok: boolean;
+  wabaId?: string;
+  messagesSubscribed?: boolean;
+  subscribedFields?: string[];
+  apps?: Array<{ id?: string; name?: string; subscribed_fields?: string[] }>;
+  error?: string;
+  details?: unknown;
+}
+
 // System health status
 interface HealthStatus {
   overall: 'healthy' | 'degraded' | 'unhealthy';
@@ -119,15 +129,36 @@ export const useSettingsController = () => {
     staleTime: 30 * 1000, // Cache for 30 seconds
   });
 
+  // Meta subscription status (WABA subscribed_apps) — needed to receive `messages`
+  const webhookSubscriptionQuery = useQuery({
+    queryKey: ['metaWebhookSubscription'],
+    queryFn: async (): Promise<WebhookSubscriptionStatus> => {
+      const response = await fetch('/api/meta/webhooks/subscription');
+      // We intentionally return the body even on non-2xx to display details in UI
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        return {
+          ok: false,
+          error: (data as any)?.error || 'Falha ao consultar subscription',
+          details: (data as any)?.details,
+        };
+      }
+      return data as WebhookSubscriptionStatus;
+    },
+    enabled: !!settingsQuery.data?.isConnected,
+    staleTime: 60 * 1000,
+    retry: false,
+  });
+
   // Phone numbers query (for webhook override management)
-  // Uses credentials from Redis - no need to pass from frontend
+  // Backend usa credenciais salvas (Supabase settings / env) — não precisa passar do frontend
   const phoneNumbersQuery = useQuery({
     queryKey: ['phoneNumbers'],
     queryFn: async (): Promise<PhoneNumber[]> => {
       const response = await fetch('/api/phone-numbers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({}), // Empty body - backend uses Redis credentials
+        body: JSON.stringify({}), // Body vazio: backend usa credenciais salvas (Supabase/env)
       });
       if (!response.ok) {
         const error = await response.json();
@@ -152,6 +183,15 @@ export const useSettingsController = () => {
     queryKey: ['testContact'],
     queryFn: settingsService.getTestContact,
     staleTime: 60 * 1000,
+  });
+
+  // WhatsApp Turbo (Adaptive Throttle)
+  const whatsappThrottleQuery = useQuery({
+    queryKey: ['whatsappThrottle'],
+    queryFn: settingsService.getWhatsAppThrottle,
+    enabled: !!settingsQuery.data?.isConnected,
+    staleTime: 30 * 1000,
+    retry: false,
   });
 
   // Available domains query (auto-detect from Vercel)
@@ -248,6 +288,63 @@ export const useSettingsController = () => {
     }
   });
 
+  const saveWhatsAppThrottleMutation = useMutation({
+    mutationFn: settingsService.saveWhatsAppThrottle,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['whatsappThrottle'] });
+      toast.success('Configuração do modo turbo salva!');
+    },
+    onError: (err: any) => {
+      toast.error(err?.message || 'Erro ao salvar modo turbo');
+    }
+  });
+
+  const subscribeWebhookMessagesMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch('/api/meta/webhooks/subscription', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fields: ['messages'] }),
+      });
+
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error((data as any)?.error || 'Erro ao inscrever messages');
+      }
+
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['metaWebhookSubscription'] });
+      toast.success('Inscrição do campo "messages" ativada!');
+    },
+    onError: (err: any) => {
+      toast.error(err?.message || 'Erro ao ativar inscrição');
+    },
+  });
+
+  const unsubscribeWebhookMessagesMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch('/api/meta/webhooks/subscription', {
+        method: 'DELETE',
+      });
+
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error((data as any)?.error || 'Erro ao remover inscrição');
+      }
+
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['metaWebhookSubscription'] });
+      toast.success('Inscrição removida.');
+    },
+    onError: (err: any) => {
+      toast.error(err?.message || 'Erro ao remover inscrição');
+    },
+  });
+
   const handleSave = async () => {
     // 1. Optimistic Update
     const pendingSettings = { ...formSettings, isConnected: true };
@@ -321,7 +418,7 @@ export const useSettingsController = () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          // accessToken is fetched from Redis on the server
+          // accessToken é obtido no servidor a partir das credenciais salvas (Supabase/env)
           callbackUrl,
           verifyToken: webhookQuery.data?.webhookToken, // Use the auto-generated token
         }),
@@ -345,7 +442,7 @@ export const useSettingsController = () => {
   // Remove webhook override for a phone number
   const removeWebhookOverride = async (phoneNumberId: string): Promise<boolean> => {
     try {
-      // No body needed - server fetches credentials from Redis
+      // Sem body: servidor busca credenciais salvas (Supabase/env)
       const response = await fetch(`/api/phone-numbers/${phoneNumberId}/webhook/override`, {
         method: 'DELETE',
       });
@@ -454,6 +551,13 @@ export const useSettingsController = () => {
     webhookUrl: webhookQuery.data?.webhookUrl,
     webhookToken: webhookQuery.data?.webhookToken,
     webhookStats: webhookQuery.data?.stats,
+    // Meta webhook subscription (messages)
+    webhookSubscription: webhookSubscriptionQuery.data,
+    webhookSubscriptionLoading: webhookSubscriptionQuery.isLoading,
+    refreshWebhookSubscription: () => queryClient.invalidateQueries({ queryKey: ['metaWebhookSubscription'] }),
+    subscribeWebhookMessages: subscribeWebhookMessagesMutation.mutateAsync,
+    unsubscribeWebhookMessages: unsubscribeWebhookMessagesMutation.mutateAsync,
+    webhookSubscriptionMutating: subscribeWebhookMessagesMutation.isPending || unsubscribeWebhookMessagesMutation.isPending,
     // Phone numbers for webhook override
     phoneNumbers: phoneNumbersQuery.data || [],
     phoneNumbersLoading: phoneNumbersQuery.isLoading,
@@ -485,5 +589,11 @@ export const useSettingsController = () => {
     saveTestContact: saveTestContactMutation.mutateAsync,
     removeTestContact: removeTestContactMutation.mutateAsync,
     isSavingTestContact: saveTestContactMutation.isPending,
+
+    // WhatsApp Turbo
+    whatsappThrottle: whatsappThrottleQuery.data || null,
+    whatsappThrottleLoading: whatsappThrottleQuery.isLoading,
+    saveWhatsAppThrottle: saveWhatsAppThrottleMutation.mutateAsync,
+    isSavingWhatsAppThrottle: saveWhatsAppThrottleMutation.isPending,
   };
 };  

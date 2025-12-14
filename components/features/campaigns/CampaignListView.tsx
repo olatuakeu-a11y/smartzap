@@ -2,6 +2,7 @@
 import React from 'react';
 import { Search, RefreshCw, Copy, Trash2, Calendar, Play, Pause, Loader2 } from 'lucide-react';
 import { Campaign, CampaignStatus } from '../../../types';
+import { Page, PageDescription, PageHeader, PageTitle } from '@/components/ui/page';
 
 interface CampaignListViewProps {
   campaigns: Campaign[];
@@ -12,6 +13,7 @@ interface CampaignListViewProps {
   onSearchChange: (value: string) => void;
   onRefresh: () => void;
   onDelete: (id: string) => void;
+  onDuplicate?: (id: string) => void;
   onRowClick: (id: string) => void;
   onPause?: (id: string) => void;
   onResume?: (id: string) => void;
@@ -20,6 +22,7 @@ interface CampaignListViewProps {
   isResuming?: boolean;
   isStarting?: boolean;
   deletingId?: string;
+  duplicatingId?: string;
 }
 
 const StatusBadge = ({ status }: { status: CampaignStatus }) => {
@@ -56,6 +59,24 @@ const StatusBadge = ({ status }: { status: CampaignStatus }) => {
   );
 };
 
+function formatDuration(ms: number): string {
+  if (!Number.isFinite(ms) || ms < 0) return '—'
+  const totalSeconds = Math.round(ms / 1000)
+  if (totalSeconds < 60) return `${totalSeconds}s`
+  const minutes = Math.floor(totalSeconds / 60)
+  const seconds = totalSeconds % 60
+  return seconds > 0 ? `${minutes}m ${seconds}s` : `${minutes}m`
+}
+
+function calcSendDuration(campaign: Campaign): string {
+  const startIso = campaign.firstDispatchAt || campaign.startedAt
+  if (!startIso || !campaign.lastSentAt) return '—'
+  const start = Date.parse(startIso)
+  const end = Date.parse(campaign.lastSentAt)
+  if (!Number.isFinite(start) || !Number.isFinite(end)) return '—'
+  return formatDuration(end - start)
+}
+
 export const CampaignListView: React.FC<CampaignListViewProps> = ({
   campaigns,
   isLoading,
@@ -65,6 +86,7 @@ export const CampaignListView: React.FC<CampaignListViewProps> = ({
   onSearchChange,
   onRefresh,
   onDelete,
+  onDuplicate,
   onRowClick,
   onPause,
   onResume,
@@ -73,19 +95,20 @@ export const CampaignListView: React.FC<CampaignListViewProps> = ({
   isResuming,
   isStarting,
   deletingId,
+  duplicatingId,
 }) => {
   if (isLoading) {
     return <div className="text-white">Carregando campanhas...</div>;
   }
 
   return (
-    <div className="space-y-8">
-      <div className="flex items-end justify-between">
+    <Page>
+      <PageHeader>
         <div>
-          <h1 className="text-3xl font-bold text-white tracking-tight mb-2">Campanhas</h1>
-          <p className="text-gray-400">Gerencie e acompanhe seus disparos de mensagens</p>
+          <PageTitle>Campanhas</PageTitle>
+          <PageDescription>Gerencie e acompanhe seus disparos de mensagens</PageDescription>
         </div>
-      </div>
+      </PageHeader>
 
       {/* Filters Bar */}
       <div className="glass-panel p-4 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -133,6 +156,7 @@ export const CampaignListView: React.FC<CampaignListViewProps> = ({
                 <th className="px-6 py-4 font-medium">Status</th>
                 <th className="px-6 py-4 font-medium">Destinatários</th>
                 <th className="px-6 py-4 font-medium">Entrega</th>
+                <th className="px-6 py-4 font-medium">Envio</th>
                 <th className="px-6 py-4 font-medium">Criado em</th>
                 <th className="px-6 py-4 font-medium text-right">Ações</th>
               </tr>
@@ -140,7 +164,7 @@ export const CampaignListView: React.FC<CampaignListViewProps> = ({
             <tbody className="divide-y divide-white/5">
               {campaigns.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                  <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
                     Nenhuma campanha encontrada com estes filtros.
                   </td>
                 </tr>
@@ -183,11 +207,37 @@ export const CampaignListView: React.FC<CampaignListViewProps> = ({
                         </span>
                       </div>
                     </td>
+                    <td className="px-6 py-4 text-gray-400 font-mono">
+                      <span
+                        className="text-xs"
+                        title={(campaign.firstDispatchAt || campaign.startedAt) && campaign.lastSentAt
+                          ? `De ${new Date(campaign.firstDispatchAt || campaign.startedAt!).toLocaleString('pt-BR')} até ${new Date(campaign.lastSentAt).toLocaleString('pt-BR')}`
+                          : 'Duração do disparo (somente status sent).'}
+                      >
+                        {calcSendDuration(campaign)}
+                      </span>
+                    </td>
                     <td className="px-6 py-4 text-gray-500 font-mono text-xs">
                       {new Date(campaign.createdAt).toLocaleDateString('pt-BR')}
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-2">
+                        {/* Quick action: Clone campaign */}
+                        {onDuplicate && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); onDuplicate(campaign.id); }}
+                            title="Clonar"
+                            disabled={duplicatingId === campaign.id}
+                            className="p-2 rounded-lg text-gray-400 hover:text-primary-400 hover:bg-primary-500/10 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {duplicatingId === campaign.id ? (
+                              <Loader2 size={16} className="animate-spin text-primary-400" />
+                            ) : (
+                              <Copy size={16} />
+                            )}
+                          </button>
+                        )}
+
                         {/* Quick action: Start scheduled campaign */}
                         {(campaign.status === CampaignStatus.SCHEDULED || campaign.status === CampaignStatus.DRAFT) && onStart && (
                           <button
@@ -246,6 +296,6 @@ export const CampaignListView: React.FC<CampaignListViewProps> = ({
           </table>
         </div>
       </div>
-    </div>
+    </Page>
   );
 };

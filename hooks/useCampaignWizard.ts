@@ -165,7 +165,7 @@ export const useCampaignWizardController = () => {
         template: input.templateName,
         recipients: input.recipients,
         sent: 0,
-        status: 'SENDING' as const,
+        status: (input.scheduledAt ? 'SCHEDULED' : 'SENDING') as const,
         createdAt: new Date().toISOString(),
       };
 
@@ -196,7 +196,11 @@ export const useCampaignWizardController = () => {
       // Navigate to real campaign (replaces temp URL)
       navigate(`/campaigns/${campaign.id}`, { replace: true });
 
-      toast.success('Campanha criada e disparada com sucesso!');
+      if (campaign?.status === 'Agendado') {
+        toast.success('Campanha criada e agendada com sucesso!');
+      } else {
+        toast.success('Campanha criada e disparada com sucesso!');
+      }
     },
     onError: (_error, _input, context) => {
       // Clean up temp cache on error

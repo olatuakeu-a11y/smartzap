@@ -66,7 +66,11 @@ export const campaignDb = {
             failed: row.failed,
             createdAt: row.created_at,
             scheduledAt: row.scheduled_date,
+            qstashScheduleMessageId: (row as any).qstash_schedule_message_id ?? null,
+            qstashScheduleEnqueuedAt: (row as any).qstash_schedule_enqueued_at ?? null,
             startedAt: row.started_at,
+            firstDispatchAt: (row as any).first_dispatch_at ?? null,
+            lastSentAt: (row as any).last_sent_at ?? null,
             completedAt: row.completed_at,
         }))
     },
@@ -98,7 +102,11 @@ export const campaignDb = {
             failed: data.failed,
             createdAt: data.created_at,
             scheduledAt: data.scheduled_date,
+            qstashScheduleMessageId: (data as any).qstash_schedule_message_id ?? null,
+            qstashScheduleEnqueuedAt: (data as any).qstash_schedule_enqueued_at ?? null,
             startedAt: data.started_at,
+            firstDispatchAt: (data as any).first_dispatch_at ?? null,
+            lastSentAt: (data as any).last_sent_at ?? null,
             completedAt: data.completed_at,
         }
     },
@@ -171,6 +179,18 @@ export const campaignDb = {
         const newId = generateId()
         const now = new Date().toISOString()
 
+        // Copy campaign contacts first so we can set total_recipients accurately.
+        // Observação: Supabase JS não oferece transação multi-step facilmente aqui;
+        // então tentamos manter o estado consistente (rollback best-effort em falhas).
+        const { data: existingContacts, error: existingContactsError } = await supabase
+            .from('campaign_contacts')
+            .select('contact_id, phone, name, email, custom_fields')
+            .eq('campaign_id', id)
+
+        if (existingContactsError) throw existingContactsError
+
+        const recipientsCount = existingContacts?.length ?? original.recipients ?? 0
+
         const { error } = await supabase
             .from('campaigns')
             .insert({
@@ -178,23 +198,24 @@ export const campaignDb = {
                 name: `${original.name} (Cópia)`,
                 status: CampaignStatus.DRAFT,
                 template_name: original.templateName,
-                template_variables: original.templateVariables,  // ← CORRIGIDO: Copiar variáveis do template
-                total_recipients: original.recipients,
+                template_variables: original.templateVariables,
+                template_snapshot: original.templateSnapshot ?? null,
+                template_spec_hash: original.templateSpecHash ?? null,
+                template_parameter_format: original.templateParameterFormat ?? null,
+                template_fetched_at: original.templateFetchedAt ?? null,
+                total_recipients: recipientsCount,
                 sent: 0,
                 delivered: 0,
                 read: 0,
                 skipped: 0,
                 failed: 0,
                 created_at: now,
+                scheduled_date: null,
+                started_at: null,
+                completed_at: null,
             })
 
         if (error) throw error
-
-        // Copy campaign contacts
-        const { data: existingContacts } = await supabase
-            .from('campaign_contacts')
-            .select('contact_id, phone, name, custom_fields')
-            .eq('campaign_id', id)
 
         if (existingContacts && existingContacts.length > 0) {
             const newContacts = existingContacts.map(c => ({
@@ -203,11 +224,20 @@ export const campaignDb = {
                 contact_id: c.contact_id,
                 phone: c.phone,
                 name: c.name,
+                email: (c as any).email ?? null,
                 custom_fields: (c as any).custom_fields || {},
                 status: 'pending',
             }))
 
-            await supabase.from('campaign_contacts').insert(newContacts)
+            const { error: insertContactsError } = await supabase
+                .from('campaign_contacts')
+                .insert(newContacts)
+
+            if (insertContactsError) {
+                // Rollback best-effort: não deixar uma campanha “cópia” sem público.
+                await supabase.from('campaigns').delete().eq('id', newId)
+                throw insertContactsError
+            }
         }
 
         return campaignDb.getById(newId)
@@ -224,6 +254,11 @@ export const campaignDb = {
         if (updates.failed !== undefined) updateData.failed = updates.failed
         if (updates.completedAt !== undefined) updateData.completed_at = updates.completedAt
         if (updates.startedAt !== undefined) updateData.started_at = updates.startedAt
+        if (updates.firstDispatchAt !== undefined) updateData.first_dispatch_at = updates.firstDispatchAt
+        if (updates.lastSentAt !== undefined) updateData.last_sent_at = updates.lastSentAt
+        if (updates.scheduledAt !== undefined) updateData.scheduled_date = updates.scheduledAt
+        if (updates.qstashScheduleMessageId !== undefined) updateData.qstash_schedule_message_id = updates.qstashScheduleMessageId
+        if (updates.qstashScheduleEnqueuedAt !== undefined) updateData.qstash_schedule_enqueued_at = updates.qstashScheduleEnqueuedAt
         if (updates.templateSnapshot !== undefined) updateData.template_snapshot = updates.templateSnapshot
         if (updates.templateSpecHash !== undefined) updateData.template_spec_hash = updates.templateSpecHash
         if (updates.templateParameterFormat !== undefined) updateData.template_parameter_format = updates.templateParameterFormat
@@ -905,6 +940,8 @@ export const templateProjectDb = {
                 title: dto.title,
                 prompt: dto.prompt,
                 status: dto.status || 'draft',
+                // Discriminador para separar Manual vs IA (default seguro)
+                source: (dto as any).source || 'ai',
                 template_count: dto.items.length,
                 approved_count: 0
                 // user_id is explicitly NOT set here, relying on schema default (null) or logic in API route if needed

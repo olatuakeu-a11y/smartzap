@@ -23,6 +23,264 @@ const replaceVariables = (text: string, variables?: string[]): string => {
   return result;
 };
 
+type WhatsAppTextBlock =
+  | { type: 'paragraph'; text: string }
+  | { type: 'quote'; text: string }
+  | { type: 'ul'; items: string[] }
+  | { type: 'ol'; items: string[] }
+  | { type: 'codeblock'; text: string }
+  | { type: 'spacer' };
+
+const splitByTripleBackticks = (text: string): Array<{ type: 'text' | 'codeblock'; value: string }> => {
+  const out: Array<{ type: 'text' | 'codeblock'; value: string }> = [];
+  let i = 0;
+  while (i < text.length) {
+    const start = text.indexOf('```', i);
+    if (start === -1) {
+      out.push({ type: 'text', value: text.slice(i) });
+      break;
+    }
+    const end = text.indexOf('```', start + 3);
+    if (end === -1) {
+      out.push({ type: 'text', value: text.slice(i) });
+      break;
+    }
+    if (start > i) out.push({ type: 'text', value: text.slice(i, start) });
+    out.push({ type: 'codeblock', value: text.slice(start + 3, end) });
+    i = end + 3;
+  }
+  return out.filter(t => t.value.length > 0);
+};
+
+const parseWhatsAppTextBlocks = (text: string): WhatsAppTextBlock[] => {
+  const tokens = splitByTripleBackticks(text);
+  const blocks: WhatsAppTextBlock[] = [];
+
+  const pushTextToken = (raw: string) => {
+    const lines = raw.split(/\r?\n/);
+    let i = 0;
+    while (i < lines.length) {
+      const line = lines[i] ?? '';
+      if (line.trim() === '') {
+        blocks.push({ type: 'spacer' });
+        i += 1;
+        continue;
+      }
+
+      // Quote: "> texto"
+      if (line.startsWith('> ')) {
+        const quoteLines: string[] = [];
+        while (i < lines.length && (lines[i] ?? '').startsWith('> ')) {
+          quoteLines.push((lines[i] ?? '').slice(2));
+          i += 1;
+        }
+        blocks.push({ type: 'quote', text: quoteLines.join('\n') });
+        continue;
+      }
+
+      // Bullet list: "* texto" or "- texto"
+      if (/^(?:\*|-)\s+/.test(line)) {
+        const items: string[] = [];
+        while (i < lines.length && /^(?:\*|-)\s+/.test(lines[i] ?? '')) {
+          items.push((lines[i] ?? '').replace(/^(?:\*|-)\s+/, ''));
+          i += 1;
+        }
+        blocks.push({ type: 'ul', items });
+        continue;
+      }
+
+      // Numbered list: "1. texto"
+      if (/^\d+\.\s+/.test(line)) {
+        const items: string[] = [];
+        while (i < lines.length && /^\d+\.\s+/.test(lines[i] ?? '')) {
+          items.push((lines[i] ?? '').replace(/^\d+\.\s+/, ''));
+          i += 1;
+        }
+        blocks.push({ type: 'ol', items });
+        continue;
+      }
+
+      // Paragraph: consume until next structural block or empty line
+      const para: string[] = [];
+      while (i < lines.length) {
+        const cur = lines[i] ?? '';
+        if (cur.trim() === '') break;
+        if (cur.startsWith('> ') || /^(?:\*|-)\s+/.test(cur) || /^\d+\.\s+/.test(cur)) break;
+        para.push(cur);
+        i += 1;
+      }
+      blocks.push({ type: 'paragraph', text: para.join('\n') });
+    }
+  };
+
+  for (const token of tokens) {
+    if (token.type === 'codeblock') {
+      blocks.push({ type: 'codeblock', text: token.value });
+    } else {
+      pushTextToken(token.value);
+    }
+  }
+
+  // Avoid trailing spacers
+  while (blocks.length && blocks[blocks.length - 1]?.type === 'spacer') blocks.pop();
+
+  return blocks;
+};
+
+const renderWhatsAppInline = (text: string, keyPrefix: string): React.ReactNode[] => {
+  const nodes: React.ReactNode[] = [];
+  let i = 0;
+  let key = 0;
+
+  const pushText = (value: string) => {
+    if (value.length === 0) return;
+    nodes.push(<React.Fragment key={`${keyPrefix}-t-${key++}`}>{value}</React.Fragment>);
+  };
+
+  while (i < text.length) {
+    // Inline code: `texto`
+    if (text[i] === '`') {
+      const end = text.indexOf('`', i + 1);
+      if (end > i + 1) {
+        const code = text.slice(i + 1, end);
+        nodes.push(
+          <code
+            key={`${keyPrefix}-code-${key++}`}
+            className="px-1 py-0.5 rounded bg-black/25 text-[#e9edef] font-mono text-[12px]"
+          >
+            {code}
+          </code>
+        );
+        i = end + 1;
+        continue;
+      }
+    }
+
+    const ch = text[i];
+    if (ch === '*' || ch === '_' || ch === '~') {
+      const end = text.indexOf(ch, i + 1);
+      if (end > i + 1) {
+        const inner = text.slice(i + 1, end);
+        const innerNodes = renderWhatsAppInline(inner, `${keyPrefix}-in-${key}`);
+
+        if (ch === '*') {
+          nodes.push(
+            <strong key={`${keyPrefix}-b-${key++}`} className="font-bold">
+              {innerNodes}
+            </strong>
+          );
+        } else if (ch === '_') {
+          nodes.push(
+            <em key={`${keyPrefix}-i-${key++}`} className="italic">
+              {innerNodes}
+            </em>
+          );
+        } else {
+          nodes.push(
+            <s key={`${keyPrefix}-s-${key++}`} className="line-through">
+              {innerNodes}
+            </s>
+          );
+        }
+
+        i = end + 1;
+        continue;
+      }
+    }
+
+    // Plain text run
+    const nextSpecial = (() => {
+      const candidates = ['`', '*', '_', '~'].map(sym => text.indexOf(sym, i + 1)).filter(pos => pos !== -1);
+      return candidates.length ? Math.min(...candidates) : -1;
+    })();
+
+    if (nextSpecial === -1) {
+      pushText(text.slice(i));
+      break;
+    }
+
+    pushText(text.slice(i, nextSpecial));
+    i = nextSpecial;
+  }
+
+  return nodes;
+};
+
+const renderWhatsAppInlineWithBreaks = (text: string, keyPrefix: string): React.ReactNode => {
+  const parts = text.split(/\r?\n/);
+  return (
+    <>
+      {parts.map((part, idx) => (
+        <React.Fragment key={`${keyPrefix}-ln-${idx}`}>
+          {renderWhatsAppInline(part, `${keyPrefix}-ln-${idx}`)}
+          {idx < parts.length - 1 ? <br /> : null}
+        </React.Fragment>
+      ))}
+    </>
+  );
+};
+
+const renderWhatsAppFormattedBody = (text: string): React.ReactNode => {
+  const blocks = parseWhatsAppTextBlocks(text);
+
+  return (
+    <div className="space-y-1">
+      {blocks.map((b, idx) => {
+        const k = `wa-${idx}`;
+        if (b.type === 'spacer') return <div key={k} className="h-2" />;
+
+        if (b.type === 'codeblock') {
+          return (
+            <pre
+              key={k}
+              className="bg-[#111b21] rounded-md p-2 text-[#e9edef] font-mono text-[12px] leading-relaxed overflow-x-auto whitespace-pre-wrap"
+            >
+              <code>{b.text.replace(/^\n+|\n+$/g, '')}</code>
+            </pre>
+          );
+        }
+
+        if (b.type === 'quote') {
+          return (
+            <div key={k} className="border-l-2 border-[#00a884]/60 pl-3 py-0.5 bg-black/10 rounded-sm">
+              {renderWhatsAppInlineWithBreaks(b.text, k)}
+            </div>
+          );
+        }
+
+        if (b.type === 'ul') {
+          return (
+            <div key={k} className="space-y-1">
+              {b.items.map((item, itemIdx) => (
+                <div key={`${k}-ul-${itemIdx}`} className="flex gap-2">
+                  <span className="text-[#8696a0]">•</span>
+                  <span className="flex-1">{renderWhatsAppInlineWithBreaks(item, `${k}-ul-${itemIdx}`)}</span>
+                </div>
+              ))}
+            </div>
+          );
+        }
+
+        if (b.type === 'ol') {
+          return (
+            <div key={k} className="space-y-1">
+              {b.items.map((item, itemIdx) => (
+                <div key={`${k}-ol-${itemIdx}`} className="flex gap-2">
+                  <span className="text-[#8696a0]">{itemIdx + 1}.</span>
+                  <span className="flex-1">{renderWhatsAppInlineWithBreaks(item, `${k}-ol-${itemIdx}`)}</span>
+                </div>
+              ))}
+            </div>
+          );
+        }
+
+        // paragraph
+        return <div key={k}>{renderWhatsAppInlineWithBreaks(b.text, k)}</div>;
+      })}
+    </div>
+  );
+};
+
 // ============================================================================
 // BUTTON ICONS
 // ============================================================================
@@ -66,7 +324,9 @@ const MessageHeader: React.FC<MessageHeaderProps> = ({ header, variables, header
       if (!header.text) return null;
       return (
         <div className="bg-[#202c33] p-2 px-3 rounded-lg rounded-tl-none shadow-sm mb-1">
-          <p className="text-[13px] font-bold text-white">{replaceVariables(header.text, headerVariables || variables)}</p>
+          <p className="text-[13px] font-bold text-white">
+            {renderWhatsAppInlineWithBreaks(replaceVariables(header.text, headerVariables || variables), 'header')}
+          </p>
         </div>
       );
     case 'IMAGE':
@@ -146,11 +406,13 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
       <div className={`bg-[#202c33] shadow-sm overflow-hidden ${hasButtons ? 'rounded-t-lg rounded-tl-none' : 'rounded-lg rounded-tl-none'}`}>
         {/* Body */}
         <div className="p-3 text-[13px] leading-relaxed text-[#e9edef]">
-          {replaceVariables(bodyText, variables)}
+          {renderWhatsAppFormattedBody(replaceVariables(bodyText, variables))}
 
           {/* Footer */}
           {footer?.text && (
-            <p className="text-[11px] text-[#8696a0] mt-2 italic">{replaceVariables(footer.text, variables)}</p>
+            <p className="text-[11px] text-[#8696a0] mt-2 italic">
+              {renderWhatsAppInlineWithBreaks(replaceVariables(footer.text, variables), 'footer')}
+            </p>
           )}
 
           <div className="flex justify-end items-center gap-1 mt-1">
@@ -243,10 +505,10 @@ export const WhatsAppPhonePreview: React.FC<WhatsAppPhonePreviewProps> = ({
       </div>
 
       {/* Chat Area */}
-      <div className="flex-1 bg-[#0b141a] relative overflow-hidden p-4 flex flex-col">
+      <div className="flex-1 min-h-0 bg-[#0b141a] relative overflow-y-auto overflow-x-hidden p-4 flex flex-col">
         {/* Chat Background Pattern */}
         <div
-          className="absolute inset-0 opacity-[0.06]"
+          className="absolute inset-0 opacity-[0.06] pointer-events-none"
           style={{
             backgroundImage: 'radial-gradient(#fff 1px, transparent 1px)',
             backgroundSize: '20px 20px'

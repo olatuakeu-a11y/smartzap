@@ -11,10 +11,10 @@ export async function POST(request: NextRequest) {
     businessAccountId = body.businessAccountId
     accessToken = body.accessToken
   } catch {
-    // No body provided, will fallback to Redis
+    // Sem body: fallback para credenciais salvas
   }
 
-  // Fallback to Redis credentials if not provided
+  // Fallback para credenciais salvas (Supabase/env)
   if (!businessAccountId || !accessToken) {
     const credentials = await getWhatsAppCredentials()
     if (credentials) {

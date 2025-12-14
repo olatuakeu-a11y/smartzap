@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { AlertTriangle, HelpCircle, Save, RefreshCw, Wifi, Edit2, Shield, AlertCircle, UserCheck, Smartphone, X, Copy, Check, ExternalLink, Webhook, Clock, Phone, Trash2, Loader2, ChevronDown, ChevronUp, Zap, ArrowDown, CheckCircle2, Circle, Lock } from 'lucide-react';
+import { AlertTriangle, HelpCircle, Save, RefreshCw, Wifi, Edit2, Shield, AlertCircle, UserCheck, Smartphone, X, Copy, Check, ExternalLink, Webhook, Clock, Phone, Trash2, Loader2, ChevronDown, ChevronUp, Zap, ArrowDown, CheckCircle2, Circle, Lock, MessageSquare } from 'lucide-react';
 import { toast } from 'sonner';
 import { AppSettings } from '../../../types';
 import { AccountLimits } from '../../../lib/meta-limits';
@@ -38,6 +38,20 @@ interface SettingsViewProps {
   webhookUrl?: string;
   webhookToken?: string;
   webhookStats?: WebhookStats | null;
+  webhookSubscription?: {
+    ok: boolean;
+    wabaId?: string;
+    messagesSubscribed?: boolean;
+    subscribedFields?: string[];
+    apps?: Array<{ id?: string; name?: string; subscribed_fields?: string[] }>;
+    error?: string;
+    details?: unknown;
+  };
+  webhookSubscriptionLoading?: boolean;
+  webhookSubscriptionMutating?: boolean;
+  onRefreshWebhookSubscription?: () => void;
+  onSubscribeWebhookMessages?: () => Promise<void>;
+  onUnsubscribeWebhookMessages?: () => Promise<void>;
   // Phone numbers for webhook override
   phoneNumbers?: PhoneNumber[];
   phoneNumbersLoading?: boolean;
@@ -72,6 +86,43 @@ interface SettingsViewProps {
   saveTestContact?: (contact: { name?: string; phone: string }) => Promise<void>;
   removeTestContact?: () => Promise<void>;
   isSavingTestContact?: boolean;
+
+  // WhatsApp Turbo (Adaptive Throttle)
+  whatsappThrottle?: {
+    ok: boolean;
+    source?: 'db' | 'env';
+    phoneNumberId?: string | null;
+    config?: {
+      enabled: boolean;
+      sendConcurrency?: number;
+      startMps: number;
+      maxMps: number;
+      minMps: number;
+      cooldownSec: number;
+      minIncreaseGapSec: number;
+      sendFloorDelayMs: number;
+    };
+    state?: {
+      targetMps: number;
+      cooldownUntil?: string | null;
+      lastIncreaseAt?: string | null;
+      lastDecreaseAt?: string | null;
+      updatedAt?: string | null;
+    } | null;
+  } | null;
+  whatsappThrottleLoading?: boolean;
+  saveWhatsAppThrottle?: (data: {
+    enabled?: boolean;
+    sendConcurrency?: number;
+    startMps?: number;
+    maxMps?: number;
+    minMps?: number;
+    cooldownSec?: number;
+    minIncreaseGapSec?: number;
+    sendFloorDelayMs?: number;
+    resetState?: boolean;
+  }) => Promise<void>;
+  isSavingWhatsAppThrottle?: boolean;
 }
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
@@ -91,6 +142,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   webhookUrl,
   webhookToken,
   webhookStats,
+  webhookSubscription,
+  webhookSubscriptionLoading,
+  webhookSubscriptionMutating,
+  onRefreshWebhookSubscription,
+  onSubscribeWebhookMessages,
+  onUnsubscribeWebhookMessages,
   phoneNumbers,
   phoneNumbersLoading,
   onRefreshPhoneNumbers,
@@ -111,6 +168,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   saveTestContact,
   removeTestContact,
   isSavingTestContact,
+
+  // Turbo
+  whatsappThrottle,
+  whatsappThrottleLoading,
+  saveWhatsAppThrottle,
+  isSavingWhatsAppThrottle,
 }) => {
   // Always start collapsed
   const [isEditing, setIsEditing] = useState(false);
@@ -138,10 +201,93 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   // Selected domain for webhook URL
   const [selectedDomainUrl, setSelectedDomainUrl] = useState<string>('');
 
+  // Turbo form state
+  const [isEditingTurbo, setIsEditingTurbo] = useState(false);
+  const turboConfig = whatsappThrottle?.config;
+  const turboState = whatsappThrottle?.state;
+  const [turboDraft, setTurboDraft] = useState(() => ({
+    enabled: turboConfig?.enabled ?? false,
+    sendConcurrency: (turboConfig as any)?.sendConcurrency ?? 1,
+    batchSize: (turboConfig as any)?.batchSize ?? 10,
+    startMps: turboConfig?.startMps ?? 30,
+    maxMps: turboConfig?.maxMps ?? 80,
+    minMps: turboConfig?.minMps ?? 5,
+    cooldownSec: turboConfig?.cooldownSec ?? 30,
+    minIncreaseGapSec: turboConfig?.minIncreaseGapSec ?? 10,
+    sendFloorDelayMs: turboConfig?.sendFloorDelayMs ?? 0,
+  }));
+
+  // Keep draft in sync when server data arrives
+  React.useEffect(() => {
+    if (!turboConfig) return;
+    setTurboDraft({
+      enabled: turboConfig.enabled,
+      sendConcurrency: (turboConfig as any)?.sendConcurrency ?? 1,
+      batchSize: (turboConfig as any)?.batchSize ?? 10,
+      startMps: turboConfig.startMps,
+      maxMps: turboConfig.maxMps,
+      minMps: turboConfig.minMps,
+      cooldownSec: turboConfig.cooldownSec,
+      minIncreaseGapSec: turboConfig.minIncreaseGapSec,
+      sendFloorDelayMs: turboConfig.sendFloorDelayMs,
+    });
+  }, [turboConfig?.enabled, (turboConfig as any)?.sendConcurrency, (turboConfig as any)?.batchSize, turboConfig?.startMps, turboConfig?.maxMps, turboConfig?.minMps, turboConfig?.cooldownSec, turboConfig?.minIncreaseGapSec, turboConfig?.sendFloorDelayMs]);
+
+  const handleSaveTurbo = async () => {
+    if (!saveWhatsAppThrottle) return;
+
+    // Basic validation
+    if (turboDraft.minMps > turboDraft.maxMps) {
+      toast.error('minMps não pode ser maior que maxMps');
+      return;
+    }
+    if (turboDraft.startMps < turboDraft.minMps || turboDraft.startMps > turboDraft.maxMps) {
+      toast.error('startMps deve estar entre minMps e maxMps');
+      return;
+    }
+
+    await saveWhatsAppThrottle({
+      enabled: turboDraft.enabled,
+      sendConcurrency: turboDraft.sendConcurrency,
+      batchSize: (turboDraft as any).batchSize,
+      startMps: turboDraft.startMps,
+      maxMps: turboDraft.maxMps,
+      minMps: turboDraft.minMps,
+      cooldownSec: turboDraft.cooldownSec,
+      minIncreaseGapSec: turboDraft.minIncreaseGapSec,
+      sendFloorDelayMs: turboDraft.sendFloorDelayMs,
+    });
+    setIsEditingTurbo(false);
+  };
+
+  const handleResetTurbo = async () => {
+    if (!saveWhatsAppThrottle) return;
+    await saveWhatsAppThrottle({ resetState: true });
+    toast.success('Aprendizado do modo turbo reiniciado (target voltou pro startMps)');
+  };
+
   // Compute the actual webhook URL based on selected domain
   const computedWebhookUrl = selectedDomainUrl
     ? `${selectedDomainUrl}${webhookPath || '/api/webhook'}`
     : webhookUrl;
+
+  const handleSubscribeMessages = async () => {
+    if (!onSubscribeWebhookMessages) return;
+    try {
+      await onSubscribeWebhookMessages();
+    } catch {
+      // toast handled in controller
+    }
+  };
+
+  const handleUnsubscribeMessages = async () => {
+    if (!onUnsubscribeWebhookMessages) return;
+    try {
+      await onUnsubscribeWebhookMessages();
+    } catch {
+      // toast handled in controller
+    }
+  };
 
   const handleCopy = async (text: string, field: string) => {
     try {
@@ -404,7 +550,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </div>
 
           {settings.isConnected && (
-            <div className="flex flex-col gap-3 min-w-[140px]">
+            <div className="flex flex-col gap-3 min-w-35">
               <button
                 onClick={() => setIsEditing(!isEditing)}
                 className={`group relative overflow-hidden rounded-xl px-4 py-2.5 text-sm font-medium transition-all duration-300 flex items-center justify-center gap-2
@@ -618,6 +764,240 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </div>
         )}
 
+        {/* WhatsApp Turbo (Adaptive Throttle) */}
+        {settings.isConnected && saveWhatsAppThrottle && (
+          <div className="glass-panel rounded-2xl p-8">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h3 className="text-lg font-semibold text-white mb-1 flex items-center gap-2">
+                  <span className="w-1 h-6 bg-primary-500 rounded-full"></span>
+                  <Zap size={18} className="text-primary-400" />
+                  Modo Turbo (Beta)
+                </h3>
+                <p className="text-sm text-gray-400">
+                  Ajuste automático de taxa baseado em feedback do Meta (ex.: erro <span className="font-mono">130429</span>). Ideal para campanhas grandes.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setIsEditingTurbo((v) => !v)}
+                  className="px-4 py-2 rounded-xl bg-white/5 text-white hover:bg-white/10 border border-white/10 hover:border-white/20 transition-all text-sm font-medium"
+                >
+                  {isEditingTurbo ? 'Fechar' : 'Configurar'}
+                </button>
+              </div>
+            </div>
+
+            <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-zinc-900/40 border border-white/10 rounded-xl p-4">
+                <div className="text-xs text-gray-500">Status</div>
+                {whatsappThrottleLoading ? (
+                  <div className="mt-2 text-sm text-gray-400 flex items-center gap-2">
+                    <Loader2 size={14} className="animate-spin" /> Carregando…
+                  </div>
+                ) : (
+                  <div className="mt-2">
+                    <div className="text-sm text-white">
+                      {turboConfig?.enabled ? (
+                        <span className="text-emerald-300 font-medium">Ativo</span>
+                      ) : (
+                        <span className="text-gray-300 font-medium">Inativo</span>
+                      )}
+                      <span className="text-gray-500"> · </span>
+                      <span className="text-xs text-gray-400">fonte: {whatsappThrottle?.source || '—'}</span>
+                    </div>
+                    <div className="mt-2 text-xs text-gray-400">
+                      Target atual: <span className="font-mono text-white">{typeof turboState?.targetMps === 'number' ? turboState.targetMps : '—'}</span> mps
+                    </div>
+                    {turboState?.cooldownUntil && (
+                      <div className="mt-1 text-xs text-amber-300">
+                        Cooldown até: <span className="font-mono">{new Date(turboState.cooldownUntil).toLocaleString('pt-BR')}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div className="bg-zinc-900/40 border border-white/10 rounded-xl p-4">
+                <div className="text-xs text-gray-500">Phone Number ID</div>
+                <div className="mt-2 text-sm text-white font-mono break-all">
+                  {whatsappThrottle?.phoneNumberId || settings.phoneNumberId || '—'}
+                </div>
+              </div>
+
+              <div className="bg-zinc-900/40 border border-white/10 rounded-xl p-4">
+                <div className="text-xs text-gray-500">Ações</div>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <button
+                    onClick={handleResetTurbo}
+                    disabled={!!isSavingWhatsAppThrottle}
+                    className="px-3 py-2 bg-zinc-800 hover:bg-zinc-700 border border-white/10 rounded-lg transition-colors text-sm flex items-center gap-2 disabled:opacity-50"
+                    title="Reseta o targetMps para startMps"
+                  >
+                    {isSavingWhatsAppThrottle ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+                    Resetar aprendizado
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {isEditingTurbo && (
+              <div className="mt-6 p-5 bg-zinc-900/30 border border-white/10 rounded-2xl">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="text-sm font-medium text-white">Configurações</div>
+                  <label className="flex items-center gap-2 text-sm text-gray-300">
+                    <input
+                      type="checkbox"
+                      checked={!!turboDraft.enabled}
+                      onChange={(e) => setTurboDraft((s) => ({ ...s, enabled: e.target.checked }))}
+                      className="accent-emerald-500"
+                    />
+                    Ativar modo turbo
+                  </label>
+                </div>
+
+                <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-400 mb-1">sendConcurrency</label>
+                    <input
+                      type="number"
+                      value={turboDraft.sendConcurrency}
+                      onChange={(e) => setTurboDraft((s) => ({ ...s, sendConcurrency: Number(e.target.value) }))}
+                      className="w-full px-3 py-2 bg-zinc-900/50 border border-white/10 rounded-lg text-sm text-white font-mono"
+                      min={1}
+                      max={50}
+                    />
+                    <p className="text-[11px] text-gray-500 mt-1">Quantos envios em paralelo por batch (1 = sequencial).</p>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-gray-400 mb-1">batchSize</label>
+                    <input
+                      type="number"
+                      value={(turboDraft as any).batchSize}
+                      onChange={(e) => setTurboDraft((s) => ({ ...s, batchSize: Number(e.target.value) }))}
+                      className="w-full px-3 py-2 bg-zinc-900/50 border border-white/10 rounded-lg text-sm text-white font-mono"
+                      min={1}
+                      max={200}
+                    />
+                    <p className="text-[11px] text-gray-500 mt-1">Quantos contatos por step do workflow (mais alto = menos steps). Dica: use batchSize ≥ sendConcurrency.</p>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-gray-400 mb-1">startMps</label>
+                    <input
+                      type="number"
+                      value={turboDraft.startMps}
+                      onChange={(e) => setTurboDraft((s) => ({ ...s, startMps: Number(e.target.value) }))}
+                      className="w-full px-3 py-2 bg-zinc-900/50 border border-white/10 rounded-lg text-sm text-white font-mono"
+                      min={1}
+                      max={1000}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-gray-400 mb-1">maxMps</label>
+                    <input
+                      type="number"
+                      value={turboDraft.maxMps}
+                      onChange={(e) => setTurboDraft((s) => ({ ...s, maxMps: Number(e.target.value) }))}
+                      className="w-full px-3 py-2 bg-zinc-900/50 border border-white/10 rounded-lg text-sm text-white font-mono"
+                      min={1}
+                      max={1000}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-gray-400 mb-1">minMps</label>
+                    <input
+                      type="number"
+                      value={turboDraft.minMps}
+                      onChange={(e) => setTurboDraft((s) => ({ ...s, minMps: Number(e.target.value) }))}
+                      className="w-full px-3 py-2 bg-zinc-900/50 border border-white/10 rounded-lg text-sm text-white font-mono"
+                      min={1}
+                      max={1000}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-gray-400 mb-1">cooldownSec</label>
+                    <input
+                      type="number"
+                      value={turboDraft.cooldownSec}
+                      onChange={(e) => setTurboDraft((s) => ({ ...s, cooldownSec: Number(e.target.value) }))}
+                      className="w-full px-3 py-2 bg-zinc-900/50 border border-white/10 rounded-lg text-sm text-white font-mono"
+                      min={1}
+                      max={600}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-gray-400 mb-1">minIncreaseGapSec</label>
+                    <input
+                      type="number"
+                      value={turboDraft.minIncreaseGapSec}
+                      onChange={(e) => setTurboDraft((s) => ({ ...s, minIncreaseGapSec: Number(e.target.value) }))}
+                      className="w-full px-3 py-2 bg-zinc-900/50 border border-white/10 rounded-lg text-sm text-white font-mono"
+                      min={1}
+                      max={600}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-gray-400 mb-1">sendFloorDelayMs</label>
+                    <input
+                      type="number"
+                      value={turboDraft.sendFloorDelayMs}
+                      onChange={(e) => setTurboDraft((s) => ({ ...s, sendFloorDelayMs: Number(e.target.value) }))}
+                      className="w-full px-3 py-2 bg-zinc-900/50 border border-white/10 rounded-lg text-sm text-white font-mono"
+                      min={0}
+                      max={5000}
+                    />
+                  </div>
+                </div>
+
+                <div className="mt-5 flex justify-end gap-3">
+                  <button
+                    onClick={() => {
+                      setIsEditingTurbo(false);
+                      // reset draft back to server config
+                      if (turboConfig) {
+                        setTurboDraft({
+                          enabled: turboConfig.enabled,
+                          sendConcurrency: (turboConfig as any)?.sendConcurrency ?? 1,
+                          batchSize: (turboConfig as any)?.batchSize ?? 10,
+                          startMps: turboConfig.startMps,
+                          maxMps: turboConfig.maxMps,
+                          minMps: turboConfig.minMps,
+                          cooldownSec: turboConfig.cooldownSec,
+                          minIncreaseGapSec: turboConfig.minIncreaseGapSec,
+                          sendFloorDelayMs: turboConfig.sendFloorDelayMs,
+                        });
+                      }
+                    }}
+                    className="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={handleSaveTurbo}
+                    disabled={!!isSavingWhatsAppThrottle}
+                    className="px-5 py-2 bg-white text-black font-bold rounded-lg hover:bg-gray-200 transition-colors flex items-center gap-2 disabled:opacity-50"
+                  >
+                    {isSavingWhatsAppThrottle ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                    Salvar
+                  </button>
+                </div>
+
+                <p className="mt-4 text-xs text-gray-500">
+                  Dica: se você alterar <span className="font-mono">startMps</span>, use “Resetar aprendizado” para o target atual acompanhar.
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Webhook Configuration Section */}
         {settings.isConnected && webhookUrl && (
           <div className="glass-panel rounded-2xl p-8">
@@ -722,6 +1102,97 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               )}
             </div>
 
+            {/* Meta Subscription (messages) */}
+            <div className="bg-zinc-900/40 border border-white/10 rounded-xl p-4 mb-6">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h4 className="font-medium text-white mb-1 flex items-center gap-2">
+                    <MessageSquare size={16} className="text-emerald-400" />
+                    Inscrição do webhook (campo: <span className="font-mono text-xs text-emerald-300">messages</span>)
+                  </h4>
+                  <p className="text-xs text-gray-400">
+                    Isso autoriza a Meta a enviar eventos de <strong>mensagens</strong> para o seu webhook.
+                    É independente do override do número (Prioridade #1).
+                  </p>
+                </div>
+
+                <button
+                  onClick={onRefreshWebhookSubscription}
+                  disabled={webhookSubscriptionLoading || webhookSubscriptionMutating}
+                  className="p-2 text-gray-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+                  title="Atualizar status"
+                >
+                  <RefreshCw size={16} className={(webhookSubscriptionLoading || webhookSubscriptionMutating) ? 'animate-spin' : ''} />
+                </button>
+              </div>
+
+              <div className="mt-3 flex flex-col gap-3">
+                <div className="flex items-center gap-2 text-sm">
+                  {webhookSubscriptionLoading ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin text-gray-400" />
+                      <span className="text-gray-400">Consultando status…</span>
+                    </>
+                  ) : webhookSubscription?.ok ? (
+                    webhookSubscription.messagesSubscribed ? (
+                      <>
+                        <CheckCircle2 size={16} className="text-emerald-400" />
+                        <span className="text-emerald-300">Ativo</span>
+                        <span className="text-gray-500">·</span>
+                        <span className="text-gray-400 text-xs">WABA: {webhookSubscription.wabaId}</span>
+                      </>
+                    ) : (
+                      <>
+                        <AlertCircle size={16} className="text-amber-400" />
+                        <span className="text-amber-300">Inativo</span>
+                        <span className="text-gray-500">·</span>
+                        <span className="text-gray-400 text-xs">WABA: {webhookSubscription.wabaId}</span>
+                      </>
+                    )
+                  ) : (
+                    <>
+                      <AlertTriangle size={16} className="text-red-400" />
+                      <span className="text-red-300">Erro ao consultar</span>
+                    </>
+                  )}
+                </div>
+
+                {webhookSubscription && !webhookSubscriptionLoading && webhookSubscription.ok && (
+                  <div className="text-[11px] text-gray-500">
+                    Campos ativos: {webhookSubscription.subscribedFields?.length ? webhookSubscription.subscribedFields.join(', ') : '—'}
+                  </div>
+                )}
+
+                {webhookSubscription && !webhookSubscriptionLoading && !webhookSubscription.ok && webhookSubscription.error && (
+                  <div className="text-xs text-red-300/90 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
+                    {webhookSubscription.error}
+                  </div>
+                )}
+
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={handleSubscribeMessages}
+                    disabled={webhookSubscriptionLoading || webhookSubscriptionMutating || !onSubscribeWebhookMessages}
+                    className="px-3 py-2 bg-emerald-500 hover:bg-emerald-400 text-black font-medium rounded-lg transition-colors text-sm flex items-center gap-2 disabled:opacity-50"
+                    title="Inscrever messages via API"
+                  >
+                    {webhookSubscriptionMutating ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
+                    Ativar messages
+                  </button>
+
+                  <button
+                    onClick={handleUnsubscribeMessages}
+                    disabled={webhookSubscriptionLoading || webhookSubscriptionMutating || !onUnsubscribeWebhookMessages}
+                    className="px-3 py-2 bg-zinc-800 hover:bg-zinc-700 border border-white/10 rounded-lg transition-colors text-sm flex items-center gap-2 disabled:opacity-50"
+                    title="Desinscrever (remover subscription)"
+                  >
+                    {webhookSubscriptionMutating ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+                    Remover inscrição
+                  </button>
+                </div>
+              </div>
+            </div>
+
             {/* Phone Numbers List */}
             {phoneNumbers && phoneNumbers.length > 0 && (
               <>
@@ -736,7 +1207,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     return (
                       <div className="mb-4 p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl animate-in fade-in slide-in-from-top-2 duration-300">
                         <div className="flex items-start gap-3">
-                          <div className="p-2 bg-amber-500/20 rounded-lg flex-shrink-0">
+                          <div className="p-2 bg-amber-500/20 rounded-lg shrink-0">
                             <AlertTriangle size={20} className="text-amber-400" />
                           </div>
                           <div className="flex-1">
@@ -860,7 +1331,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                                 </div>
                               </div>
 
-                              <div className="flex items-center gap-2 flex-shrink-0">
+                              <div className="flex items-center gap-2 shrink-0">
                                 {/* Level Badge - Clickable to expand funnel */}
                                 <button
                                   onClick={() => setExpandedFunnelPhoneId(isFunnelExpanded ? null : phone.id)}
@@ -1107,7 +1578,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
                   <div className="space-y-3">
                     <div className="flex gap-3 p-3 bg-emerald-500/5 border border-emerald-500/20 rounded-lg">
-                      <div className="w-8 h-8 bg-emerald-500/20 rounded-lg flex items-center justify-center text-emerald-400 font-bold text-sm flex-shrink-0">
+                      <div className="w-8 h-8 bg-emerald-500/20 rounded-lg flex items-center justify-center text-emerald-400 font-bold text-sm shrink-0">
                         #1
                       </div>
                       <div>
@@ -1122,7 +1593,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     </div>
 
                     <div className="flex gap-3 p-3 bg-blue-500/5 border border-blue-500/20 rounded-lg">
-                      <div className="w-8 h-8 bg-blue-500/20 rounded-lg flex items-center justify-center text-blue-400 font-bold text-sm flex-shrink-0">
+                      <div className="w-8 h-8 bg-blue-500/20 rounded-lg flex items-center justify-center text-blue-400 font-bold text-sm shrink-0">
                         #2
                       </div>
                       <div>
@@ -1137,7 +1608,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     </div>
 
                     <div className="flex gap-3 p-3 bg-zinc-700/30 border border-white/10 rounded-lg">
-                      <div className="w-8 h-8 bg-zinc-700 rounded-lg flex items-center justify-center text-gray-300 font-bold text-sm flex-shrink-0">
+                      <div className="w-8 h-8 bg-zinc-700 rounded-lg flex items-center justify-center text-gray-300 font-bold text-sm shrink-0">
                         #3
                       </div>
                       <div>

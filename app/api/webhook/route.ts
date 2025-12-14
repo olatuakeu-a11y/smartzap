@@ -65,6 +65,76 @@ export async function POST(request: NextRequest) {
       const changes = entry.changes || []
 
       for (const change of changes) {
+        // =========================================================
+        // Template Status Updates (Meta)
+        // =========================================================
+        const rawTemplateUpdates =
+          change.value?.message_template_status_update ??
+          change.value?.message_template_status_updates ??
+          []
+
+        const templateUpdates = Array.isArray(rawTemplateUpdates)
+          ? rawTemplateUpdates
+          : rawTemplateUpdates
+            ? [rawTemplateUpdates]
+            : []
+
+        for (const tu of templateUpdates) {
+          const templateId = (tu?.message_template_id || tu?.id || null) as string | null
+          const templateName = (tu?.message_template_name || tu?.name || null) as string | null
+          const eventRaw = (tu?.event || tu?.status || tu?.message_template_status || tu?.template_status || '') as string
+          const reason = (tu?.reason || tu?.rejected_reason || tu?.reason_text || tu?.details || '') as string
+
+          const event = String(eventRaw || '').toUpperCase()
+          if (!templateId && !templateName) continue
+
+          // Normaliza para os status mais comuns da Meta
+          let newStatus = event
+          if (!newStatus) newStatus = 'PENDING'
+          if (newStatus === 'DISABLED') newStatus = 'REJECTED'
+
+          try {
+            // Tenta atualizar por meta_id primeiro (mais confiável)
+            let updated = false
+            if (templateId) {
+              const { data, error } = await supabase
+                .from('templates')
+                .update({
+                  status: newStatus,
+                  meta_id: templateId,
+                  rejected_reason: newStatus === 'REJECTED' && reason ? reason : null,
+                  updated_at: new Date().toISOString(),
+                })
+                .eq('meta_id', templateId)
+                .select('id')
+
+              if (error) throw error
+              updated = !!(data && data.length > 0)
+            }
+
+            // Fallback: atualizar por nome
+            if (!updated && templateName) {
+              const { data, error } = await supabase
+                .from('templates')
+                .update({
+                  status: newStatus,
+                  ...(templateId ? { meta_id: templateId } : {}),
+                  rejected_reason: newStatus === 'REJECTED' && reason ? reason : null,
+                  updated_at: new Date().toISOString(),
+                })
+                .eq('name', templateName)
+                .select('id')
+
+              if (error) throw error
+              updated = !!(data && data.length > 0)
+            }
+
+            console.log(`🧩 Template status update: ${templateName || templateId} -> ${newStatus}${reason ? ` (${reason})` : ''}`)
+          } catch (e) {
+            console.error('Failed to process template status update:', e)
+          }
+        }
+
         const statuses = change.value?.statuses || []
 
         for (const statusUpdate of statuses) {
@@ -84,24 +154,26 @@ export async function POST(request: NextRequest) {
           // Message not from a campaign, skip
           if (!existingUpdate) continue
 
-          // Status progression: pending → sent → delivered → read
-          // Only update if new status is "later" in progression
-          const statusOrder = { pending: 0, sent: 1, delivered: 2, read: 3, failed: 4 }
-          const currentOrder = statusOrder[existingUpdate.status as keyof typeof statusOrder] ?? 0
-          const newOrder = statusOrder[msgStatus as keyof typeof statusOrder] ?? 0
-
-          if (newOrder <= currentOrder && msgStatus !== 'failed') {
-            console.log(`⏭️ Skipping: ${messageId} already at ${existingUpdate.status}, ignoring ${msgStatus}`)
-            continue
-          }
-
           const campaignId = existingUpdate.campaign_id
           const phone = existingUpdate.phone
           const traceId = (existingUpdate as any).trace_id as string | null
           const phoneMasked = maskPhone(phone)
 
+          // Status progression: pending → sent → delivered → read
+          // Only update if new status is "later" in progression.
+          // Observação importante: o workflow já marca como `sent` no DB.
+          // Então o webhook com status `sent` tende a chegar com `newOrder === currentOrder`.
+          // Mesmo assim, queremos emitir `webhook_sent` para medir latência e correlação.
+          const statusOrder = { pending: 0, sent: 1, delivered: 2, read: 3, failed: 4 }
+          const currentOrder = statusOrder[existingUpdate.status as keyof typeof statusOrder] ?? 0
+          const newOrder = statusOrder[msgStatus as keyof typeof statusOrder] ?? 0
+
           // Emit structured event (easy to filter by traceId)
-          if (traceId) {
+          // Regras:
+          // - Sempre emite para `sent` (mesmo duplicado) para termos essa etapa no trace.
+          // - Emite para `failed` sempre.
+          // - Emite para progressão (delivered/read) quando avança.
+          if (traceId && (msgStatus === 'sent' || msgStatus === 'failed' || newOrder > currentOrder)) {
             await emitWorkflowTrace({
               traceId,
               campaignId,
@@ -112,8 +184,17 @@ export async function POST(request: NextRequest) {
               extra: {
                 messageId,
                 previousStatus: existingUpdate.status,
+                duplicate: newOrder <= currentOrder,
               },
             })
+          }
+
+          // Skip processing if it does not advance status (except `failed`).
+          // Para `sent`, a gente normalmente não quer reprocessar (o workflow já contou),
+          // mas mantemos o trace acima.
+          if (newOrder <= currentOrder && msgStatus !== 'failed') {
+            console.log(`⏭️ Skipping: ${messageId} already at ${existingUpdate.status}, ignoring ${msgStatus}`)
+            continue
           }
 
           // Atualiza o banco (Supabase) — fonte da verdade

@@ -6,6 +6,7 @@ import { TemplatePreviewRenderer } from '../templates/TemplatePreviewRenderer';
 import { templateService } from '../../../services';
 import { ContactQuickEditModal } from '@/components/features/contacts/ContactQuickEditModal';
 import { humanizePrecheckReason } from '@/lib/precheck-humanizer';
+import { Page, PageHeader, PageTitle } from '@/components/ui/page';
 
 interface DetailCardProps {
   title: string;
@@ -182,14 +183,17 @@ interface CampaignDetailsViewProps {
   onPause?: () => void;
   onResume?: () => void;
   onStart?: () => void;
+  onCancelSchedule?: () => void;
   onResendSkipped?: () => void;
   isPausing?: boolean;
   isResuming?: boolean;
   isStarting?: boolean;
+  isCancelingSchedule?: boolean;
   isResendingSkipped?: boolean;
   canPause?: boolean;
   canResume?: boolean;
   canStart?: boolean;
+  canCancelSchedule?: boolean;
   // Realtime status
   isRealtimeConnected?: boolean;
   shouldShowRefreshButton?: boolean;
@@ -211,14 +215,17 @@ export const CampaignDetailsView: React.FC<CampaignDetailsViewProps> = ({
   onPause,
   onResume,
   onStart,
+  onCancelSchedule,
   onResendSkipped,
   isPausing,
   isResuming,
   isStarting,
+  isCancelingSchedule,
   isResendingSkipped,
   canPause,
   canResume,
   canStart,
+  canCancelSchedule,
   isRealtimeConnected,
   shouldShowRefreshButton,
   isRefreshing,
@@ -240,47 +247,60 @@ export const CampaignDetailsView: React.FC<CampaignDetailsViewProps> = ({
   const scheduledTimeDisplay = campaign.scheduledAt
     ? new Date(campaign.scheduledAt).toLocaleString('pt-BR', {
       dateStyle: 'short',
-      timeStyle: 'short'
+      timeStyle: 'short',
     })
     : null;
+  const campaignStatusClass =
+    campaign.status === CampaignStatus.COMPLETED
+      ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
+      : campaign.status === CampaignStatus.SENDING
+        ? 'bg-blue-500/10 border-blue-500/20 text-blue-400'
+        : campaign.status === CampaignStatus.PAUSED
+          ? 'bg-amber-500/10 border-amber-500/20 text-amber-400'
+          : campaign.status === CampaignStatus.SCHEDULED
+            ? 'bg-purple-500/10 border-purple-500/20 text-purple-400'
+            : campaign.status === CampaignStatus.FAILED
+              ? 'bg-red-500/10 border-red-500/20 text-red-400'
+              : 'bg-zinc-800 border-zinc-700 text-gray-400';
 
   return (
-    <div className="space-y-8 pb-20">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <PrefetchLink href="/campaigns" className="text-xs text-gray-500 hover:text-white mb-2 inline-flex items-center gap-1 transition-colors">
+    <Page className="pb-20">
+      <PageHeader>
+        <div className="min-w-0">
+          <PrefetchLink
+            href="/campaigns"
+            className="text-xs text-gray-500 hover:text-white mb-2 inline-flex items-center gap-1 transition-colors"
+          >
             <ChevronLeft size={12} /> Voltar para Lista
           </PrefetchLink>
-          <h1 className="text-3xl font-bold text-white tracking-tight flex items-center gap-3">
-            {campaign.name}
-            <span className={`text-xs px-2 py-1 rounded border ${campaign.status === CampaignStatus.COMPLETED ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' :
-              campaign.status === CampaignStatus.SENDING ? 'bg-blue-500/10 border-blue-500/20 text-blue-400' :
-                campaign.status === CampaignStatus.PAUSED ? 'bg-amber-500/10 border-amber-500/20 text-amber-400' :
-                  campaign.status === CampaignStatus.SCHEDULED ? 'bg-purple-500/10 border-purple-500/20 text-purple-400' :
-                    campaign.status === CampaignStatus.FAILED ? 'bg-red-500/10 border-red-500/20 text-red-400' :
-                      'bg-zinc-800 border-zinc-700 text-gray-400'
-              }`}>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <PageTitle className="flex items-center gap-3">
+              {campaign.name}
+            </PageTitle>
+
+            <span className={`text-xs px-2 py-1 rounded border ${campaignStatusClass}`}>
               {campaign.status}
             </span>
+
             {isRealtimeConnected && (
-              <span className="flex items-center gap-1 text-xs text-primary-400">
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-primary-500"></span>
-                </span>
+              <span className="inline-flex items-center gap-2 text-xs text-primary-400">
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-primary-500" />
                 Ao vivo
               </span>
             )}
-          </h1>
+          </div>
+
           <p className="text-gray-400 text-sm mt-1">
-            ID: {campaign.id} • Criado em {campaign.createdAt ? new Date(campaign.createdAt).toLocaleDateString('pt-BR') : 'agora'}
+            ID: {campaign.id} • Criado em{' '}
+            {campaign.createdAt ? new Date(campaign.createdAt).toLocaleDateString('pt-BR') : 'agora'}
             {campaign.templateName && (
               <button
                 onClick={() => setShowTemplatePreview(true)}
                 className="ml-2 text-primary-400 hover:text-primary-300 transition-colors cursor-pointer"
               >
-                • Template: <span className="font-medium underline underline-offset-2">{campaign.templateName}</span>
+                • Template:{' '}
+                <span className="font-medium underline underline-offset-2">{campaign.templateName}</span>
               </button>
             )}
             {scheduledTimeDisplay && campaign.status === CampaignStatus.SCHEDULED && (
@@ -291,7 +311,8 @@ export const CampaignDetailsView: React.FC<CampaignDetailsViewProps> = ({
             )}
           </p>
         </div>
-        <div className="flex gap-2">
+
+        <div className="flex flex-wrap items-center justify-end gap-2">
           {/* Start button for scheduled campaigns */}
           {canStart && (
             <button
@@ -301,6 +322,19 @@ export const CampaignDetailsView: React.FC<CampaignDetailsViewProps> = ({
             >
               {isStarting ? <Loader2 size={16} className="animate-spin" /> : <Play size={16} />}
               {isStarting ? 'Iniciando...' : 'Iniciar Agora'}
+            </button>
+          )}
+
+          {/* Cancel schedule (scheduled campaigns only) */}
+          {canCancelSchedule && (
+            <button
+              onClick={onCancelSchedule}
+              disabled={isCancelingSchedule}
+              className="px-4 py-2 bg-zinc-900 border border-white/10 rounded-lg text-gray-300 hover:text-white hover:bg-white/5 transition-colors flex items-center gap-2 text-sm font-medium disabled:opacity-50"
+              title="Cancela o agendamento e volta a campanha para Rascunho"
+            >
+              {isCancelingSchedule ? <Loader2 size={16} className="animate-spin" /> : <Ban size={16} />}
+              {isCancelingSchedule ? 'Cancelando...' : 'Cancelar agendamento'}
             </button>
           )}
 
@@ -357,7 +391,7 @@ export const CampaignDetailsView: React.FC<CampaignDetailsViewProps> = ({
             <Download size={16} /> Relatório CSV
           </button>
         </div>
-      </div>
+      </PageHeader>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
@@ -529,6 +563,6 @@ export const CampaignDetailsView: React.FC<CampaignDetailsViewProps> = ({
         onClose={() => setShowTemplatePreview(false)}
         templateName={campaign.templateName}
       />
-    </div>
+    </Page>
   );
 };

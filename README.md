@@ -126,7 +126,6 @@ flowchart TB
    %% ========== Async ==========
    subgraph U["Upstash"]
       QStash["QStash / Workflow\n(fila + steps duráveis)"]
-      Redis["Redis (opcional)\ncache/estado/limites"]
    end
 
    Lib --> QStash

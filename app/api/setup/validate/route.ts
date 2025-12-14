@@ -10,15 +10,13 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     const { type, credentials } = body as {
-      type: 'database' | 'redis' | 'qstash' | 'whatsapp'
+      type: 'database' | 'qstash' | 'whatsapp'
       credentials: Record<string, string>
     }
 
     switch (type) {
       case 'database':
         return await validateSupabase(credentials)
-      case 'redis':
-        return await validateRedis(credentials)
       case 'qstash':
         return await validateQStash(credentials)
       case 'whatsapp':
@@ -230,52 +228,6 @@ async function validateSupabase(credentials: Record<string, string>) {
     return NextResponse.json({
       valid: false,
       error: 'Não foi possível conectar ao Supabase (verifique a URL)'
-    })
-  }
-}
-
-async function validateRedis(credentials: Record<string, string>) {
-  const url = cleanCredential(credentials.url)
-  const token = cleanCredential(credentials.token)
-
-  if (!url || !token) {
-    return NextResponse.json(
-      { valid: false, error: 'URL e token são obrigatórios' },
-      { status: 400 }
-    )
-  }
-
-  try {
-    // Test Redis connection with a simple PING
-    const response = await fetch(`${url}/ping`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-    })
-
-    if (!response.ok) {
-      const errorText = await response.text().catch(() => 'Erro desconhecido')
-      return NextResponse.json({
-        valid: false,
-        error: response.status === 401 ? 'Token do Redis inválido. Verifique o UPSTASH_REDIS_REST_TOKEN.' : `Erro de conexão com Redis: ${errorText}`
-      })
-    }
-
-    const data = await response.json()
-
-    if (data.result === 'PONG') {
-      return NextResponse.json({ valid: true, message: 'Redis OK!' })
-    }
-
-    return NextResponse.json({
-      valid: false,
-      error: 'Resposta inesperada do Redis'
-    })
-  } catch (error) {
-    console.error('Redis validation error:', error)
-    return NextResponse.json({
-      valid: false,
-      error: 'Não foi possível conectar ao Redis'
     })
   }
 }

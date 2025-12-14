@@ -19,7 +19,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
   try {
     const { phoneNumberId } = await context.params;
 
-    // Try to get credentials from request body first, then fallback to Redis
+    // Tenta obter credenciais do body primeiro; fallback para credenciais salvas (Supabase/env)
     let accessToken: string | undefined;
     let callbackUrl: string | undefined;
 
@@ -31,10 +31,10 @@ export async function POST(request: NextRequest, context: RouteContext) {
       }
       callbackUrl = body.callbackUrl;
     } catch {
-      // Empty body, will use Redis credentials
+      // Body vazio: usar credenciais salvas
     }
 
-    // Always try Redis credentials if we don't have a valid token yet
+    // Se ainda não temos token válido, usar credenciais salvas
     if (!accessToken) {
       const credentials = await getWhatsAppCredentials();
       if (credentials?.accessToken) {
@@ -114,7 +114,7 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
   try {
     const { phoneNumberId } = await context.params;
 
-    // Try to get credentials from request body first, then fallback to Redis
+    // Tenta obter credenciais do body primeiro; fallback para credenciais salvas (Supabase/env)
     let accessToken: string | undefined;
 
     try {
@@ -124,10 +124,10 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
         accessToken = body.accessToken.trim();
       }
     } catch {
-      // Empty body, will use Redis credentials
+      // Body vazio: usar credenciais salvas
     }
 
-    // Always try Redis credentials if we don't have a valid token yet
+    // Se ainda não temos token válido, usar credenciais salvas
     if (!accessToken) {
       const credentials = await getWhatsAppCredentials();
       if (credentials?.accessToken) {

@@ -82,7 +82,7 @@ export interface GenerateUtilityResponse {
 
 export const templateService = {
   getAll: async (): Promise<Template[]> => {
-    // Call API directly - server will get credentials from Redis
+    // Chama a API; o servidor busca credenciais salvas (Supabase settings / env)
     const response = await fetch('/api/templates', {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' }

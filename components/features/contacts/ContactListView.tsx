@@ -38,6 +38,7 @@ import Papa from 'papaparse';
 import { Contact, ContactStatus, CustomFieldDefinition } from '../../../types';
 import { CustomFieldsManager } from './CustomFieldsManager';
 import { CustomFieldsSheet } from './CustomFieldsSheet';
+import { Page, PageActions, PageDescription, PageHeader, PageTitle } from '@/components/ui/page';
 
 // ... (existing imports)
 
@@ -386,14 +387,14 @@ export const ContactListView: React.FC<ContactListViewProps> = ({
   ];
 
   return (
-    <div className="flex flex-col h-full space-y-6 relative p-6 lg:p-10 max-w-7xl mx-auto w-full">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <Page className="flex flex-col h-full min-h-0">
+      <PageHeader>
         <div>
-          <h1 className="text-3xl font-bold text-white tracking-tight mb-2">Contatos</h1>
-          <p className="text-gray-400">Gerencie sua audiência e listas</p>
+          <PageTitle>Contatos</PageTitle>
+          <PageDescription>Gerencie sua audiência e listas</PageDescription>
         </div>
-        <div className="flex gap-3">
+
+        <PageActions className="flex-wrap justify-start sm:justify-end">
           {isSomeSelected && (
             <button
               onClick={onBulkDeleteClick}
@@ -432,8 +433,8 @@ export const ContactListView: React.FC<ContactListViewProps> = ({
             <Plus size={18} />
             Novo Contato
           </button>
-        </div>
-      </div>
+        </PageActions>
+      </PageHeader>
 
       {/* Stats Row */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
@@ -1348,7 +1349,7 @@ export const ContactListView: React.FC<ContactListViewProps> = ({
           )}
         </SheetContent>
       </Sheet>
-    </div>
+    </Page>
   );
 };
 

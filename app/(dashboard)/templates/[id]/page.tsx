@@ -13,6 +13,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/utils/supabase/client';
 import { cn } from '@/lib/utils';
 import { WhatsAppPhonePreview } from '@/components/ui/WhatsAppPhonePreview';
+import { Page, PageActions, PageDescription, PageHeader, PageTitle } from '@/components/ui/page';
 
 export default function TemplateProjectDetailsPage() {
     const params = useParams();
@@ -158,7 +159,7 @@ export default function TemplateProjectDetailsPage() {
 
     if (isLoading) {
         return (
-            <div className="flex items-center justify-center min-h-screen">
+            <div className="flex items-center justify-center h-full">
                 <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
             </div>
         );
@@ -166,7 +167,7 @@ export default function TemplateProjectDetailsPage() {
 
     if (error || !project) {
         return (
-            <div className="flex flex-col items-center justify-center min-h-screen gap-4">
+            <div className="flex flex-col items-center justify-center h-full gap-4">
                 <div className="p-4 bg-red-50 text-red-600 rounded-lg flex items-center gap-2">
                     <AlertCircle className="w-5 h-5" />
                     <span>Erro ao carregar projeto ou projeto não encontrado.</span>
@@ -183,64 +184,68 @@ export default function TemplateProjectDetailsPage() {
     }
 
     return (
-        <div className="grid grid-cols-12 h-[calc(100vh-80px)] md:h-[calc(100vh-60px)] gap-6 p-6 overflow-hidden w-full">
-            {/* --- LEFT SIDE: LIST & STATS --- */}
-            <div className="col-span-12 lg:col-span-8 flex flex-col min-w-0 h-full">
-
-                {/* Header Actions */}
-                <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-6 gap-4">
-                    <div className="flex items-center gap-4">
+        <Page className="flex flex-col h-full min-h-0">
+            <PageHeader>
+                <div className="min-w-0">
+                    <div className="flex items-center gap-3">
                         <button
                             onClick={() => router.push('/templates')}
                             className="p-2 -ml-2 text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors"
+                            aria-label="Voltar para templates"
                         >
                             <ArrowLeft className="w-5 h-5" />
                         </button>
-                        <div>
-                            <h1 className="text-xl font-bold flex items-center gap-2">
-                                {project.title}
-                                <span className="px-2 py-0.5 text-xs rounded-full border bg-zinc-100 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400">
+
+                        <div className="min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                                <PageTitle className="text-2xl sm:text-3xl truncate">{project.title}</PageTitle>
+                                <span className="px-2 py-0.5 text-xs rounded-full border bg-zinc-100 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 shrink-0">
                                     {groups.DRAFT.length === 0 && groups.PENDING.length === 0 ? 'Concluído' : 'Em Progresso'}
                                 </span>
-                            </h1>
-                            <p className="text-xs text-zinc-500 mt-1">
+                            </div>
+                            <PageDescription className="text-sm">
                                 Criado em {new Date(project.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', hour: '2-digit', minute: '2-digit' })}
-                            </p>
+                            </PageDescription>
                         </div>
                     </div>
-
-                    <div className="flex gap-2 w-full md:w-auto">
-                        <button
-                            onClick={() => syncProjectMutation.mutate()}
-                            disabled={syncProjectMutation.isPending}
-                            className="px-3 py-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors flex items-center gap-2 text-sm disabled:opacity-50"
-                        >
-                            <RefreshCw className={cn("w-4 h-4", syncProjectMutation.isPending && "animate-spin")} />
-                            {syncProjectMutation.isPending ? 'Sincronizando...' : 'Sincronizar Meta'}
-                        </button>
-
-                        {groups.DRAFT.length > 0 && (
-                            <button
-                                onClick={toggleSelectAll}
-                                className="px-3 py-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors flex items-center gap-2 text-sm"
-                            >
-                                {selectedItems.length === groups.DRAFT.length ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4" />}
-                                Selecionar Tudo
-                            </button>
-                        )}
-
-                        {selectedItems.length > 0 && (
-                            <button
-                                onClick={() => bulkSubmitMutation.mutate(selectedItems)}
-                                disabled={bulkSubmitMutation.isPending}
-                                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors flex items-center gap-2 text-sm font-medium disabled:opacity-50"
-                            >
-                                {bulkSubmitMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                                Enviar ({selectedItems.length}) para Meta
-                            </button>
-                        )}
-                    </div>
                 </div>
+
+                <PageActions className="flex-wrap justify-start sm:justify-end">
+                    <button
+                        onClick={() => syncProjectMutation.mutate()}
+                        disabled={syncProjectMutation.isPending}
+                        className="px-3 py-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors flex items-center gap-2 text-sm disabled:opacity-50"
+                    >
+                        <RefreshCw className={cn("w-4 h-4", syncProjectMutation.isPending && "animate-spin")} />
+                        {syncProjectMutation.isPending ? 'Sincronizando...' : 'Sincronizar Meta'}
+                    </button>
+
+                    {groups.DRAFT.length > 0 && (
+                        <button
+                            onClick={toggleSelectAll}
+                            className="px-3 py-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors flex items-center gap-2 text-sm"
+                        >
+                            {selectedItems.length === groups.DRAFT.length ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4" />}
+                            Selecionar Tudo
+                        </button>
+                    )}
+
+                    {selectedItems.length > 0 && (
+                        <button
+                            onClick={() => bulkSubmitMutation.mutate(selectedItems)}
+                            disabled={bulkSubmitMutation.isPending}
+                            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors flex items-center gap-2 text-sm font-medium disabled:opacity-50"
+                        >
+                            {bulkSubmitMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                            Enviar ({selectedItems.length}) para Meta
+                        </button>
+                    )}
+                </PageActions>
+            </PageHeader>
+
+            <div className="grid grid-cols-12 flex-1 min-h-0 gap-6 overflow-hidden w-full">
+                {/* --- LEFT SIDE: LIST & STATS --- */}
+                <div className="col-span-12 lg:col-span-8 flex flex-col min-w-0 min-h-0">
 
                 {/* Stats Grid */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 shrink-0">
@@ -378,8 +383,8 @@ export default function TemplateProjectDetailsPage() {
                 </div>
             </div>
 
-            {/* --- RIGHT SIDE: PREVIEW --- */}
-            <div className="hidden lg:flex col-span-4 border-l border-zinc-200 dark:border-zinc-800 pl-6 flex-col justify-center">
+                {/* --- RIGHT SIDE: PREVIEW --- */}
+                <div className="hidden lg:flex col-span-4 border-l border-zinc-200 dark:border-zinc-800 pl-6 flex-col min-h-0">
                 {previewItem ? (
                     <div className="sticky top-6 w-full">
                         <h3 className="text-sm font-medium text-zinc-400 mb-4 text-center">
@@ -421,8 +426,9 @@ export default function TemplateProjectDetailsPage() {
                         <p className="text-sm">Selecione um template para visualizar</p>
                     </div>
                 )}
+                </div>
             </div>
-        </div>
+        </Page>
     );
 }
 

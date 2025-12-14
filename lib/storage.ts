@@ -224,10 +224,10 @@ export const storage = {
       return updated.find(c => c.id === id);
     },
 
-    // DEPRECATED: Mensagens agora vêm do Redis via campaignService.getMessages()
+    // DEPRECATED: Mensagens agora vêm do backend (campaign_contacts) via campaignService.getMessages()
     // Esta função existe apenas por compatibilidade e retorna array vazio
     getMessages: (_campaignId: string): Message[] => {
-      // Não gerar mais dados mock - mensagens reais vêm do Redis
+      // Não gerar mais dados mock - mensagens reais vêm do backend
       return [];
     }
   },

@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 
 export interface SetupStep {
-  id: 'redis' | 'qstash' | 'whatsapp';
+  id: 'qstash' | 'whatsapp';
   title: string;
   description: string;
   status: 'pending' | 'configured' | 'error';
@@ -44,16 +44,16 @@ export const SetupWizardView: React.FC<SetupWizardViewProps> = ({
   const requiredCompleted = requiredSteps.filter(s => s.status === 'configured').length;
   const progressPercent = (completedSteps / steps.length) * 100;
 
-  // Check if infrastructure (Redis + QStash) is ready
+  // Check if minimum infrastructure (QStash) is ready
   const infrastructureReady = steps
-    .filter(s => s.id === 'redis' || s.id === 'qstash')
+    .filter(s => s.id === 'qstash')
     .every(s => s.status === 'configured');
 
   return (
     <div className="max-w-2xl mx-auto">
       {/* Header */}
       <div className="text-center mb-10">
-        <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-primary-500 to-emerald-600 mb-4">
+        <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-linear-to-br from-primary-500 to-emerald-600 mb-4">
           <Sparkles size={32} className="text-white" />
         </div>
         <h1 className="text-3xl font-bold text-white tracking-tight mb-2">
@@ -82,7 +82,7 @@ export const SetupWizardView: React.FC<SetupWizardViewProps> = ({
         </div>
         <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
           <div 
-            className="h-full bg-gradient-to-r from-primary-500 to-emerald-500 transition-all duration-500"
+            className="h-full bg-linear-to-r from-primary-500 to-emerald-500 transition-all duration-500"
             style={{ width: `${progressPercent}%` }}
           />
         </div>
@@ -150,7 +150,7 @@ export const SetupWizardView: React.FC<SetupWizardViewProps> = ({
                     {/* Error message */}
                     {isError && step.errorMessage && (
                       <div className="flex items-start gap-2 text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg p-2 mb-3">
-                        <AlertCircle size={14} className="mt-0.5 flex-shrink-0" />
+                        <AlertCircle size={14} className="mt-0.5 shrink-0" />
                         <span>{step.errorMessage}</span>
                       </div>
                     )}
@@ -234,7 +234,7 @@ export const SetupWizardView: React.FC<SetupWizardViewProps> = ({
                 Infraestrutura pronta!
               </h4>
               <p className="text-sm text-amber-200/70">
-                Redis e QStash estão configurados. Agora você pode adicionar suas credenciais 
+                QStash está configurado. Agora você pode adicionar suas credenciais 
                 do WhatsApp diretamente na tela de configurações acima.
               </p>
               {onContinueToSettings && (
@@ -255,7 +255,7 @@ export const SetupWizardView: React.FC<SetupWizardViewProps> = ({
             Complete os passos acima para liberar as configurações do WhatsApp.
           </p>
           <p className="text-gray-500 text-xs mt-2">
-            Após adicionar Upstash no Vercel, clique em "Verificar novamente" para atualizar.
+            Após configurar o QStash no Vercel, clique em "Verificar novamente" para atualizar.
           </p>
         </div>
       )}

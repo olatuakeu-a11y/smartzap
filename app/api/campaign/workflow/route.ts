@@ -5,6 +5,8 @@ import { CampaignStatus } from '@/types'
 import { getUserFriendlyMessage } from '@/lib/whatsapp-errors'
 import { buildMetaTemplatePayload, precheckContactForTemplate } from '@/lib/whatsapp/template-contract'
 import { emitWorkflowTrace, maskPhone, timePhase } from '@/lib/workflow-trace'
+import { createRateLimiter } from '@/lib/rate-limiter'
+import { recordStableBatch, recordThroughputExceeded, getAdaptiveThrottleConfig, getAdaptiveThrottleState } from '@/lib/whatsapp-adaptive-throttle'
 
 interface Contact {
   contactId: string
@@ -37,7 +39,7 @@ async function claimPendingForSend(
   campaignId: string,
   identifiers: { contactId: string; phone: string },
   traceId?: string
-): Promise<boolean> {
+): Promise<string | null> {
   const now = new Date().toISOString()
   const query = supabase
     .from('campaign_contacts')
@@ -54,9 +56,10 @@ async function claimPendingForSend(
       `[Workflow] Falha ao claimar contato ${identifiers.phone} (seguindo sem enviar):`,
       error
     )
-    return false
+    return null
   }
-  return Array.isArray(data) && data.length > 0
+  const claimed = Array.isArray(data) && data.length > 0
+  return claimed ? now : null
 }
 
 /**
@@ -180,8 +183,13 @@ export const { POST } = serve<CampaignWorkflowInput>(
     // Step 2: Process contacts in smaller batches
     // Each batch is a separate step = separate HTTP request = bypasses 10s limit
     // Observação: cada contato faz múltiplas operações (DB + fetch Meta).
-    // Para evitar timeout por step (Vercel), mantemos batches pequenos.
-    const BATCH_SIZE = 10
+    // Para bater metas agressivas (ex.: “enviar em 1 min”), batch size precisa ser ajustável.
+    // Mantemos um default conservador (10) e permitimos tuning via settings/env.
+    const cfgForBatching = await getAdaptiveThrottleConfig().catch(() => null)
+    const rawBatchSize = Number(cfgForBatching?.batchSize ?? process.env.WHATSAPP_WORKFLOW_BATCH_SIZE ?? '10')
+    const BATCH_SIZE = Number.isFinite(rawBatchSize)
+      ? Math.max(1, Math.min(200, Math.floor(rawBatchSize)))
+      : 10
     const batches: Contact[][] = []
 
     for (let i = 0; i < contacts.length; i += BATCH_SIZE) {
@@ -193,6 +201,9 @@ export const { POST } = serve<CampaignWorkflowInput>(
 
       await context.run(`send-batch-${batchIndex}`, async () => {
         const step = `send-batch-${batchIndex}`
+
+        let batchOk = true
+        let batchError: string | null = null
 
         await emitWorkflowTrace({
           traceId,
@@ -207,27 +218,80 @@ export const { POST } = serve<CampaignWorkflowInput>(
         let sentCount = 0
         let failedCount = 0
         let skippedCount = 0
+        let firstDispatchAtInBatch: string | null = null
+        let lastSentAtInBatch: string | null = null
         let metaTimeMs = 0
         let dbTimeMs = 0
 
-        const template: any = templateSnapshot || (await templateDb.getByName(templateName))
-        if (!template) throw new Error(`Template ${templateName} não encontrado no banco local. Sincronize Templates.`)
+        // Adaptive throttle (global throughput) — state compartilhado via settings.
+        // Ajuda a "pisar no acelerador" sem ficar batendo em 130429 o tempo todo.
+        const adaptiveConfig = await getAdaptiveThrottleConfig().catch(() => null)
+        const adaptiveEnabled = Boolean(adaptiveConfig?.enabled)
+        let sawThroughput429 = false
+        let limiter: ReturnType<typeof createRateLimiter> | null = null
 
-        // Check pause status once per batch (trade-off: no DB hit per contact)
-        const { data: campaignStatusAtBatchStart } = await supabase
-          .from('campaigns')
-          .select('status')
-          .eq('id', campaignId)
-          .single()
+        const rawConcurrency = Number(adaptiveConfig?.sendConcurrency ?? process.env.WHATSAPP_SEND_CONCURRENCY ?? '1')
+        const concurrency = Number.isFinite(rawConcurrency)
+          ? Math.max(1, Math.min(50, Math.floor(rawConcurrency)))
+          : 1
 
-        if (campaignStatusAtBatchStart?.status === CampaignStatus.PAUSED) {
-          console.log(`⏸️ Campaign ${campaignId} is paused, skipping batch ${batchIndex}`)
-          return
-        }
+        try {
+          const template: any = templateSnapshot || (await templateDb.getByName(templateName))
+          if (!template) throw new Error(`Template ${templateName} não encontrado no banco local. Sincronize Templates.`)
 
-        for (const contact of batch) {
-          try {
-            const phoneMasked = maskPhone(contact.phone)
+          // Check pause status once per batch (trade-off: no DB hit per contact)
+          const { data: campaignStatusAtBatchStart } = await supabase
+            .from('campaigns')
+            .select('status')
+            .eq('id', campaignId)
+            .single()
+
+          if (campaignStatusAtBatchStart?.status === CampaignStatus.PAUSED) {
+            console.log(`⏸️ Campaign ${campaignId} is paused, skipping batch ${batchIndex}`)
+            return
+          }
+
+          if (adaptiveEnabled) {
+            const state = await getAdaptiveThrottleState(phoneNumberId)
+            limiter = createRateLimiter(state.targetMps)
+
+            await emitWorkflowTrace({
+              traceId,
+              campaignId,
+              step,
+              batchIndex,
+              phase: 'throttle_state',
+              ok: true,
+              extra: {
+                enabled: true,
+                targetMps: state.targetMps,
+                cooldownUntil: state.cooldownUntil || null,
+              },
+            })
+          }
+
+          await emitWorkflowTrace({
+            traceId,
+            campaignId,
+            step,
+            batchIndex,
+            phase: 'batch_config',
+            ok: true,
+            extra: {
+              concurrency,
+              batchSize: BATCH_SIZE,
+              adaptiveEnabled,
+              floorDelayMs: Number(adaptiveConfig?.sendFloorDelayMs ?? process.env.WHATSAPP_SEND_FLOOR_DELAY_MS || '0'),
+            },
+          })
+
+          const processContact = async (contact: Contact) => {
+            try {
+              const phoneMasked = maskPhone(contact.phone)
+
+              if (limiter) {
+                await limiter.acquire()
+              }
 
             // Contrato Ouro: pré-check/guard-rail por contato (documented-only)
             const precheck = precheckContactForTemplate(
@@ -268,11 +332,47 @@ export const { POST } = serve<CampaignWorkflowInput>(
             }
 
             // Claim idempotente: só 1 executor envia por contato
-            const claimed = await timePhase(
-              'db_claim_pending',
-              { traceId, campaignId, step, batchIndex, contactId: contact.contactId, phoneMasked },
-              async () => claimPendingForSend(campaignId, { contactId: contact.contactId as string, phone: contact.phone }, traceId)
-            )
+            // Observação: o timing sozinho não diz se o claim ocorreu; registramos claimed=true/false.
+            let claimed = false
+            let claimedAt: string | null = null
+            {
+              const t0 = Date.now()
+              try {
+                claimedAt = await claimPendingForSend(
+                  campaignId,
+                  { contactId: contact.contactId as string, phone: contact.phone },
+                  traceId
+                )
+                claimed = Boolean(claimedAt)
+                if (claimedAt && !firstDispatchAtInBatch) firstDispatchAtInBatch = claimedAt
+                await emitWorkflowTrace({
+                  traceId,
+                  campaignId,
+                  step,
+                  batchIndex,
+                  contactId: contact.contactId,
+                  phoneMasked,
+                  phase: 'db_claim_pending',
+                  ok: true,
+                  ms: Date.now() - t0,
+                  extra: { claimed },
+                })
+              } catch (err) {
+                await emitWorkflowTrace({
+                  traceId,
+                  campaignId,
+                  step,
+                  batchIndex,
+                  contactId: contact.contactId,
+                  phoneMasked,
+                  phase: 'db_claim_pending',
+                  ok: false,
+                  ms: Date.now() - t0,
+                  extra: { error: err instanceof Error ? err.message : String(err) },
+                })
+                throw err
+              }
+            }
             if (!claimed) {
               console.log(`↩️ Idempotência: ${contact.phone} não estava pending (ou já claimado), pulando envio.`)
               continue
@@ -291,19 +391,46 @@ export const { POST } = serve<CampaignWorkflowInput>(
             }
 
             const metaStart = Date.now()
-            const response = await fetch(
-              `https://graph.facebook.com/v24.0/${phoneNumberId}/messages`,
-              {
-                method: 'POST',
-                headers: {
-                  'Authorization': `Bearer ${accessToken}`,
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(whatsappPayload),
-              }
-            )
 
-            const data = await response.json()
+            // Timeout defensivo para não ficar "preso" sem meta_send_ok/meta_send_fail.
+            // Ajustável via env; default bem conservador (60s).
+            const metaTimeoutMs = Number(process.env.META_FETCH_TIMEOUT_MS || '60000')
+            const controller = new AbortController()
+            const timeout = setTimeout(() => controller.abort(), metaTimeoutMs)
+
+            let response: Response
+            let data: any
+            try {
+              await emitWorkflowTrace({
+                traceId,
+                campaignId,
+                step,
+                batchIndex,
+                contactId: contact.contactId,
+                phoneMasked,
+                phase: 'meta_request_start',
+                ok: true,
+                extra: { timeoutMs: metaTimeoutMs },
+              })
+
+              response = await fetch(
+                `https://graph.facebook.com/v24.0/${phoneNumberId}/messages`,
+                {
+                  method: 'POST',
+                  headers: {
+                    'Authorization': `Bearer ${accessToken}`,
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify(whatsappPayload),
+                  signal: controller.signal,
+                }
+              )
+
+              data = await response.json()
+            } finally {
+              clearTimeout(timeout)
+            }
+
             const metaMs = Date.now() - metaStart
             metaTimeMs += metaMs
 
@@ -316,6 +443,9 @@ export const { POST } = serve<CampaignWorkflowInput>(
                 await updateContactStatus(campaignId, { contactId: contact.contactId as string, phone: contact.phone }, 'sent', { messageId, traceId })
                 dbTimeMs += Date.now() - t0
               }
+
+              // Métrica operacional: quando foi o último "sent" (envio/dispatch), sem depender de delivery.
+              lastSentAtInBatch = new Date().toISOString()
 
               await emitWorkflowTrace({
                 traceId,
@@ -338,6 +468,37 @@ export const { POST } = serve<CampaignWorkflowInput>(
               const originalError = data.error?.message || 'Unknown error'
               const translatedError = getUserFriendlyMessage(errorCode) || originalError
               const errorWithCode = `(#${errorCode}) ${translatedError}`
+
+              // Feedback loop: 130429 = throughput estourado.
+              // Reduzimos o alvo e aplicamos um cooldown para não continuar batendo no limite.
+              if (adaptiveEnabled && errorCode === 130429 && !sawThroughput429) {
+                // Set flag BEFORE awaiting, para evitar múltiplas reduções concorrentes no mesmo batch.
+                sawThroughput429 = true
+                const update = await recordThroughputExceeded(phoneNumberId)
+                if (limiter) {
+                  try {
+                    limiter.updateRate(update.next.targetMps)
+                  } catch {
+                    // best-effort
+                  }
+                }
+                await emitWorkflowTrace({
+                  traceId,
+                  campaignId,
+                  step,
+                  batchIndex,
+                  contactId: contact.contactId,
+                  phoneMasked,
+                  phase: 'throttle_decrease',
+                  ok: true,
+                  extra: {
+                    errorCode,
+                    previousMps: update.previous.targetMps,
+                    nextMps: update.next.targetMps,
+                    cooldownUntil: update.next.cooldownUntil || null,
+                  },
+                })
+              }
 
               await emitWorkflowTrace({
                 traceId,
@@ -369,35 +530,125 @@ export const { POST } = serve<CampaignWorkflowInput>(
               console.log(`❌ Failed ${contact.phone}: ${errorWithCode}`)
             }
 
-            // Small delay between messages (15ms ~ 66 msgs/sec)
-            await new Promise(resolve => setTimeout(resolve, 15))
-
-          } catch (error) {
-            // Update contact status in Supabase
-            const errorMsg = error instanceof Error ? error.message : 'Erro desconhecido'
-            // Neste ponto, contactId é obrigatório (validado no início)
-            const phoneMasked = maskPhone(contact.phone)
-
-            await emitWorkflowTrace({
-              traceId,
-              campaignId,
-              step: `send-batch-${batchIndex}`,
-              batchIndex,
-              contactId: contact.contactId,
-              phoneMasked,
-              phase: 'contact_exception',
-              ok: false,
-              extra: { error: errorMsg },
-            })
-
-            {
-              const t0 = Date.now()
-              await updateContactStatus(campaignId, { contactId: contact.contactId as string, phone: contact.phone }, 'failed', { error: errorMsg, traceId })
-              dbTimeMs += Date.now() - t0
+            // Delay mínimo opcional (deixa desligado por padrão).
+            // Observação: com limiter ativo, esse delay não é necessário para throughput,
+            // mas pode ser útil para aliviar CPU/logs em bursts.
+            const floorDelayMs = Number(adaptiveConfig?.sendFloorDelayMs ?? process.env.WHATSAPP_SEND_FLOOR_DELAY_MS || '0')
+            if (floorDelayMs > 0) {
+              await new Promise(resolve => setTimeout(resolve, floorDelayMs))
             }
-            failedCount++
-            console.error(`❌ Error sending to ${contact.phone}:`, error)
+
+            } catch (error) {
+              // Update contact status in Supabase
+              const errorMsg = error instanceof Error ? error.message : 'Erro desconhecido'
+              // Neste ponto, contactId é obrigatório (validado no início)
+              const phoneMasked = maskPhone(contact.phone)
+
+              await emitWorkflowTrace({
+                traceId,
+                campaignId,
+                step: `send-batch-${batchIndex}`,
+                batchIndex,
+                contactId: contact.contactId,
+                phoneMasked,
+                phase: 'contact_exception',
+                ok: false,
+                extra: { error: errorMsg },
+              })
+
+              {
+                const t0 = Date.now()
+                await updateContactStatus(campaignId, { contactId: contact.contactId as string, phone: contact.phone }, 'failed', { error: errorMsg, traceId })
+                dbTimeMs += Date.now() - t0
+              }
+              failedCount++
+              console.error(`❌ Error sending to ${contact.phone}:`, error)
+            }
           }
+
+          // Pool bounded: N workers que puxam o próximo contato.
+          // Default concurrency=1 mantém o comportamento atual (sequencial).
+          let nextIndex = 0
+          const workerCount = Math.min(concurrency, batch.length)
+
+          const workers = Array.from({ length: workerCount }, () =>
+            (async () => {
+              while (true) {
+                const idx = nextIndex
+                nextIndex += 1
+                if (idx >= batch.length) return
+                await processContact(batch[idx])
+              }
+            })()
+          )
+
+          await Promise.allSettled(workers)
+
+        } catch (err) {
+          batchOk = false
+          batchError = err instanceof Error ? err.message : String(err)
+          throw err
+        } finally {
+          if (limiter) {
+            try {
+              limiter.stop()
+            } catch {
+              // best-effort
+            }
+          }
+
+          // Se o batch foi estável (sem 130429), podemos aumentar um pouco o alvo.
+          // Fazemos isso no finally para não perder a chance em batches com early return.
+          if (adaptiveEnabled && !sawThroughput429) {
+            try {
+              const update = await recordStableBatch(phoneNumberId)
+              if (update.changed) {
+                await emitWorkflowTrace({
+                  traceId,
+                  campaignId,
+                  step,
+                  batchIndex,
+                  phase: 'throttle_increase',
+                  ok: true,
+                  extra: {
+                    previousMps: update.previous.targetMps,
+                    nextMps: update.next.targetMps,
+                  },
+                })
+              }
+            } catch (e) {
+              await emitWorkflowTrace({
+                traceId,
+                campaignId,
+                step,
+                batchIndex,
+                phase: 'throttle_increase',
+                ok: false,
+                extra: {
+                  error: e instanceof Error ? e.message : String(e),
+                },
+              })
+            }
+          }
+
+          // Sempre emitimos batch_end (mesmo com erro) para fechar o passo no trace.
+          await emitWorkflowTrace({
+            traceId,
+            campaignId,
+            step,
+            batchIndex,
+            phase: 'batch_end',
+            ok: batchOk,
+            extra: {
+              sentCount,
+              failedCount,
+              skippedCount,
+              metaTimeMs,
+              dbTimeMs,
+              error: batchError,
+              sawThroughput429,
+            },
+          })
         }
 
         // Update stats in Supabase (source of truth)
@@ -413,27 +664,17 @@ export const { POST } = serve<CampaignWorkflowInput>(
                 sent: campaign.sent + sentCount,
                 failed: campaign.failed + failedCount,
                 skipped: (campaign as any).skipped + skippedCount,
+                // Início do disparo: quando o primeiro contato foi claimado como "sending".
+                // Guardamos só se ainda não existe no registro.
+                firstDispatchAt: (campaign as any).firstDispatchAt || firstDispatchAtInBatch || null,
+                // Atualiza somente quando houve pelo menos 1 envio com sucesso neste batch.
+                // Importante: isso mede o tempo de disparo (sent), não entrega.
+                lastSentAt: lastSentAtInBatch || (campaign as any).lastSentAt || null,
               })
             }
             dbTimeMs += Date.now() - t0
           }
         )
-
-        await emitWorkflowTrace({
-          traceId,
-          campaignId,
-          step,
-          batchIndex,
-          phase: 'batch_end',
-          ok: true,
-          extra: {
-            sentCount,
-            failedCount,
-            skippedCount,
-            metaTimeMs,
-            dbTimeMs,
-          },
-        })
 
         console.log(`📦 Batch ${batchIndex + 1}/${batches.length}: ${sentCount} sent, ${failedCount} failed, ${skippedCount} skipped`)
       })

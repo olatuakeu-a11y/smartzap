@@ -35,20 +35,66 @@ export const dynamic = 'force-dynamic'
 export async function POST(request: NextRequest) {
   const body = await request.json()
   const { campaignId, templateName, whatsappCredentials, templateVariables, flowId } = body
+  const trigger: 'schedule' | 'manual' | string | undefined = body?.trigger
+  const scheduledAtFromJob: string | undefined = body?.scheduledAt
   let { contacts } = body
+
+  // Carrega campanha cedo para:
+  // - validar gatilho de agendamento (evitar job “fantasma” após cancelamento)
+  // - obter template_variables quando necessário
+  // - evitar queries duplicadas (template_spec_hash)
+  const { data: campaignRow, error: campaignError } = await supabase
+    .from('campaigns')
+    .select('status, scheduled_date, template_variables, template_spec_hash')
+    .eq('id', campaignId)
+    .single()
+
+  if (campaignError || !campaignRow) {
+    console.error('[Dispatch] Campaign not found:', campaignError)
+    return NextResponse.json({ error: 'Campanha não encontrada' }, { status: 404 })
+  }
+
+  // Se o job veio do scheduler, só pode rodar se ainda estiver agendada.
+  // Isso evita iniciar campanha após o usuário cancelar (best-effort, já que o cancelamento do job pode falhar).
+  if (trigger === 'schedule') {
+    const isStillScheduled = String((campaignRow as any).status) === 'SCHEDULED'
+    const scheduledDate = (campaignRow as any).scheduled_date as string | null
+
+    if (!isStillScheduled || !scheduledDate) {
+      return NextResponse.json(
+        {
+          status: 'ignored',
+          message: 'Campanha não está mais agendada; ignorando disparo do scheduler.',
+        },
+        { status: 202 }
+      )
+    }
+
+    // Verificação extra: se o job carregar scheduledAt, confirme se bate (tolerância de 60s)
+    if (scheduledAtFromJob) {
+      const jobMs = new Date(scheduledAtFromJob).getTime()
+      const dbMs = new Date(scheduledDate).getTime()
+      if (Number.isFinite(jobMs) && Number.isFinite(dbMs)) {
+        const diff = Math.abs(jobMs - dbMs)
+        if (diff > 60_000) {
+          return NextResponse.json(
+            {
+              status: 'ignored',
+              message: 'Job de agendamento não corresponde ao scheduledAt atual; ignorando (provável cancelamento/alteração).',
+            },
+            { status: 202 }
+          )
+        }
+      }
+    }
+  }
 
   // Get template variables from campaign if not provided directly
   let resolvedTemplateVariables: any = templateVariables
   if (!resolvedTemplateVariables) {
-    const { data: campaign, error } = await supabase
-      .from('campaigns')
-      .select('template_variables')
-      .eq('id', campaignId)
-      .single()
-
-    if (campaign && (campaign as any).template_variables != null) {
+    if ((campaignRow as any).template_variables != null) {
       // JSONB should already be a native JS object; keep a string fallback for safety.
-      const tv = (campaign as any).template_variables
+      const tv = (campaignRow as any).template_variables
       if (typeof tv === 'string') {
         try {
           resolvedTemplateVariables = JSON.parse(tv)
@@ -83,14 +129,8 @@ export async function POST(request: NextRequest) {
       components: (template as any).components || (template as any).content || [],
     }
 
-    const { data: existing } = await supabase
-      .from('campaigns')
-      .select('template_spec_hash')
-      .eq('id', campaignId)
-      .single()
-
     // Só setar snapshot se ainda não existir (evita drift/regravação em replays)
-    if (!(existing as any)?.template_spec_hash) {
+    if (!(campaignRow as any)?.template_spec_hash) {
       await supabase
         .from('campaigns')
         .update({
@@ -304,7 +344,7 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  // Get credentials: Body (if valid) > Redis > Env
+  // Get credentials: Body (if valid) > DB (Supabase settings) > Env
   let phoneNumberId: string | undefined
   let accessToken: string | undefined
 

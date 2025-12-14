@@ -4,9 +4,13 @@ import React from 'react';
 import { useRouter } from 'next/navigation';
 import { useTemplatesController } from '@/hooks/useTemplates';
 import { TemplateListView } from '@/components/features/templates/TemplateListView';
+import { useManualDraftsController } from '@/hooks/useManualDrafts';
+import { ManualDraftsView } from '@/components/features/templates/ManualDraftsView';
 import { useTemplateProjectsQuery, useTemplateProjectMutations } from '@/hooks/useTemplateProjects';
-import { Loader2, Plus, Folder, Search, RefreshCw, CheckCircle, AlertTriangle, Trash2, Calendar, LayoutGrid, Copy } from 'lucide-react';
+import { Loader2, Plus, Folder, Search, RefreshCw, CheckCircle, AlertTriangle, Trash2, Calendar, LayoutGrid, Copy, Sparkles, Zap } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Page, PageActions, PageDescription, PageHeader, PageTitle } from '@/components/ui/page';
+import { Button } from '@/components/ui/button';
 
 // Status Badge Component
 const StatusBadge = ({ status, approvedCount, totalCount }: { status: string; approvedCount?: number; totalCount?: number }) => {
@@ -39,13 +43,28 @@ const StatusBadge = ({ status, approvedCount, totalCount }: { status: string; ap
   );
 };
 
+const AIFeatureWarningBanner = () => (
+  <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl px-4 py-3 flex items-start sm:items-center gap-3">
+    <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5 sm:mt-0" />
+    <div className="min-w-0">
+      <p className="text-amber-200 font-medium text-sm">
+        Funcionalidade em desenvolvimento
+      </p>
+      <p className="text-amber-300/70 text-sm mt-0.5">
+        Criação de templates com I.A ainda não está funcionando. Aguarde um pouco mais.
+      </p>
+    </div>
+  </div>
+);
+
 export default function TemplatesPage() {
   const router = useRouter();
   const controller = useTemplatesController();
+  const draftsController = useManualDraftsController();
   const { data: projects, isLoading: isLoadingProjects, refetch } = useTemplateProjectsQuery();
   const { deleteProject, isDeleting } = useTemplateProjectMutations();
   const [searchTerm, setSearchTerm] = React.useState('');
-  const [activeTab, setActiveTab] = React.useState<'projects' | 'approved'>('approved');
+  const [activeTab, setActiveTab] = React.useState<'projects' | 'meta' | 'drafts'>('meta');
 
   const handleDeleteProject = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
@@ -61,33 +80,82 @@ export default function TemplatesPage() {
   }, [projects, searchTerm]);
 
   return (
-    <div className="space-y-8">
-      <div className="flex items-end justify-between">
+    <Page>
+      {/* Aviso (topo): fica acima do título */}
+      {activeTab === 'projects' && <AIFeatureWarningBanner />}
+
+      <PageHeader>
         <div>
-          <h1 className="text-3xl font-bold text-white tracking-tight mb-2">Templates</h1>
-          <p className="text-gray-400">Gerencie sua fábrica de templates e aprovados.</p>
+          <PageTitle>Templates</PageTitle>
+          <PageDescription>Gerencie templates da Meta e rascunhos manuais.</PageDescription>
         </div>
-        <button
-          onClick={() => router.push('/templates/new')}
-          className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-xl font-medium flex items-center gap-2 transition-all shadow-lg hover:shadow-emerald-500/20"
-        >
-          <Plus className="w-5 h-5" />
-          Novo Projeto
-        </button>
-      </div>
+        <PageActions>
+          {activeTab === 'meta' && (
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={() => controller.setIsBulkModalOpen(true)}
+                className="bg-linear-to-r from-emerald-600 to-teal-600 text-white hover:opacity-90 transition-opacity shadow-lg shadow-emerald-900/20"
+              >
+                <Zap className="w-4 h-4 text-yellow-300" />
+                Gerar UTILITY em Massa
+              </Button>
+
+              <Button
+                onClick={() => controller.setIsAiModalOpen(true)}
+                className="bg-linear-to-r from-purple-600 to-blue-600 text-white hover:opacity-90 transition-opacity shadow-lg shadow-purple-900/20"
+              >
+                <Sparkles className="w-4 h-4 text-yellow-300" />
+                Criar com IA
+              </Button>
+
+              <Button
+                variant="outline"
+                onClick={controller.onSync}
+                disabled={controller.isSyncing}
+                className="border-white/10 bg-zinc-900 hover:bg-white/5"
+              >
+                <RefreshCw className={cn('w-4 h-4', controller.isSyncing ? 'animate-spin' : '')} />
+                {controller.isSyncing ? 'Sincronizando...' : 'Sincronizar'}
+              </Button>
+            </div>
+          )}
+
+          {activeTab === 'projects' && (
+            <button
+              onClick={() => router.push('/templates/new')}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-xl font-medium flex items-center gap-2 transition-all shadow-lg hover:shadow-emerald-500/20"
+            >
+              <Plus className="w-5 h-5" />
+              Novo Projeto
+            </button>
+          )}
+        </PageActions>
+      </PageHeader>
 
       {/* TABS */}
       <div className="flex gap-1 bg-zinc-900 border border-white/5 p-1 rounded-xl w-fit">
         <button
-          onClick={() => setActiveTab('approved')}
-          className={`px-6 py-2.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'approved'
+          onClick={() => setActiveTab('meta')}
+          className={`px-6 py-2.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'meta'
             ? 'bg-white/10 text-white shadow-sm'
             : 'text-gray-400 hover:text-white hover:bg-white/5'
             }`}
         >
           <CheckCircle className="w-4 h-4" />
-          Aprovados (Meta)
+          Meta (Templates)
         </button>
+
+        <button
+          onClick={() => setActiveTab('drafts')}
+          className={`px-6 py-2.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'drafts'
+            ? 'bg-white/10 text-white shadow-sm'
+            : 'text-gray-400 hover:text-white hover:bg-white/5'
+            }`}
+        >
+          <LayoutGrid className="w-4 h-4" />
+          Rascunhos Manuais
+        </button>
+
         <button
           onClick={() => setActiveTab('projects')}
           className={`px-6 py-2.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'projects'
@@ -100,19 +168,34 @@ export default function TemplatesPage() {
         </button>
       </div>
 
+      {activeTab === 'meta' && (
+        <TemplateListView {...controller} hideHeader />
+      )}
+
+      {activeTab === 'drafts' && (
+        <ManualDraftsView
+          drafts={draftsController.drafts}
+          isLoading={draftsController.isLoading}
+          isRefreshing={draftsController.isRefreshing}
+          search={draftsController.search}
+          setSearch={draftsController.setSearch}
+          onRefresh={draftsController.refresh}
+          onCreate={({ name, category, language, parameterFormat }) =>
+            draftsController.createDraft({ name, category, language, parameterFormat })
+          }
+          isCreating={draftsController.isCreating}
+          onDelete={(id) => draftsController.deleteDraft(id)}
+          isDeleting={draftsController.isDeleting}
+          onUpdate={(id, patch) => draftsController.updateDraft(id, patch)}
+          isUpdating={draftsController.isUpdating}
+          onSubmit={(id) => draftsController.submitDraft(id)}
+          isSubmitting={draftsController.isSubmitting}
+          normalizeName={draftsController.normalizeTemplateName}
+        />
+      )}
+
       {activeTab === 'projects' && (
         <>
-          {/* AI Feature Warning Banner */}
-          <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 flex items-start gap-3 animate-pulse">
-            <AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="text-amber-200 font-medium text-sm">Funcionalidade em desenvolvimento</p>
-              <p className="text-amber-300/70 text-sm mt-1">
-                As funcionalidades de criação de templates com I.A ainda não estão funcionando. Aguarde um pouco mais.
-              </p>
-            </div>
-          </div>
-
           {/* Filters Bar */}
           <div className="glass-panel p-4 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3 w-full sm:w-96 bg-zinc-900 border border-white/5 rounded-lg px-4 py-2.5 focus-within:border-primary-500/50 focus-within:ring-1 focus-within:ring-primary-500/50 transition-all">
@@ -234,23 +317,6 @@ export default function TemplatesPage() {
           </div>
         </>
       )}
-
-      {activeTab === 'approved' && (
-        <>
-          {/* AI Feature Warning Banner */}
-          <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 flex items-start gap-3 animate-pulse">
-            <AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="text-amber-200 font-medium text-sm">Funcionalidade em desenvolvimento</p>
-              <p className="text-amber-300/70 text-sm mt-1">
-                As funcionalidades de criação de templates com I.A ainda não estão funcionando. Aguarde um pouco mais.
-              </p>
-            </div>
-          </div>
-
-          <TemplateListView {...controller} />
-        </>
-      )}
-    </div>
+    </Page>
   );
 }

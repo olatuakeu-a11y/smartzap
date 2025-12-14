@@ -1,9 +1,8 @@
-import { z } from 'zod'
 import { CreateTemplateSchema } from './validators/template.schema'
 import { getWhatsAppCredentials } from '@/lib/whatsapp-credentials'
 import { templateProjectDb } from '@/lib/supabase-db'
 import { CreateTemplateInput, TemplateCreationResult } from './types'
-import { MetaComponent, MetaButton, MetaHeaderComponent, MetaBodyComponent, MetaCarouselComponent, MetaTemplatePayload } from './types'
+import { MetaButton, MetaHeaderComponent, MetaBodyComponent, MetaCarouselComponent, MetaTemplatePayload } from './types'
 import { MetaAPIError } from './errors'
 import { GeneratedTemplate } from '@/lib/ai/services/template-agent'
 
@@ -129,47 +128,62 @@ export class TemplateService {
      * Transforms the User Input (friendly) into Meta Payload (strict)
      */
     private buildMetaPayload(data: CreateTemplateInput): MetaTemplatePayload {
-        const components: MetaComponent[] = []
+        const parsed = CreateTemplateSchema.safeParse(data)
+        if (!parsed.success) {
+            const message = parsed.error.issues
+                .map((i) => `${i.path.join('.') || 'template'}: ${i.message}`)
+                .join('\n')
+            throw new Error(message || 'Template inválido')
+        }
+
+        const input = parsed.data as unknown as CreateTemplateInput
+
+        const components: any[] = []
+        const parameterFormat = (input as any).parameter_format === 'named' ? 'named' : 'positional'
 
         // A. Header
-        if (data.header) {
+        if (input.header) {
             const headerComponent: MetaHeaderComponent = {
                 type: 'HEADER',
-                format: data.header.format as any
+                format: input.header.format as any
             }
 
-            if (data.header.format === 'TEXT' && data.header.text) {
-                headerComponent.text = this.renumberVariables(data.header.text)
+            if (input.header.format === 'TEXT' && input.header.text) {
+                headerComponent.text = parameterFormat === 'named' ? input.header.text : this.renumberVariables(input.header.text)
                 const varCount = this.extractVariables(headerComponent.text)
                 if (varCount > 0) {
                     // Use provided example vars or generate generic ones
-                    const examples = data.header.example?.header_text || Array(varCount).fill('Exemplo')
+                    const examples = input.header.example?.header_text || Array(varCount).fill('Exemplo')
                     headerComponent.example = { header_text: examples }
                 }
-            } else if (['IMAGE', 'VIDEO', 'DOCUMENT'].includes(data.header.format)) {
+            } else if (['IMAGE', 'VIDEO', 'DOCUMENT'].includes(input.header.format)) {
                 // Media headers require an example handle
-                if (data.header.example?.header_handle && data.header.example.header_handle.length > 0) {
-                    headerComponent.example = { header_handle: data.header.example.header_handle }
+                if (input.header.example?.header_handle && input.header.example.header_handle.length > 0) {
+                    headerComponent.example = { header_handle: input.header.example.header_handle }
                 }
             }
             components.push(headerComponent)
         }
 
         // B. Body (or Content)
-        let bodyText = data.body?.text || data.content || ''
+        let bodyText = input.body?.text || input.content || ''
         if (bodyText) {
-            bodyText = this.renumberVariables(bodyText)
+            bodyText = parameterFormat === 'named' ? bodyText : this.renumberVariables(bodyText)
             const bodyComponent: MetaBodyComponent = {
                 type: 'BODY',
                 text: bodyText
             }
 
+            if (typeof input.add_security_recommendation === 'boolean') {
+                bodyComponent.add_security_recommendation = input.add_security_recommendation
+            }
+
             const varCount = this.extractVariables(bodyText)
             if (varCount > 0) {
                 let exampleValues: string[] = []
-                if (data.exampleVariables && data.exampleVariables.length > 0) {
+                if (input.exampleVariables && input.exampleVariables.length > 0) {
                     // Ensure we provide exactly as many examples as variables
-                    exampleValues = data.exampleVariables.slice(0, varCount)
+                    exampleValues = input.exampleVariables.slice(0, varCount)
                     // If we still don't have enough, pad with placeholders
                     while (exampleValues.length < varCount) {
                         exampleValues.push(`Valor${exampleValues.length + 1}`)
@@ -178,65 +192,62 @@ export class TemplateService {
                     exampleValues = Array.from({ length: varCount }, (_, i) => `Valor${i + 1}`)
                 }
 
-                const finalBodyExamples = data.body?.example?.body_text || [exampleValues]
+                const finalBodyExamples = input.body?.example?.body_text || [exampleValues]
                 bodyComponent.example = { body_text: finalBodyExamples }
             }
             components.push(bodyComponent)
         }
 
+        const hasCarousel = !!(input.carousel && (input as any).carousel?.cards && (input as any).carousel.cards.length > 0)
+        if (!bodyText && !hasCarousel) {
+            throw new Error('Template precisa de BODY (content/body.text) ou CAROUSEL (cards).')
+        }
+
+        if (bodyText && hasCarousel) {
+            throw new Error('Use apenas BODY ou CAROUSEL (não ambos) para o mesmo template.')
+        }
+
         // C. Footer
-        if (data.footer && data.footer.text) {
-            components.push({
+        if (input.footer && input.footer.text) {
+            const footerComponent: any = {
                 type: 'FOOTER',
-                text: data.footer.text
-            })
+                text: input.footer.text
+            }
+
+            if (typeof input.code_expiration_minutes === 'number') {
+                footerComponent.code_expiration_minutes = input.code_expiration_minutes
+            }
+
+            components.push(footerComponent)
         }
 
         // D. Buttons
-        if (data.buttons && data.buttons.length > 0) {
+        if (input.buttons && input.buttons.length > 0) {
             const validButtons: MetaButton[] = []
 
-            for (const btn of data.buttons) {
-                if (btn.type === 'URL') {
-                    const url = this.normalizeUrl(btn.url || '')
-                    // Check for invalid Naked Variables
-                    const nakedVarMatch = url.match(/^\{\{\d+\}\}$/)
-                    if (nakedVarMatch) {
-                        throw new Error(`URL inválida no botão "${btn.text}". Domínio obrigatório (ex: https://site.com/{{1}}).`)
-                    }
+            // Defensive: validate counts by type (schema already does, but keep service safe)
+            const counts: Record<string, number> = {}
+            for (const b of input.buttons) counts[b.type] = (counts[b.type] || 0) + 1
+            if ((counts.URL || 0) > 2) throw new Error('Máximo de 2 botões do tipo URL.')
+            if ((counts.PHONE_NUMBER || 0) > 1) throw new Error('Máximo de 1 botão do tipo PHONE_NUMBER.')
+            if ((counts.COPY_CODE || 0) > 1) throw new Error('Máximo de 1 botão do tipo COPY_CODE.')
 
-                    const metaBtn: MetaButton = {
-                        type: 'URL',
-                        text: btn.text,
-                        url: url
+            // Quick replies must be contiguous
+            let sawQuick = false
+            let sawNonQuickAfterQuick = false
+            for (const b of input.buttons) {
+                if (b.type === 'QUICK_REPLY') {
+                    sawQuick = true
+                    if (sawNonQuickAfterQuick) {
+                        throw new Error('Botões QUICK_REPLY devem ficar agrupados (contíguos), sem intercalar com outros tipos.')
                     }
-
-                    // If URL has variable, add example
-                    if (url.includes('{{1}}')) {
-                        metaBtn.example = ['https://exemplo.com/detalhe']
-                    }
-                    validButtons.push(metaBtn)
-
-                } else if (btn.type === 'PHONE_NUMBER') {
-                    validButtons.push({
-                        type: 'PHONE_NUMBER',
-                        text: btn.text,
-                        phone_number: btn.phone_number
-                    })
-                } else if (btn.type === 'QUICK_REPLY') {
-                    validButtons.push({
-                        type: 'QUICK_REPLY',
-                        text: btn.text
-                    })
-                } else if (btn.type === 'COPY_CODE') {
-                    const exampleValue = btn.example
-                        ? (Array.isArray(btn.example) ? btn.example : [btn.example])
-                        : ['CODE123']
-                    validButtons.push({
-                        type: 'COPY_CODE',
-                        example: exampleValue
-                    })
+                } else {
+                    if (sawQuick) sawNonQuickAfterQuick = true
                 }
+            }
+
+            for (const btn of input.buttons) {
+                validButtons.push(this.buildMetaButton(btn as any, parameterFormat))
             }
 
             if (validButtons.length > 0) {
@@ -248,28 +259,182 @@ export class TemplateService {
         }
 
         // E. Carousel
-        if (data.carousel && data.carousel.cards && data.carousel.cards.length > 0) {
+        if (hasCarousel) {
             const carouselComponent: MetaCarouselComponent = {
                 type: 'CAROUSEL',
-                cards: data.carousel.cards as any
+                cards: this.buildCarouselCards((input as any).carousel.cards, parameterFormat)
             }
             components.push(carouselComponent)
         }
 
         // F. Limited Time Offer
-        if (data.limited_time_offer) {
+        if (input.limited_time_offer) {
             components.push({
                 type: 'LIMITED_TIME_OFFER',
-                limited_time_offer: data.limited_time_offer
+                limited_time_offer: input.limited_time_offer
             })
         }
 
-        return {
-            name: data.name,
-            language: data.language,
-            category: data.category,
+        const payload: any = {
+            name: input.name,
+            language: input.language,
+            category: input.category,
+            // Meta expects this field when using named placeholders; harmless for positional when omitted, but we send for explicitness.
+            parameter_format: parameterFormat,
             components: components
         }
+
+        if (typeof input.message_send_ttl_seconds === 'number') {
+            payload.message_send_ttl_seconds = input.message_send_ttl_seconds
+        }
+
+        return payload
+    }
+
+    private buildMetaButton(btn: any, parameterFormat: 'positional' | 'named'): MetaButton {
+        if (btn.type === 'URL') {
+            const url = this.normalizeUrl(btn.url || '')
+            // Check for invalid Naked Variables
+            const nakedVarMatch = url.match(/^\{\{\d+\}\}$/)
+            if (nakedVarMatch) {
+                throw new Error(`URL inválida no botão "${btn.text}". Domínio obrigatório (ex: https://site.com/{{1}}).`)
+            }
+
+            if (parameterFormat === 'named' && url.includes('{{')) {
+                throw new Error('parameter_format=named não suporta URL dinâmica em botões. Use positional ou URL fixa.')
+            }
+
+            const metaBtn: MetaButton = {
+                type: 'URL',
+                text: btn.text,
+                url: url
+            }
+
+            if (url.includes('{{1}}')) {
+                const provided = btn.example
+                const exampleArr = Array.isArray(provided)
+                    ? provided
+                    : (typeof provided === 'string' && provided.trim() ? [provided.trim()] : null)
+
+                metaBtn.example = exampleArr || ['exemplo']
+            }
+
+            return metaBtn
+        }
+
+        if (btn.type === 'PHONE_NUMBER') {
+            return {
+                type: 'PHONE_NUMBER',
+                text: btn.text,
+                phone_number: btn.phone_number
+            }
+        }
+
+        if (btn.type === 'QUICK_REPLY') {
+            return {
+                type: 'QUICK_REPLY',
+                text: btn.text
+            }
+        }
+
+        if (btn.type === 'COPY_CODE') {
+            const exampleValue = btn.example
+                ? (Array.isArray(btn.example) ? btn.example : [btn.example])
+                : ['CODE123']
+            return {
+                type: 'COPY_CODE',
+                example: exampleValue
+            }
+        }
+
+        if (btn.type === 'OTP') {
+            const otpType = String(btn.otp_type || '')
+            if (!otpType) throw new Error('Botão OTP requer otp_type.')
+            if (otpType === 'ONE_TAP') {
+                if (!btn.package_name || !btn.signature_hash) {
+                    throw new Error('Botão OTP ONE_TAP requer package_name e signature_hash.')
+                }
+            }
+            return {
+                type: 'OTP',
+                otp_type: otpType,
+                ...(btn.text ? { text: btn.text } : {}),
+                ...(btn.autofill_text ? { autofill_text: btn.autofill_text } : {}),
+                ...(btn.package_name ? { package_name: btn.package_name } : {}),
+                ...(btn.signature_hash ? { signature_hash: btn.signature_hash } : {}),
+            }
+        }
+
+        if (btn.type === 'FLOW') {
+            if (!btn.flow_id) throw new Error('Botão FLOW requer flow_id.')
+            return {
+                type: 'FLOW',
+                text: btn.text,
+                flow_id: btn.flow_id,
+                ...(btn.flow_action ? { flow_action: btn.flow_action } : {}),
+                ...(btn.navigate_screen ? { navigate_screen: btn.navigate_screen } : {}),
+            }
+        }
+
+        if (btn.type === 'CATALOG') {
+            return {
+                type: 'CATALOG',
+                text: btn.text
+            }
+        }
+
+        if (btn.type === 'MPM') {
+            return {
+                type: 'MPM',
+                text: btn.text
+            }
+        }
+
+        if (btn.type === 'VOICE_CALL') {
+            return {
+                type: 'VOICE_CALL',
+                text: btn.text
+            }
+        }
+
+        throw new Error(`Tipo de botão não suportado: ${String(btn.type)}`)
+    }
+
+    private buildCarouselCards(cards: any[], parameterFormat: 'positional' | 'named') {
+        return (cards || []).map((card: any) => {
+            // Já está no formato Meta (cards[].components)
+            if (card && Array.isArray(card.components)) return card
+
+            // Formato "amigável" (schema): { header, body, buttons }
+            const components: any[] = []
+
+            if (card?.header) {
+                components.push({
+                    type: 'HEADER',
+                    format: card.header.format,
+                    example: card.header.example
+                })
+            }
+
+            if (card?.body?.text) {
+                const text = parameterFormat === 'named' ? card.body.text : this.renumberVariables(card.body.text)
+                const body: any = {
+                    type: 'BODY',
+                    text,
+                }
+                if (card.body.example?.body_text) body.example = { body_text: card.body.example.body_text }
+                components.push(body)
+            }
+
+            if (Array.isArray(card?.buttons) && card.buttons.length) {
+                components.push({
+                    type: 'BUTTONS',
+                    buttons: card.buttons.map((b: any) => this.buildMetaButton(b, parameterFormat)).slice(0, 2)
+                })
+            }
+
+            return { components }
+        })
     }
 
     private normalizeUrl(url: string): string {
@@ -283,10 +448,14 @@ export class TemplateService {
     }
 
     private extractVariables(text: string): number {
-        const matches = text.match(/\{\{(\d+)\}\}/g) || []
-        if (matches.length === 0) return 0
-        const uniqueNumbers = new Set(matches.map(m => parseInt(m.replace(/\{\{|\}\}/g, ''), 10)))
-        return uniqueNumbers.size
+        // Conta placeholders posicionais {{1}} e também placeholders nomeados {{first_name}}
+        const positional = text.match(/\{\{(\d+)\}\}/g) || []
+        const named = text.match(/\{\{([a-z0-9_]+)\}\}/g) || []
+        const all = [...positional, ...named]
+        if (all.length === 0) return 0
+
+        const unique = new Set(all.map(m => m.replace(/\{\{|\}\}/g, '')))
+        return unique.size
     }
 
     private renumberVariables(text: string): string {

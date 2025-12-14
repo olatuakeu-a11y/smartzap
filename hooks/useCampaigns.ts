@@ -25,6 +25,7 @@ export const useCampaignMutations = () => {
   // Track which IDs are currently being processed
   const [processingDeleteId, setProcessingDeleteId] = useState<string | undefined>(undefined);
   const [processingDuplicateId, setProcessingDuplicateId] = useState<string | undefined>(undefined);
+  const [lastDuplicatedCampaignId, setLastDuplicatedCampaignId] = useState<string | undefined>(undefined);
 
   const deleteMutation = useMutation({
     mutationFn: campaignService.delete,
@@ -74,7 +75,8 @@ export const useCampaignMutations = () => {
       await queryClient.cancelQueries({ queryKey: ['campaigns'] });
       return { id };
     },
-    onSuccess: () => {
+    onSuccess: (clonedCampaign) => {
+      setLastDuplicatedCampaignId(clonedCampaign?.id);
       // Server-side cache foi invalidado via revalidateTag (quando aplicável)
       queryClient.invalidateQueries({ queryKey: ['campaigns'] });
       queryClient.invalidateQueries({ queryKey: ['recentCampaigns'] });
@@ -92,13 +94,25 @@ export const useCampaignMutations = () => {
     duplicateCampaign: duplicateMutation.mutate,
     isDuplicating: duplicateMutation.isPending,
     duplicatingId: processingDuplicateId,
+
+    lastDuplicatedCampaignId,
+    clearLastDuplicatedCampaignId: () => setLastDuplicatedCampaignId(undefined),
   };
 };
 
 // --- Controller Hook (Smart) ---
 export const useCampaignsController = (initialData?: Campaign[]) => {
   const { data: campaigns = [], isLoading, error, refetch } = useCampaignsQuery(initialData);
-  const { deleteCampaign, duplicateCampaign, isDeleting, deletingId, isDuplicating, duplicatingId } = useCampaignMutations();
+  const {
+    deleteCampaign,
+    duplicateCampaign,
+    isDeleting,
+    deletingId,
+    isDuplicating,
+    duplicatingId,
+    lastDuplicatedCampaignId,
+    clearLastDuplicatedCampaignId,
+  } = useCampaignMutations();
 
   // UI State
   const [filter, setFilter] = useState<string>('All');
@@ -154,5 +168,9 @@ export const useCampaignsController = (initialData?: Campaign[]) => {
     deletingId,
     isDuplicating,
     duplicatingId,
+
+    // Redirect helper (wrapper pode observar isso e navegar)
+    lastDuplicatedCampaignId,
+    clearLastDuplicatedCampaignId,
   };
 };

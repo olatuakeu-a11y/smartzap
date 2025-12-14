@@ -409,7 +409,7 @@ export async function POST(_request: Request, { params }: Params) {
       )
     }
 
-    // 6) Credenciais WhatsApp (Redis/env)
+    // 6) Credenciais WhatsApp (Supabase settings/env)
     const credentials = await getWhatsAppCredentials()
     if (!credentials?.phoneNumberId || !credentials?.accessToken) {
       return NextResponse.json(

@@ -2,7 +2,7 @@
  * Account Health Check
  *
  * Validates WhatsApp Business Account status before sending campaigns
- * Uses server API which has credentials in Redis
+ * Usa o endpoint do servidor (/api/health) para validar conectividade básica.
  */
 
 import { logger } from './logger';
@@ -41,7 +41,7 @@ export interface WhatsAppAccountInfo {
 
 /**
  * Performs comprehensive health check using server API
- * Server has credentials in Redis
+ * WhatsApp credentials são obtidas do Supabase (settings) ou env vars.
  */
 export async function checkAccountHealth(): Promise<AccountHealth> {
   const checks: HealthCheck[] = [];
@@ -64,22 +64,6 @@ export async function checkAccountHealth(): Promise<AccountHealth> {
     }
 
     const health = await response.json();
-
-    // Check Redis
-    if (health.services?.redis?.status === 'ok') {
-      checks.push({
-        name: 'Redis',
-        status: 'pass',
-        message: health.services.redis.message || 'Conectado',
-        details: { latency: health.services.redis.latency }
-      });
-    } else {
-      checks.push({
-        name: 'Redis',
-        status: 'fail',
-        message: health.services?.redis?.message || 'Não conectado'
-      });
-    }
 
     // Check WhatsApp
     if (health.services?.whatsapp?.status === 'ok') {
@@ -104,17 +88,20 @@ export async function checkAccountHealth(): Promise<AccountHealth> {
     }
 
     // Check QStash
+    // Para “saúde da conta” (visão geral), falta de QStash é um alerta (degraded),
+    // mas não necessariamente um bloqueio total do dashboard.
+    // O bloqueio de envio é tratado no quickHealthCheck().
     if (health.services?.qstash?.status === 'ok') {
       checks.push({
-        name: 'Fila de Mensagens',
+        name: 'Fila de Mensagens (QStash)',
         status: 'pass',
-        message: 'Configurado'
+        message: 'Configurado',
       });
     } else {
       checks.push({
-        name: 'Fila de Mensagens',
+        name: 'Fila de Mensagens (QStash)',
         status: 'warn',
-        message: 'Não configurado (envio pode ser mais lento)'
+        message: health.services?.qstash?.message || 'Não configurado. Rode o assistente (/setup).',
       });
     }
 
@@ -170,14 +157,14 @@ export async function checkAccountHealth(): Promise<AccountHealth> {
 /**
  * Quick health check - just verifies credentials and basic connectivity
  * Use this before starting a campaign
- * Uses server API which has credentials in Redis
+ * Exige WhatsApp (para envio) e QStash (para processamento assíncrono de campanhas).
  */
 export async function quickHealthCheck(): Promise<{
   canSend: boolean;
   reason?: string;
 }> {
   try {
-    // Use server health endpoint - it has credentials in Redis
+    // Use server health endpoint
     const response = await fetch('/api/health');
     
     if (!response.ok) {
@@ -197,11 +184,11 @@ export async function quickHealthCheck(): Promise<{
       };
     }
 
-    // Check if Redis is available (needed for campaign tracking)
-    if (health.services?.redis?.status !== 'ok') {
+    // Check if QStash is available (needed for campaign processing)
+    if (health.services?.qstash?.status !== 'ok') {
       return {
         canSend: false,
-        reason: 'Banco de dados não disponível.',
+        reason: health.services?.qstash?.message || 'QStash não configurado. Rode o assistente (/setup).',
       };
     }
 

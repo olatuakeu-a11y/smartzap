@@ -29,7 +29,7 @@ export enum MessageStatus {
 }
 
 export type TemplateCategory = 'MARKETING' | 'UTILIDADE' | 'AUTENTICACAO';
-export type TemplateStatus = 'APPROVED' | 'PENDING' | 'REJECTED';
+export type TemplateStatus = 'DRAFT' | 'APPROVED' | 'PENDING' | 'REJECTED';
 
 export interface Template {
   id: string;
@@ -84,7 +84,12 @@ export interface Campaign {
   templateFetchedAt?: string | null;
   // Scheduling
   scheduledAt?: string | null;  // ISO timestamp for scheduled campaigns
+  // QStash scheduling (one-shot)
+  qstashScheduleMessageId?: string | null;
+  qstashScheduleEnqueuedAt?: string | null;
   startedAt?: string | null;    // When campaign actually started sending
+  firstDispatchAt?: string | null; // When the first contact started dispatching (claim/sending) (dispatch-only)
+  lastSentAt?: string | null;   // When the last contact was marked as "sent" (dispatch-only)
   completedAt?: string | null;  // When campaign finished
   pausedAt?: string | null;     // When campaign was paused
   // Contacts (for resume functionality and optimistic UI)
@@ -302,6 +307,7 @@ export interface TemplateProject {
   title: string;
   prompt: string;
   status: ProjectStatus;
+  source?: 'ai' | 'manual' | string;
   template_count: number;
   approved_count: number;
   user_id?: string | null;

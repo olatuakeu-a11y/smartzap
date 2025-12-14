@@ -205,7 +205,7 @@ const CampaignBlockModal: React.FC<{
                     key={index}
                     className="flex items-start gap-3 bg-zinc-800/30 p-3 rounded-lg border border-white/5"
                   >
-                    <div className="w-5 h-5 rounded-full bg-primary-500/20 text-primary-400 flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5">
+                    <div className="w-5 h-5 rounded-full bg-primary-500/20 text-primary-400 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
                       {index + 1}
                     </div>
                     <p className="text-sm text-gray-300">{step.title}: {step.description}</p>
@@ -231,7 +231,7 @@ const CampaignBlockModal: React.FC<{
 
           {/* Suggestion */}
           <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 flex gap-3">
-            <AlertCircle className="text-amber-400 flex-shrink-0" size={18} />
+            <AlertCircle className="text-amber-400 shrink-0" size={18} />
             <div className="text-sm text-amber-200/80">
               <p className="font-bold text-amber-400 mb-1">Sugestão</p>
               <p>
@@ -286,7 +286,7 @@ const UpgradeRoadmapModal: React.FC<{
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm animate-in fade-in duration-200">
       <div className="bg-zinc-900 border border-white/10 rounded-2xl w-full max-w-lg mx-4 shadow-2xl animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="flex items-center gap-4 p-6 border-b border-white/10 bg-gradient-to-r from-primary-500/10 to-transparent shrink-0">
+        <div className="flex items-center gap-4 p-6 border-b border-white/10 bg-linear-to-r from-primary-500/10 to-transparent shrink-0">
           <div className="p-3 bg-primary-500/20 rounded-xl">
             <TrendingUp className="text-primary-400" size={24} />
           </div>
@@ -333,7 +333,7 @@ const UpgradeRoadmapModal: React.FC<{
                     }`}
                 >
                   <div className="flex items-start gap-3">
-                    <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 ${step.completed
+                    <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${step.completed
                       ? 'bg-primary-500 text-white'
                       : 'bg-zinc-700 text-gray-400'
                       }`}>
@@ -778,7 +778,7 @@ export const CampaignWizardView: React.FC<CampaignWizardViewProps> = ({
   ];
 
   return (
-    <div className="h-full flex flex-col px-6 lg:px-10 py-4">
+    <div className="h-full flex flex-col py-4">
       {/* Header Navigation */}
       <div className="shrink-0 mb-4">
         <PrefetchLink href="/campaigns" className="text-xs text-gray-500 hover:text-white inline-flex items-center gap-1 transition-colors">
@@ -832,7 +832,7 @@ export const CampaignWizardView: React.FC<CampaignWizardViewProps> = ({
         </div>
 
         {/* Cost Info */}
-        <div className="text-right hidden md:block shrink-0 min-w-[120px]">
+        <div className="text-right hidden md:block shrink-0 min-w-30">
           {step === 1 && selectedTemplate ? (
             <>
               <p className="text-xs text-gray-500">Custo Base</p>
@@ -955,7 +955,7 @@ export const CampaignWizardView: React.FC<CampaignWizardViewProps> = ({
                           }`}
                       >
                         {/* Radio indicator */}
-                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 mt-0.5 transition-all ${selectedTemplateId === t.id
+                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 transition-all ${selectedTemplateId === t.id
                           ? 'border-primary-500 bg-primary-500'
                           : 'border-zinc-600 bg-transparent group-hover:border-zinc-500'
                           }`}>
@@ -970,7 +970,7 @@ export const CampaignWizardView: React.FC<CampaignWizardViewProps> = ({
                             <h3 className={`font-semibold text-sm truncate ${selectedTemplateId === t.id ? 'text-white' : 'text-gray-200'}`}>
                               {t.name}
                             </h3>
-                            <span className="text-[10px] text-gray-500 font-mono uppercase tracking-wider ml-2 flex-shrink-0">{t.category}</span>
+                            <span className="text-[10px] text-gray-500 font-mono uppercase tracking-wider ml-2 shrink-0">{t.category}</span>
                           </div>
                           <p className={`text-sm line-clamp-2 leading-relaxed transition-colors ${selectedTemplateId === t.id ? 'text-gray-300' : 'text-gray-500 group-hover:text-gray-400'}`}>
                             {t.content.split(/(\{\{.*?\}\})/).map((part, i) =>
@@ -1039,7 +1039,7 @@ export const CampaignWizardView: React.FC<CampaignWizardViewProps> = ({
                                         <Braces size={14} />
                                       </button>
                                     </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end" className="bg-zinc-900 border-zinc-800 text-white min-w-[200px]">
+                                    <DropdownMenuContent align="end" className="bg-zinc-900 border-zinc-800 text-white min-w-50">
                                       <DropdownMenuLabel className="text-xs text-gray-500 uppercase tracking-wider px-2 py-1.5">
                                         Dados do Contato
                                       </DropdownMenuLabel>
@@ -1162,7 +1162,7 @@ export const CampaignWizardView: React.FC<CampaignWizardViewProps> = ({
                                           <Braces size={14} />
                                         </button>
                                       </DropdownMenuTrigger>
-                                      <DropdownMenuContent align="end" className="bg-zinc-900 border-zinc-800 text-white min-w-[200px]">
+                                      <DropdownMenuContent align="end" className="bg-zinc-900 border-zinc-800 text-white min-w-50">
                                         <DropdownMenuLabel className="text-xs text-gray-500 uppercase tracking-wider px-2 py-1.5">
                                           Dados do Contato
                                         </DropdownMenuLabel>
@@ -1264,7 +1264,7 @@ export const CampaignWizardView: React.FC<CampaignWizardViewProps> = ({
                             const varIndex = bodyVarsCount + headerVarsCount + idx;
                             return (
                               <div key={`button-${varInfo.buttonIndex}`} className="flex items-center gap-3">
-                                <span className="w-auto min-w-[48px] text-center text-xs font-mono bg-amber-500/20 text-amber-400 px-2 py-1.5 rounded">
+                                <span className="w-auto min-w-12 text-center text-xs font-mono bg-amber-500/20 text-amber-400 px-2 py-1.5 rounded">
                                   {`Botão ${varInfo.buttonIndex + 1}`}
                                 </span>
                                 <input
@@ -1484,7 +1484,7 @@ export const CampaignWizardView: React.FC<CampaignWizardViewProps> = ({
                       )}
                     </div>
 
-                    <div className="space-y-2 max-h-[300px] overflow-y-auto custom-scrollbar">
+                    <div className="space-y-2 max-h-75 overflow-y-auto custom-scrollbar">
                       {filteredContacts.length === 0 ? (
                         <p className="text-gray-500 text-sm text-center py-8">
                           {contactSearchTerm ? 'Nenhum contato encontrado para esta busca' : 'Nenhum contato encontrado'}
@@ -1511,7 +1511,7 @@ export const CampaignWizardView: React.FC<CampaignWizardViewProps> = ({
                                 <p className="text-xs text-gray-500 font-mono">{contact.phone}</p>
                               </div>
                               {isSelected && (
-                                <Check size={16} className="text-primary-400 flex-shrink-0" />
+                                <Check size={16} className="text-primary-400 shrink-0" />
                               )}
                             </label>
                           );
@@ -1525,7 +1525,7 @@ export const CampaignWizardView: React.FC<CampaignWizardViewProps> = ({
                 {recipientCount > 0 && isOverLimit && liveValidation && (
                   <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-5 space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
                     <div className="flex gap-3">
-                      <ShieldAlert className="text-red-400 flex-shrink-0 mt-0.5" size={22} />
+                      <ShieldAlert className="text-red-400 shrink-0 mt-0.5" size={22} />
                       <div className="flex-1">
                         <p className="font-bold text-red-400 text-base mb-1">⛔ Limite Excedido</p>
                         <p className="text-sm text-red-200/80">
@@ -1610,7 +1610,7 @@ export const CampaignWizardView: React.FC<CampaignWizardViewProps> = ({
                   <div className="flex items-center justify-between group">
                     <span className="text-sm text-gray-500">Template</span>
                     <div className="flex items-center gap-2">
-                      <span className="text-sm text-white font-mono bg-zinc-900 px-2 py-1 rounded text-xs">{selectedTemplateId}</span>
+                      <span className="text-xs text-white font-mono bg-zinc-900 px-2 py-1 rounded">{selectedTemplateId}</span>
                       <button onClick={() => setStep(1)} className="opacity-0 group-hover:opacity-100 text-gray-500 hover:text-primary-400 transition-all"><small>Editar</small></button>
                     </div>
                   </div>
@@ -1632,7 +1632,7 @@ export const CampaignWizardView: React.FC<CampaignWizardViewProps> = ({
                 </div>
 
                 <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-4 flex gap-3">
-                  <AlertCircle className="text-amber-500 flex-shrink-0" size={20} />
+                  <AlertCircle className="text-amber-500 shrink-0" size={20} />
                   <div className="text-xs text-amber-200/70">
                     <p className="font-bold text-amber-500 mb-1">Checagem Final</p>
                     <p>Ao clicar em disparar, você confirma que todos os destinatários aceitaram receber mensagens do seu negócio.</p>
@@ -1741,7 +1741,7 @@ export const CampaignWizardView: React.FC<CampaignWizardViewProps> = ({
                                           Preencher com…
                                         </button>
                                       </DropdownMenuTrigger>
-                                      <DropdownMenuContent align="end" className="bg-zinc-900 border-zinc-800 text-white min-w-[220px]">
+                                      <DropdownMenuContent align="end" className="bg-zinc-900 border-zinc-800 text-white min-w-55">
                                         {recipientSource !== 'test' && (
                                           <>
                                             <DropdownMenuLabel className="text-xs text-gray-500 uppercase tracking-wider px-2 py-1.5">
@@ -2125,7 +2125,7 @@ export const CampaignWizardView: React.FC<CampaignWizardViewProps> = ({
                 {/* ⚠️ LIMIT WARNING IN REVIEW */}
                 {isOverLimit && (
                   <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 flex gap-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                    <ShieldAlert className="text-red-400 flex-shrink-0 mt-0.5" size={20} />
+                    <ShieldAlert className="text-red-400 shrink-0 mt-0.5" size={20} />
                     <div className="flex-1">
                       <p className="font-bold text-red-400 text-sm mb-1">⛔ Não é possível disparar</p>
                       <p className="text-sm text-red-200/70">
@@ -2211,6 +2211,7 @@ export const CampaignWizardView: React.FC<CampaignWizardViewProps> = ({
             {/* Phone Mockup - Universal Component */}
             <div className="flex-1 min-h-0 flex items-center justify-center">
               <WhatsAppPhonePreview
+                className="w-[320px] h-[620px]"
                 components={previewTemplate?.components}
                 fallbackContent={previewTemplate?.content}
                 variables={(() => {

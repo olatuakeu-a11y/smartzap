@@ -27,6 +27,8 @@ export async function getCampaignsServer(): Promise<Campaign[]> {
         createdAt: row.created_at,
         scheduledAt: row.scheduled_date,
         startedAt: row.started_at,
+        firstDispatchAt: (row as any).first_dispatch_at ?? null,
+        lastSentAt: (row as any).last_sent_at ?? null,
         completedAt: row.completed_at,
     }))
 }

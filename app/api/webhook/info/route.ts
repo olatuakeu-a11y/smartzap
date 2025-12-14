@@ -20,7 +20,7 @@ export async function GET() {
   const webhookToken = await getVerifyToken()
 
   // Stats are now tracked in Supabase (campaign_contacts table)
-  // No Redis stats anymore
+  // (Sem stats via cache)
 
   return NextResponse.json({
     webhookUrl,

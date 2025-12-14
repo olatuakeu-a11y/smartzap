@@ -23,10 +23,6 @@ export async function GET() {
         // QStash (required)
         qstashToken: !!process.env.QSTASH_TOKEN,
 
-        // Upstash Redis (optional / legacy)
-        redisUrl: !!process.env.UPSTASH_REDIS_REST_URL,
-        redisToken: !!process.env.UPSTASH_REDIS_REST_TOKEN,
-
         // WhatsApp
         whatsappToken: !!process.env.WHATSAPP_TOKEN,
         whatsappPhoneId: !!process.env.WHATSAPP_PHONE_ID,
@@ -37,17 +33,13 @@ export async function GET() {
     const steps = {
         password: status.masterPassword,
         database: status.supabaseUrl && status.supabaseAnonKey && status.supabaseServiceKey,
-        // Backward-compat key name used by the wizard's step routing.
-        // Step 3 is QStash-only now (Redis is optional).
-        redis: status.qstashToken,
-        // New explicit name (optional for clients)
         qstash: status.qstashToken,
         whatsapp: status.whatsappToken && status.whatsappPhoneId && status.whatsappBusinessId,
     }
 
     // WhatsApp é opcional no onboarding.
     // O mínimo para considerar a infra pronta é: senha + Supabase + QStash.
-    const allConfigured = steps.password && steps.database && steps.redis
+    const allConfigured = steps.password && steps.database && steps.qstash
 
     // Check if we can use server-side Vercel token for resume operations
     const hasVercelToken = !!process.env.VERCEL_TOKEN
@@ -62,6 +54,6 @@ export async function GET() {
         nextStep: allConfigured ? 5 :
             !steps.password ? 1 :
                 !steps.database ? 2 :
-                    !steps.redis ? 3 : 5
+                    !steps.qstash ? 3 : 5
     })
 }

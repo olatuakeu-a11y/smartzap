@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useCampaignsController } from '@/hooks/useCampaigns'
 import { CampaignListView } from '@/components/features/campaigns/CampaignListView'
@@ -15,13 +16,24 @@ export function CampaignsClientWrapper({ initialData }: { initialData: Campaign[
         setFilter,
         setSearchTerm,
         onDelete,
+        onDuplicate,
         onRefresh,
         deletingId,
+        duplicatingId,
+        lastDuplicatedCampaignId,
+        clearLastDuplicatedCampaignId,
     } = useCampaignsController(initialData)
 
     const handleRowClick = (id: string) => {
         router.push(`/campaigns/${id}`)
     }
+
+    // Após clonar, navegar automaticamente para a campanha recém-criada.
+    useEffect(() => {
+        if (!lastDuplicatedCampaignId) return
+        router.push(`/campaigns/${lastDuplicatedCampaignId}`)
+        clearLastDuplicatedCampaignId?.()
+    }, [lastDuplicatedCampaignId, router, clearLastDuplicatedCampaignId])
 
     return (
         <CampaignListView
@@ -33,8 +45,10 @@ export function CampaignsClientWrapper({ initialData }: { initialData: Campaign[
             onSearchChange={setSearchTerm}
             onRefresh={onRefresh}
             onDelete={onDelete}
+            onDuplicate={onDuplicate}
             onRowClick={handleRowClick}
             deletingId={deletingId}
+            duplicatingId={duplicatingId}
         />
     )
 }

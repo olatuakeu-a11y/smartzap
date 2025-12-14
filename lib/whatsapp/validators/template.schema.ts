@@ -16,10 +16,29 @@ export const QuickReplyButtonSchema = z.object({
 export const UrlButtonSchema = z.object({
     type: z.literal('URL'),
     text: z.string().max(25, 'Texto do botão deve ter no máximo 25 caracteres'),
-    url: z.string().url('URL inválida')
+    // Importante: templates permitem URL dinâmica com placeholders (ex.: https://site.com/{{1}})
+    // O validador nativo z.string().url() falha com chaves, então validamos via URL() após substituir placeholders.
+    url: z.string()
+        .min(1, 'URL obrigatória')
         .max(2000, 'URL muito longa')
-        .refine((url) => !url.includes('wa.me') && !url.includes('whatsapp.com'), {
-            message: "POLÍTICA META: Não é permitido usar links diretos do WhatsApp (wa.me, chat.whatsapp.com) em botões."
+        .refine((rawUrl) => {
+            const url = String(rawUrl || '').trim()
+            // Bloqueio de links diretos do WhatsApp
+            if (url.includes('wa.me') || url.includes('whatsapp.com')) return false
+
+            // Não permitir URL "nua" só com variável
+            if (/^\{\{\d+\}\}$/.test(url)) return false
+
+            // Substitui placeholders por um valor válido para a validação
+            const sanitized = url.replace(/\{\{\d+\}\}/g, 'var')
+            try {
+                const parsed = new URL(sanitized)
+                return parsed.protocol === 'https:' || parsed.protocol === 'http:'
+            } catch {
+                return false
+            }
+        }, {
+            message: 'URL inválida (use http/https; placeholders {{1}} são permitidos)'
         }),
     example: z.array(z.string()).optional(), // Para URLs com {{1}} variável
 });
@@ -205,6 +224,10 @@ export const CreateTemplateSchema = z.object({
     language: z.string().default('pt_BR'),
     category: z.enum(['UTILITY', 'MARKETING', 'AUTHENTICATION']).default('UTILITY'),
 
+    // Formato dos parâmetros do template (Meta)
+    // MVP do builder: positional. Named pode ser habilitado depois com UI + exemplos adequados.
+    parameter_format: z.enum(['positional', 'named']).optional(),
+
     // Body (pode vir como content para compatibilidade ou como objeto body)
     content: z.string().min(1).max(1024).optional(),
     body: BodySchema.optional(),
@@ -227,4 +250,67 @@ export const CreateTemplateSchema = z.object({
     message_send_ttl_seconds: z.number().min(60).max(600).optional(),
     add_security_recommendation: z.boolean().optional(),
     code_expiration_minutes: z.number().min(1).max(90).optional(),
+}).superRefine((data, ctx) => {
+    const buttons = (data.buttons || []).filter(Boolean) as Array<{ type: string; url?: string; text?: string }>
+
+    // Regras práticas (documented-only / UX Meta-like)
+    const countByType = buttons.reduce<Record<string, number>>((acc, b) => {
+        acc[b.type] = (acc[b.type] || 0) + 1
+        return acc
+    }, {})
+
+    if ((countByType.URL || 0) > 2) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['buttons'],
+            message: 'Máximo de 2 botões do tipo URL.'
+        })
+    }
+
+    if ((countByType.PHONE_NUMBER || 0) > 1) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['buttons'],
+            message: 'Máximo de 1 botão do tipo PHONE_NUMBER.'
+        })
+    }
+
+    if ((countByType.COPY_CODE || 0) > 1) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['buttons'],
+            message: 'Máximo de 1 botão do tipo COPY_CODE.'
+        })
+    }
+
+    // Agrupamento: QUICK_REPLY deve ser contíguo (não pode intercalar com outros tipos)
+    let sawNonQuickAfterQuick = false
+    let sawQuick = false
+    for (const b of buttons) {
+        if (b.type === 'QUICK_REPLY') {
+            sawQuick = true
+            if (sawNonQuickAfterQuick) {
+                ctx.addIssue({
+                    code: z.ZodIssueCode.custom,
+                    path: ['buttons'],
+                    message: 'Botões QUICK_REPLY devem ficar agrupados (contíguos), sem intercalar com outros tipos.'
+                })
+                break
+            }
+        } else {
+            if (sawQuick) sawNonQuickAfterQuick = true
+        }
+    }
+
+    // Guard-rail: URL dinâmica + parameter_format=named não é suportado (nem documentado) no contrato atual
+    if (data.parameter_format === 'named') {
+        const hasDynamicUrl = buttons.some(b => b.type === 'URL' && typeof b.url === 'string' && b.url.includes('{{'))
+        if (hasDynamicUrl) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                path: ['parameter_format'],
+                message: 'parameter_format=named não suporta URL dinâmica em botões. Use positional ou URL fixa.'
+            })
+        }
+    }
 });

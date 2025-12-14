@@ -19,10 +19,6 @@ export interface SetupEnvVars {
   // QStash (required)
   QSTASH_TOKEN: string
 
-  // Upstash Redis (optional / legacy)
-  UPSTASH_REDIS_REST_URL?: string
-  UPSTASH_REDIS_REST_TOKEN?: string
-
   // QStash signing keys (optional / advanced)
   QSTASH_CURRENT_SIGNING_KEY?: string
   QSTASH_NEXT_SIGNING_KEY?: string

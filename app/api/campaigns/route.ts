@@ -1,10 +1,18 @@
 import { NextResponse } from 'next/server'
 import { campaignDb, campaignContactDb } from '@/lib/supabase-db'
 import { CreateCampaignSchema, validateBody, formatZodErrors } from '@/lib/api-validation'
+import { Client as QStashClient } from '@upstash/qstash'
 
 // Force dynamic - NO caching at all
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
+
+// Registry in-memory (dev-only) for localhost scheduling.
+// QStash cannot reach localhost, então usamos um setTimeout para disparar o dispatch.
+// Observação: isso só funciona enquanto o processo do `next dev` estiver rodando.
+const localScheduleRegistry: Map<string, NodeJS.Timeout> =
+  (globalThis as any).__smartzapLocalScheduleRegistry
+  || ((globalThis as any).__smartzapLocalScheduleRegistry = new Map<string, NodeJS.Timeout>())
 
 /**
  * GET /api/campaigns
@@ -81,6 +89,102 @@ export async function POST(request: Request) {
           custom_fields: c.custom_fields || {},
         }))
       )
+    }
+
+    // If scheduled, enqueue a one-shot QStash message to trigger dispatch at the right time.
+    if (data.scheduledAt) {
+      const scheduledMs = new Date(data.scheduledAt).getTime()
+      const nowMs = Date.now()
+
+      // Priority: NEXT_PUBLIC_APP_URL > VERCEL_PROJECT_PRODUCTION_URL > VERCEL_URL > localhost
+      const baseUrl = (process.env.NEXT_PUBLIC_APP_URL?.trim())
+        || (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL.trim()}` : null)
+        || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL.trim()}` : null)
+        || 'http://localhost:3000'
+
+      const isLocalhost = baseUrl.includes('localhost') || baseUrl.includes('127.0.0.1')
+
+      if (isLocalhost) {
+        // QStash cannot reach localhost.
+        // DEV fallback: schedule an in-process dispatch so scheduling works locally.
+        const scheduledAtIso = new Date(data.scheduledAt).toISOString()
+        const delayMs = Number.isFinite(scheduledMs) ? Math.max(0, scheduledMs - nowMs) : NaN
+
+        console.warn('[Campaigns] scheduledAt set, but localhost detected; using local scheduler (dev-only).')
+
+        if (process.env.NODE_ENV === 'development' && Number.isFinite(delayMs)) {
+          const key = `schedule:${campaign.id}:${scheduledAtIso}`
+          const existing = localScheduleRegistry.get(key)
+          if (existing) clearTimeout(existing)
+
+          console.info('[Campaigns][LocalScheduler] armed', {
+            campaignId: campaign.id,
+            scheduledAt: scheduledAtIso,
+            delayMs,
+          })
+
+          const t = setTimeout(async () => {
+            try {
+              console.info('[Campaigns][LocalScheduler] firing', {
+                campaignId: campaign.id,
+                scheduledAt: scheduledAtIso,
+              })
+              const resp = await fetch(`${baseUrl}/api/campaign/dispatch`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  campaignId: campaign.id,
+                  templateName: campaign.templateName,
+                  trigger: 'schedule',
+                  scheduledAt: scheduledAtIso,
+                }),
+              })
+
+              if (!resp.ok) {
+                const text = await resp.text().catch(() => '')
+                console.warn('[Campaigns][LocalScheduler] dispatch failed:', resp.status, text)
+              }
+            } catch (e) {
+              console.warn('[Campaigns][LocalScheduler] dispatch failed (exception):', e)
+            } finally {
+              // Clean up key after execution attempt
+              localScheduleRegistry.delete(key)
+            }
+          }, delayMs)
+
+          localScheduleRegistry.set(key, t)
+        } else {
+          // Keep campaign scheduled in DB, but do not enqueue.
+          console.warn('[Campaigns] Local scheduler inactive (NODE_ENV != development) or invalid scheduledAt; campaign will remain SCHEDULED.')
+        }
+      } else if (!process.env.QSTASH_TOKEN) {
+        console.warn('[Campaigns] scheduledAt set, but QSTASH_TOKEN not configured; skipping QStash enqueue.')
+      } else if (!Number.isFinite(scheduledMs)) {
+        console.warn('[Campaigns] scheduledAt set, but invalid datetime; skipping QStash enqueue:', data.scheduledAt)
+      } else {
+        const delaySeconds = Math.max(0, Math.floor((scheduledMs - nowMs) / 1000))
+
+        const qstash = new QStashClient({ token: process.env.QSTASH_TOKEN })
+        const res = await qstash.publishJSON({
+          url: `${baseUrl}/api/campaign/dispatch`,
+          body: {
+            campaignId: campaign.id,
+            templateName: campaign.templateName,
+            trigger: 'schedule',
+            scheduledAt: new Date(data.scheduledAt).toISOString(),
+          },
+          // One-shot schedule
+          delay: delaySeconds,
+          retries: 3,
+          // Dedup per campaign+scheduled time (best-effort)
+          deduplicationId: `schedule:${campaign.id}:${new Date(data.scheduledAt).toISOString()}`,
+        })
+
+        await campaignDb.updateStatus(campaign.id, {
+          qstashScheduleMessageId: res.messageId,
+          qstashScheduleEnqueuedAt: new Date().toISOString(),
+        })
+      }
     }
 
     return NextResponse.json(campaign, { status: 201 })

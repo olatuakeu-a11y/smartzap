@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { GeneratedTemplate } from '@/lib/ai/services/template-agent';
 import { templateService } from '@/lib/whatsapp/template.service';
+import { Page, PageHeader, PageTitle } from '@/components/ui/page';
 
 export default function NewTemplateProjectPage() {
     const router = useRouter();
@@ -116,21 +117,23 @@ export default function NewTemplateProjectPage() {
     };
 
     return (
-        <div className="container mx-auto py-8 max-w-5xl">
-            <div className="flex items-center gap-4 mb-8">
-                <button onClick={() => router.back()} className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full">
-                    <ArrowLeft className="w-5 h-5" />
-                </button>
-                <h1 className="text-2xl font-bold">Novo Projeto de Templates</h1>
-                {strategy && (
-                    <Badge variant="outline" className="ml-4 gap-2 py-1 px-3">
-                        {strategy === 'marketing' && <Megaphone className="w-3 h-3" />}
-                        {strategy === 'utility' && <Wrench className="w-3 h-3" />}
-                        {strategy === 'bypass' && <VenetianMask className="w-3 h-3" />}
-                        Modo: {strategy.toUpperCase()}
-                    </Badge>
-                )}
-            </div>
+        <Page>
+            <PageHeader>
+                <div className="flex items-center gap-4">
+                    <button onClick={() => router.back()} className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full">
+                        <ArrowLeft className="w-5 h-5" />
+                    </button>
+                    <PageTitle className="text-white">Novo Projeto de Templates</PageTitle>
+                    {strategy && (
+                        <Badge variant="outline" className="ml-2 gap-2 py-1 px-3">
+                            {strategy === 'marketing' && <Megaphone className="w-3 h-3" />}
+                            {strategy === 'utility' && <Wrench className="w-3 h-3" />}
+                            {strategy === 'bypass' && <VenetianMask className="w-3 h-3" />}
+                            Modo: {strategy.toUpperCase()}
+                        </Badge>
+                    )}
+                </div>
+            </PageHeader>
 
             <StrategySelectorModal
                 isOpen={!strategy}
@@ -236,7 +239,7 @@ export default function NewTemplateProjectPage() {
             )}
 
             {step === 'generating' && (
-                <div className="flex flex-col items-center justify-center min-h-[400px]">
+                <div className="flex flex-col items-center justify-center min-h-100">
                     <Loader2 className="w-12 h-12 text-emerald-600 animate-spin mb-4" />
                     <h2 className="text-xl font-semibold mb-2">Criando seus templates...</h2>
                     <p className="text-zinc-500">O Agente está consultando as diretrizes da Meta e gerando variações.</p>
@@ -334,6 +337,6 @@ export default function NewTemplateProjectPage() {
                     </div>
                 </div>
             )}
-        </div>
+        </Page>
     );
 }

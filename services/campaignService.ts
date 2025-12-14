@@ -97,17 +97,17 @@ export const campaignService = {
 
     const campaign = await response.json();
 
-    // Strategy: Use Redis for real-time stats while campaign is active
-    // Once completed, database is the source of truth
+    // Estratégia: usar status em tempo real (via API) enquanto a campanha está ativa.
+    // Quando concluir, o banco é a fonte da verdade.
     const isActive = campaign.status === 'Enviando' || campaign.status === 'Agendado';
 
     if (isActive) {
-      // Try to get real-time stats from Redis for faster updates
+      // Tenta buscar stats em tempo real (melhor UX durante envio)
       try {
         const statusResponse = await fetch(`/api/campaign/${id}/status`);
         if (statusResponse.ok) {
           const realStatus: CampaignStatusResponse = await statusResponse.json();
-          // Only use Redis stats if they have data (not empty)
+          // Só sobrescreve se vierem dados úteis (evita "voltar" para 0)
           if (realStatus.stats.sent > 0 || realStatus.stats.failed > 0) {
             return {
               ...campaign,
@@ -119,11 +119,11 @@ export const campaignService = {
           }
         }
       } catch (e) {
-        console.warn('Failed to fetch Redis stats, using database:', e);
+        console.warn('Falha ao buscar stats em tempo real; usando banco:', e);
       }
     }
 
-    // For completed campaigns or if Redis fails, use database (source of truth)
+    // Para campanhas concluídas (ou se status em tempo real falhar), use o banco (fonte da verdade)
     return campaign;
   },
 
@@ -153,7 +153,7 @@ export const campaignService = {
     return response.json();
   },
 
-  // Fetch real-time status from Redis
+  // Busca status em tempo real
   getRealStatus: async (id: string): Promise<CampaignStatusResponse | null> => {
     try {
       const response = await fetch(`/api/campaign/${id}/status`);
@@ -227,22 +227,19 @@ export const campaignService = {
   // Internal: dispatch campaign to backend queue
   dispatchToBackend: async (campaignId: string, templateName: string, contacts?: { id?: string; contactId?: string; name: string; phone: string; email?: string | null; custom_fields?: Record<string, unknown> }[], templateVariables?: { header: string[], body: string[], buttons?: Record<string, string> }): Promise<boolean> => {
     try {
-      // Use provided contacts - contacts must be passed explicitly
-      if (!contacts || contacts.length === 0) {
-        console.error('No contacts provided for dispatch');
-        return false;
-      }
+      // Allow omitting contacts: backend will load from campaign_contacts (preferred for scheduled/clone/start).
+      // When provided, contacts must include contactId to satisfy dispatch hardening.
 
-      // Don't send credentials from localStorage - server fetches from Redis
+      // Não envie credenciais do frontend: servidor busca credenciais salvas (Supabase/env)
       const response = await fetch('/api/campaign/dispatch', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           campaignId,
           templateName,
-          contacts,
+          ...(contacts && contacts.length > 0 ? { contacts } : {}),
           templateVariables, // Pass template variables to workflow
-          // whatsappCredentials fetched from Redis on server
+          // whatsappCredentials buscadas no servidor (Supabase/env)
         })
       });
 
@@ -361,58 +358,51 @@ export const campaignService = {
       return undefined;
     }
 
-    // Get campaign contacts from Database (campaign_contacts table)
-    const messagesResponse = await fetch(`/api/campaigns/${id}/messages`);
-    let contacts: { name: string; phone: string }[] = [];
+    // Prefer backend to load recipients snapshot from campaign_contacts.
+    // This avoids losing custom_fields when starting scheduled/duplicated campaigns.
+    const success = await campaignService.dispatchToBackend(
+      id,
+      campaignData.templateName,
+      undefined,
+      campaignData.templateVariables as { header: string[], body: string[], buttons?: Record<string, string> } | undefined
+    );
 
-    if (messagesResponse.ok) {
-      const response = await messagesResponse.json();
-      // API returns { messages: [...], stats: {...} } - access the messages array
-      const messagesList = response.messages || response;
-      contacts = messagesList.map((m: { contactName: string; contactPhone: string }) => ({
-        name: m.contactName,
-        phone: m.contactPhone,
-      }));
-    }
-
-    if (contacts.length === 0) {
-      console.error('❌ No contacts found for campaign! Campaign will not be dispatched.');
+    if (!success) {
+      console.error('❌ Failed to dispatch campaign to backend.');
       return undefined;
     }
 
-    console.log('📋 Found contacts:', contacts.length);
-    console.log('📝 Template variables:', campaignData.templateVariables);
-
-    // Update status in Database
+    // Clear scheduledAt once dispatch is queued (workflow will set status/startedAt).
     const updateResponse = await fetch(`/api/campaigns/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        status: CampaignStatus.SENDING,
-        startedAt: new Date().toISOString(),
         scheduledAt: null,
+        qstashScheduleMessageId: null,
+        qstashScheduleEnqueuedAt: null,
       }),
     });
 
     if (!updateResponse.ok) {
-      console.error('Failed to start campaign in Database');
-      return undefined;
+      console.warn('Failed to clear scheduled fields after dispatch');
     }
 
-    const campaign = await updateResponse.json();
+    return campaignService.getById(id);
+  },
 
-    console.log('📤 Dispatching to backend with contacts:', contacts.length);
+  // Cancel a scheduled campaign (QStash one-shot)
+  cancelSchedule: async (id: string): Promise<{ ok: boolean; campaign?: Campaign | null; error?: string }> => {
+    const response = await fetch(`/api/campaigns/${id}/cancel-schedule`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    })
 
-    const success = await campaignService.dispatchToBackend(
-      id,
-      campaign.templateName,
-      contacts,
-      campaignData.templateVariables as { header: string[], body: string[], buttons?: Record<string, string> } | undefined // Pass template variables from database
-    );
+    const payload = await response.json().catch(() => ({}))
+    if (!response.ok) {
+      return { ok: false, error: payload?.error || 'Falha ao cancelar agendamento' }
+    }
 
-    console.log('📤 Dispatch result:', success ? '✅ Success' : '❌ Failed');
-
-    return campaign;
+    return { ok: true, campaign: payload?.campaign ?? null }
   },
 
   // Update campaign stats from real-time polling

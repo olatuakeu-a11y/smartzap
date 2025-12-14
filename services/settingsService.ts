@@ -203,4 +203,40 @@ export const settingsService = {
       throw new Error(error.error || 'Failed to remove test contact');
     }
   },
+
+  // =============================================================================
+  // WHATSAPP TURBO (Adaptive Throttle) - Persisted in Supabase settings
+  // =============================================================================
+
+  getWhatsAppThrottle: async (): Promise<any> => {
+    const response = await fetch('/api/settings/whatsapp-throttle')
+    if (!response.ok) throw new Error('Failed to fetch WhatsApp throttle config')
+    return response.json()
+  },
+
+  saveWhatsAppThrottle: async (data: {
+    enabled?: boolean
+    sendConcurrency?: number
+    batchSize?: number
+    startMps?: number
+    maxMps?: number
+    minMps?: number
+    cooldownSec?: number
+    minIncreaseGapSec?: number
+    sendFloorDelayMs?: number
+    resetState?: boolean
+  }): Promise<any> => {
+    const response = await fetch('/api/settings/whatsapp-throttle', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    })
+
+    const json = await response.json().catch(() => ({}))
+    if (!response.ok) {
+      throw new Error((json as any)?.error || 'Failed to save WhatsApp throttle config')
+    }
+
+    return json
+  },
 };

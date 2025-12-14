@@ -67,7 +67,7 @@ async function fetchLimitsFromMeta(phoneNumberId: string, accessToken: string) {
   }
 }
 
-// GET /api/account/limits - Fetch limits using Redis credentials
+// GET /api/account/limits - Fetch limits usando credenciais salvas (Supabase/env)
 export async function GET() {
   const credentials = await getWhatsAppCredentials()
   
@@ -91,7 +91,7 @@ export async function GET() {
   }
 }
 
-// POST /api/account/limits - Fetch limits (with optional body credentials, fallback to Redis)
+// POST /api/account/limits - Fetch limits (body opcional; fallback para Supabase/env)
 export async function POST(request: NextRequest) {
   let phoneNumberId: string | undefined
   let accessToken: string | undefined
@@ -105,10 +105,10 @@ export async function POST(request: NextRequest) {
       accessToken = body.accessToken
     }
   } catch {
-    // No body provided, will fallback to Redis
+    // Sem body (ou body inválido): fallback para credenciais salvas
   }
 
-  // Fallback to Redis credentials if not provided
+  // Fallback para credenciais salvas (Supabase/env)
   if (!phoneNumberId || !accessToken) {
     const credentials = await getWhatsAppCredentials()
     if (credentials) {

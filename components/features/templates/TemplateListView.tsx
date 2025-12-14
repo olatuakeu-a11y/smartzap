@@ -8,25 +8,28 @@ import { BulkGenerationModal } from './BulkGenerationModal';
 
 const StatusBadge = ({ status }: { status: TemplateStatus }) => {
   const styles = {
+    DRAFT: 'bg-zinc-500/10 text-zinc-300 border-white/10',
     APPROVED: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
     PENDING: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
     REJECTED: 'bg-red-500/10 text-red-400 border-red-500/20',
   };
 
   const icons = {
+    DRAFT: <FileText size={12} className="mr-1" />,
     APPROVED: <Check size={12} className="mr-1" />,
     PENDING: <Clock size={12} className="mr-1" />,
     REJECTED: <AlertTriangle size={12} className="mr-1" />,
   };
 
   const labels = {
+    DRAFT: 'Rascunho',
     APPROVED: 'Aprovado',
     PENDING: 'Em Análise',
     REJECTED: 'Rejeitado',
   };
 
   return (
-    <span className={`inline-flex items-center px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider border ${styles[status]}`}>
+    <span className={`inline-flex items-center px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider border ${styles[status] || styles.PENDING}`}>
       {icons[status]} {labels[status]}
     </span>
   );
@@ -40,6 +43,8 @@ interface TemplateListViewProps {
   setSearchTerm: (term: string) => void;
   categoryFilter: string;
   setCategoryFilter: (category: string) => void;
+  statusFilter: 'APPROVED' | 'PENDING' | 'REJECTED' | 'ALL';
+  setStatusFilter: (status: 'APPROVED' | 'PENDING' | 'REJECTED' | 'ALL') => void;
   onSync: () => void;
 
   // Single AI Modal
@@ -113,6 +118,12 @@ interface TemplateListViewProps {
   onBulkDeleteClick: () => void;
   onConfirmBulkDelete: () => void;
   onCancelBulkDelete: () => void;
+
+  /**
+   * Quando o TemplateListView for renderizado dentro de uma página que já tem header,
+   * use isso para evitar header duplicado (ex.: /templates com tabs).
+   */
+  hideHeader?: boolean;
 }
 
 export const TemplateListView: React.FC<TemplateListViewProps> = ({
@@ -123,6 +134,8 @@ export const TemplateListView: React.FC<TemplateListViewProps> = ({
   setSearchTerm,
   categoryFilter,
   setCategoryFilter,
+  statusFilter,
+  setStatusFilter,
   onSync,
   isAiModalOpen,
   setIsAiModalOpen,
@@ -184,6 +197,7 @@ export const TemplateListView: React.FC<TemplateListViewProps> = ({
   onBulkDeleteClick,
   onConfirmBulkDelete,
   onCancelBulkDelete,
+  hideHeader = false,
 }) => {
 
   const hasSelection = selectedMetaTemplates.size > 0;
@@ -192,13 +206,13 @@ export const TemplateListView: React.FC<TemplateListViewProps> = ({
 
   return (
     <div className="space-y-8 pb-20 relative">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-white tracking-tight mb-2">Templates</h1>
-          <p className="text-gray-400">Gerencie seus modelos de mensagens aprovados pelo WhatsApp</p>
-        </div>
-        <div className="flex gap-3">
+      {!hideHeader && (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-white tracking-tight mb-2">Templates</h1>
+            <p className="text-gray-400">Gerencie seus modelos de mensagens aprovados pelo WhatsApp</p>
+          </div>
+          <div className="flex gap-3">
 
           {/* USAGE LIMIT INDICATOR */}
           <div className="flex flex-col items-end justify-center mr-4 px-3 py-1 bg-zinc-900 border border-white/5 rounded-lg">
@@ -240,8 +254,9 @@ export const TemplateListView: React.FC<TemplateListViewProps> = ({
             <RefreshCw size={18} className={isSyncing ? 'animate-spin' : ''} />
             {isSyncing ? 'Sincronizando...' : 'Sincronizar'}
           </button>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Filters */}
       <div className="glass-panel p-4 rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -261,6 +276,26 @@ export const TemplateListView: React.FC<TemplateListViewProps> = ({
                 }`}
             >
               {cat.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex gap-2 overflow-x-auto no-scrollbar">
+          {[
+            { value: 'APPROVED', label: 'Aprovados' },
+            { value: 'PENDING', label: 'Em análise' },
+            { value: 'REJECTED', label: 'Rejeitados' },
+            { value: 'ALL', label: 'Todos' },
+          ].map((s) => (
+            <button
+              key={s.value}
+              onClick={() => setStatusFilter(s.value as any)}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${statusFilter === s.value
+                ? 'bg-emerald-600 text-white'
+                : 'bg-zinc-900 border border-white/5 text-gray-400 hover:text-white hover:bg-white/5'
+                }`}
+            >
+              {s.label}
             </button>
           ))}
         </div>
@@ -376,7 +411,7 @@ export const TemplateListView: React.FC<TemplateListViewProps> = ({
                         <div className="p-2 bg-zinc-900 rounded-lg text-gray-400 group-hover:text-primary-400 transition-colors">
                           <FileText size={16} />
                         </div>
-                        <span className="font-medium text-white group-hover:text-primary-400 transition-colors truncate max-w-[200px]" title={template.name}>
+                        <span className="font-medium text-white group-hover:text-primary-400 transition-colors truncate max-w-50" title={template.name}>
                           {template.name}
                         </span>
                       </div>

@@ -121,7 +121,7 @@ async function syncTemplatesToLocalDb(templates: ReturnType<typeof fetchTemplate
 }
 
 
-// GET /api/templates - Fetch templates using Redis credentials
+// GET /api/templates - Busca templates usando credenciais salvas (Supabase/env)
 export async function GET() {
   try {
     const credentials = await getWhatsAppCredentials()
@@ -153,7 +153,7 @@ export async function GET() {
 }
 
 
-// POST /api/templates - Fetch templates (with optional body credentials, fallback to Redis)
+// POST /api/templates - Busca templates (body opcional; fallback para Supabase/env)
 export async function POST(request: NextRequest) {
   let businessAccountId: string | undefined
   let accessToken: string | undefined
@@ -167,10 +167,10 @@ export async function POST(request: NextRequest) {
       accessToken = body.accessToken
     }
   } catch {
-    // Empty body, will use Redis
+    // Body vazio/inválido: usar credenciais salvas
   }
 
-  // Fallback to Redis credentials
+  // Fallback para credenciais salvas (Supabase/env)
   if (!businessAccountId || !accessToken) {
     const credentials = await getWhatsAppCredentials()
     if (credentials) {

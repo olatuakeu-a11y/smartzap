@@ -27,6 +27,7 @@ export const useTemplatesController = () => {
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('ALL');
+  const [statusFilter, setStatusFilter] = useState<'APPROVED' | 'PENDING' | 'REJECTED' | 'ALL'>('APPROVED');
 
   // AI Modal State (single template)
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
@@ -160,9 +161,10 @@ export const useTemplatesController = () => {
     return templatesQuery.data.filter(t => {
       const matchesSearch = t.name.toLowerCase().includes(searchTerm.toLowerCase()) || t.content.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesCategory = categoryFilter === 'ALL' || t.category === categoryFilter;
-      return matchesSearch && matchesCategory;
+      const matchesStatus = statusFilter === 'ALL' || t.status === statusFilter;
+      return matchesSearch && matchesCategory && matchesStatus;
     });
-  }, [templatesQuery.data, searchTerm, categoryFilter]);
+  }, [templatesQuery.data, searchTerm, categoryFilter, statusFilter]);
 
   const handleGenerateAI = () => {
     if (!aiPrompt) return;
@@ -389,6 +391,8 @@ export const useTemplatesController = () => {
     setSearchTerm,
     categoryFilter,
     setCategoryFilter,
+    statusFilter,
+    setStatusFilter,
     onSync: () => syncMutation.mutate(),
 
     // AI Modal Props

@@ -19,6 +19,7 @@ export const useCampaignDetailsController = () => {
   const [filterStatus, setFilterStatus] = useState<MessageStatus | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isResendingSkipped, setIsResendingSkipped] = useState(false);
+  const [isCancelingSchedule, setIsCancelingSchedule] = useState(false);
 
   // Fetch campaign data
   const campaignQuery = useQuery({
@@ -146,6 +147,22 @@ export const useCampaignDetailsController = () => {
     }
   });
 
+  const cancelScheduleMutation = useMutation({
+    mutationFn: () => campaignService.cancelSchedule(id!),
+    onSuccess: (result) => {
+      if (result.ok) {
+        toast.success('Agendamento cancelado. A campanha voltou para Rascunho.');
+        queryClient.invalidateQueries({ queryKey: ['campaign', id] });
+        queryClient.invalidateQueries({ queryKey: ['campaigns'] });
+      } else {
+        toast.error(result.error || 'Falha ao cancelar agendamento');
+      }
+    },
+    onError: () => {
+      toast.error('Falha ao cancelar agendamento');
+    }
+  })
+
   const resendSkippedMutation = useMutation({
     mutationFn: () => campaignService.resendSkipped(id!),
     onSuccess: async (result) => {
@@ -209,10 +226,21 @@ export const useCampaignDetailsController = () => {
     }
   }
 
+  const handleCancelSchedule = async () => {
+    if (!id) return
+    setIsCancelingSchedule(true)
+    try {
+      await cancelScheduleMutation.mutateAsync()
+    } finally {
+      setIsCancelingSchedule(false)
+    }
+  }
+
   // Can perform actions?
   const canPause = activeCampaign?.status === CampaignStatus.SENDING;
   const canResume = activeCampaign?.status === CampaignStatus.PAUSED;
   const canStart = activeCampaign?.status === CampaignStatus.SCHEDULED || activeCampaign?.status === CampaignStatus.DRAFT;
+  const canCancelSchedule = activeCampaign?.status === CampaignStatus.SCHEDULED;
 
   return {
     campaign: activeCampaign,
@@ -232,9 +260,12 @@ export const useCampaignDetailsController = () => {
     onPause: handlePause,
     onResume: handleResume,
     onStart: handleStart,
+    onCancelSchedule: handleCancelSchedule,
+    isCancelingSchedule,
     isPausing: pauseMutation.isPending,
     isResuming: resumeMutation.isPending,
     isStarting: startMutation.isPending,
+    canCancelSchedule,
     canPause,
     canResume,
     canStart,

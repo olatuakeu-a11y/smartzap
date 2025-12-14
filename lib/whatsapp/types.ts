@@ -208,6 +208,9 @@ export interface CreateTemplateInput {
   language: string;
   category: 'UTILITY' | 'MARKETING' | 'AUTHENTICATION';
 
+  // Meta template parameter format
+  parameter_format?: 'positional' | 'named';
+
   // Content
   content?: string;
   body?: {

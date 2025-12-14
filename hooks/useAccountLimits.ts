@@ -36,14 +36,14 @@ export class LimitsFetchError extends Error {
 
 /**
  * Fetches account limits from backend API
- * Backend uses Redis credentials - no need to pass from frontend
+ * Backend usa credenciais salvas (Supabase settings / env) — não precisa passar do frontend
  */
 async function fetchLimitsFromAPI(): Promise<AccountLimits> {
-  // Call API without credentials - backend reads from Redis
+  // Chama a API sem credenciais no body (backend usa credenciais salvas)
   const response = await fetch('/api/account/limits', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({}), // Empty - backend uses Redis credentials
+    body: JSON.stringify({}), // Body vazio: backend usa credenciais salvas
   });
   
   const data = await response.json();

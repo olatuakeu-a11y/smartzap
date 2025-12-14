@@ -28,6 +28,7 @@ import {
 } from 'lucide-react'
 import React from 'react'
 import { HealthStatus } from '@/lib/health-check'
+import { getPageWidthClass, PageLayoutProvider, usePageLayout } from '@/components/providers/PageLayoutProvider'
 
 // Setup step interface
 interface SetupStep {
@@ -130,7 +131,7 @@ const OnboardingOverlay = ({
             <div className="max-w-2xl w-full">
                 {/* Header */}
                 <div className="text-center mb-10">
-                    <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-primary-500 to-emerald-600 mb-6 shadow-lg shadow-primary-500/20">
+                    <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-linear-to-br from-primary-500 to-emerald-600 mb-6 shadow-lg shadow-primary-500/20">
                         <Sparkles size={40} className="text-white" />
                     </div>
                     <h1 className="text-4xl font-bold text-white tracking-tight mb-3">
@@ -165,7 +166,7 @@ const OnboardingOverlay = ({
                     </div>
                     <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
                         <div
-                            className="h-full bg-gradient-to-r from-primary-500 to-emerald-500 transition-all duration-500"
+                            className="h-full bg-linear-to-r from-primary-500 to-emerald-500 transition-all duration-500"
                             style={{ width: `${progressPercent}%` }}
                         />
                     </div>
@@ -546,7 +547,8 @@ export function DashboardShell({
     }
 
     return (
-        <div className="min-h-screen bg-grid-dots text-gray-100 flex font-sans selection:bg-primary-500/30">
+        <PageLayoutProvider>
+            <div className="min-h-screen bg-grid-dots text-gray-100 flex font-sans selection:bg-primary-500/30">
             {/* Mobile Overlay */}
             {isMobileMenuOpen && (
                 <div
@@ -563,7 +565,7 @@ export function DashboardShell({
                 <div className="h-full flex flex-col p-4">
                     {/* Logo */}
                     <div className="h-16 flex items-center px-2 mb-6">
-                        <div className="w-10 h-10 bg-gradient-to-br from-primary-600 to-primary-800 rounded-xl flex items-center justify-center mr-3 shadow-lg shadow-primary-900/20 border border-white/10">
+                        <div className="w-10 h-10 bg-linear-to-br from-primary-600 to-primary-800 rounded-xl flex items-center justify-center mr-3 shadow-lg shadow-primary-900/20 border border-white/10">
                             <Zap className="text-white" size={20} fill="currentColor" />
                         </div>
                         <div>
@@ -586,7 +588,7 @@ export function DashboardShell({
                                 className="w-full group relative flex items-center justify-center gap-2 py-3 rounded-xl font-medium transition-all shadow-lg shadow-primary-900/20 overflow-hidden"
                             >
                                 <div className="absolute inset-0 bg-primary-600 group-hover:bg-primary-500 transition-colors"></div>
-                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
+                                <div className="absolute inset-0 bg-linear-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700"></div>
                                 <Plus size={18} className="relative z-10 text-white" />
                                 <span className="relative z-10 text-white">Nova Campanha</span>
                             </PrefetchLink>
@@ -636,12 +638,12 @@ export function DashboardShell({
                         </div>
                     </div>
                 </div>
-            </aside >
+            </aside>
 
             {/* Main Content */}
-            < div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden" >
+            <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
                 {/* Header */}
-                < header className="h-20 flex items-center justify-between px-6 lg:px-10 flex-shrink-0" >
+                <header className="h-20 flex items-center justify-between px-6 lg:px-10 shrink-0">
                     <div className="flex items-center">
                         <button
                             className="lg:hidden p-2 text-gray-400 mr-4"
@@ -663,26 +665,32 @@ export function DashboardShell({
                             <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-primary-500 rounded-full border-2 border-zinc-950"></span>
                         </div>
                     </div>
-                </header >
+                </header>
 
                 {/* Page Content */}
-                < main className={`flex-1 ${pathname?.includes('/campaigns/new') || (pathname?.includes('/templates/') && pathname !== '/templates') || pathname?.startsWith('/contacts')
-                    ? 'overflow-hidden'
-                    : 'overflow-auto p-6 lg:p-10'
-                    }`
-                }>
-                    <div className={
-                        pathname?.includes('/campaigns/new') || (pathname?.includes('/templates/') && pathname !== '/templates') || pathname?.startsWith('/contacts')
-                            ? 'h-full'
-                            : 'max-w-7xl mx-auto'
-                    }>
-                        {/* Account alerts banner - hide in fullscreen mode */}
-                        {!pathname?.includes('/campaigns/new') && <AccountAlertBanner />}
+                <PageContentShell>
+                    {children}
+                </PageContentShell>
+            </div>
+        </div>
+        </PageLayoutProvider>
+    )
+}
 
-                        {children}
-                    </div>
-                </main >
-            </div >
-        </div >
+function PageContentShell({ children }: { children: React.ReactNode }) {
+    const layout = usePageLayout()
+
+    const mainOverflowClass = layout.overflow === 'hidden' ? 'overflow-hidden' : 'overflow-auto'
+    const mainPaddingClass = layout.padded ? 'p-6 lg:p-10' : ''
+    const wrapperWidthClass = getPageWidthClass(layout.width)
+    const wrapperHeightClass = layout.height === 'full' ? 'h-full' : ''
+
+    return (
+        <main className={`flex-1 ${mainOverflowClass} ${mainPaddingClass}`.trim()}>
+            <div className={`${wrapperWidthClass} ${wrapperHeightClass}`.trim()}>
+                {layout.showAccountAlerts && <AccountAlertBanner />}
+                {children}
+            </div>
+        </main>
     )
 }

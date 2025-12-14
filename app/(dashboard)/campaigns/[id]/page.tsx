@@ -19,14 +19,17 @@ export default function CampaignDetailsPage() {
       onPause={controller.onPause}
       onResume={controller.onResume}
       onStart={controller.onStart}
+      onCancelSchedule={controller.onCancelSchedule}
       onResendSkipped={controller.onResendSkipped}
       isResendingSkipped={controller.isResendingSkipped}
       isPausing={controller.isPausing}
       isResuming={controller.isResuming}
       isStarting={controller.isStarting}
+      isCancelingSchedule={controller.isCancelingSchedule}
       canPause={controller.canPause}
       canResume={controller.canResume}
       canStart={controller.canStart}
+      canCancelSchedule={controller.canCancelSchedule}
       isRealtimeConnected={controller.isRealtimeConnected}
       shouldShowRefreshButton={controller.shouldShowRefreshButton}
       isRefreshing={controller.isRefreshing}

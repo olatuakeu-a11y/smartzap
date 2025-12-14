@@ -81,7 +81,7 @@ export const useRealtimeStatus = (
     if (!campaignId) return;
     
     try {
-      // Update local storage with real stats from Redis
+      // Atualiza stats com dados em tempo real vindos do backend
       await campaignService.updateStats(campaignId);
       
       // Invalidate queries to reflect new data
@@ -108,32 +108,7 @@ export const useRealtimeStatus = (
     return () => clearInterval(intervalId);
   }, [shouldPoll, updateStats, interval]);
 
-  // Check scheduled campaigns
-  useEffect(() => {
-    if (!campaign || campaign.status !== CampaignStatus.SCHEDULED) return;
-    if (!campaign.scheduledAt) return;
-
-    const scheduledTime = new Date(campaign.scheduledAt).getTime();
-    const now = Date.now();
-    
-    // If scheduled time has passed, start the campaign
-    if (scheduledTime <= now) {
-      campaignService.start(campaign.id).then(() => {
-        queryClient.invalidateQueries({ queryKey: ['campaign', campaign.id] });
-        queryClient.invalidateQueries({ queryKey: ['campaigns'] });
-      });
-    } else {
-      // Schedule auto-start
-      const timeout = setTimeout(() => {
-        campaignService.start(campaign.id).then(() => {
-          queryClient.invalidateQueries({ queryKey: ['campaign', campaign.id] });
-          queryClient.invalidateQueries({ queryKey: ['campaigns'] });
-        });
-      }, scheduledTime - now);
-      
-      return () => clearTimeout(timeout);
-    }
-  }, [campaign, queryClient]);
+  // Scheduled campaigns are started server-side (QStash delay). No client-side auto-start.
 
   return {
     campaign: campaign || cachedCampaign, // Use cached if API hasn't responded yet
@@ -186,26 +161,7 @@ export const useRealtimeCampaigns = (options: UseRealtimeStatusOptions = {}) => 
     return () => clearInterval(intervalId);
   }, [activeCampaigns.length, enabled, interval, queryClient]);
 
-  // Check scheduled campaigns that need to start
-  useEffect(() => {
-    if (!campaigns) return;
-    
-    const scheduledCampaigns = campaigns.filter(c => 
-      c.status === CampaignStatus.SCHEDULED && c.scheduledAt
-    );
-
-    for (const campaign of scheduledCampaigns) {
-      const scheduledTime = new Date(campaign.scheduledAt!).getTime();
-      const now = Date.now();
-      
-      if (scheduledTime <= now) {
-        // Start immediately
-        campaignService.start(campaign.id).then(() => {
-          queryClient.invalidateQueries({ queryKey: ['campaigns'] });
-        });
-      }
-    }
-  }, [campaigns, queryClient]);
+  // Scheduled campaigns are started server-side (QStash delay). No client-side auto-start.
 
   return {
     campaigns: campaigns || [],
