@@ -1,15 +1,20 @@
--- campaign_contacts: campos de debug adicionais para troubleshooting/suporte
+-- campaign_contacts: informações extras quando um envio falha
 --
--- Objetivo:
--- - Persistir campos úteis para correlação com a Meta/Graph API:
---   - fbtrace_id (útil em tickets e investigação)
---   - error_subcode (quando existir)
---   - href (link de referência de códigos)
+-- Por que isso existe:
+-- Quando o WhatsApp/Meta recusa um envio, ele devolve dados técnicos do erro.
+-- Guardar isso ajuda a:
+-- - entender o que aconteceu
+-- - investigar mais rápido
+-- - abrir ticket com a Meta com evidência
 --
--- Observação sobre tamanho:
--- - Esses campos só são preenchidos em falhas.
--- - fbtrace_id/href são pequenos; subcode é inteiro.
--- - Mesmo assim, o app trunca `href` e `details` para evitar payloads grandes.
+-- O que guardamos (só quando falhar):
+-- - failure_fbtrace_id: “protocolo”/id da Meta para rastrear o erro
+-- - failure_subcode: um detalhe numérico extra (nem sempre vem)
+-- - failure_href: link de referência do erro (quando existir)
+--
+-- Importante:
+-- - Isso só é preenchido quando status = 'failed'
+-- - O app limita textos para não salvar coisa gigante
 
 alter table if exists public.campaign_contacts
   add column if not exists failure_fbtrace_id text;

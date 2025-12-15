@@ -239,4 +239,29 @@ export const settingsService = {
 
     return json
   },
+
+  // =============================================================================
+  // AUTO-SUPPRESSÃO (Proteção de Qualidade) - Persisted in Supabase settings
+  // =============================================================================
+
+  getAutoSuppression: async (): Promise<any> => {
+    const response = await fetch('/api/settings/auto-suppression')
+    if (!response.ok) throw new Error('Failed to fetch auto-suppression config')
+    return response.json()
+  },
+
+  saveAutoSuppression: async (data: any): Promise<any> => {
+    const response = await fetch('/api/settings/auto-suppression', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    })
+
+    const json = await response.json().catch(() => ({}))
+    if (!response.ok) {
+      throw new Error((json as any)?.error || 'Failed to save auto-suppression config')
+    }
+
+    return json
+  },
 };

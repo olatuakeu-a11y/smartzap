@@ -199,6 +199,15 @@ export const useSettingsController = () => {
     retry: false,
   });
 
+  // Auto-supressão (Proteção de Qualidade)
+  const autoSuppressionQuery = useQuery({
+    queryKey: ['autoSuppression'],
+    queryFn: settingsService.getAutoSuppression,
+    enabled: !!settingsQuery.data?.isConnected,
+    staleTime: 30 * 1000,
+    retry: false,
+  })
+
   // Available domains query (auto-detect from Vercel)
   const domainsQuery = useQuery({
     queryKey: ['availableDomains'],
@@ -303,6 +312,17 @@ export const useSettingsController = () => {
       toast.error(err?.message || 'Erro ao salvar modo turbo');
     }
   });
+
+  const saveAutoSuppressionMutation = useMutation({
+    mutationFn: settingsService.saveAutoSuppression,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['autoSuppression'] })
+      toast.success('Configuração de auto-supressão salva!')
+    },
+    onError: (err: any) => {
+      toast.error(err?.message || 'Erro ao salvar auto-supressão')
+    },
+  })
 
   const subscribeWebhookMessagesMutation = useMutation({
     mutationFn: async () => {
@@ -630,5 +650,11 @@ export const useSettingsController = () => {
     whatsappThrottleLoading: whatsappThrottleQuery.isLoading,
     saveWhatsAppThrottle: saveWhatsAppThrottleMutation.mutateAsync,
     isSavingWhatsAppThrottle: saveWhatsAppThrottleMutation.isPending,
+
+    // Auto-supressão (Proteção de Qualidade)
+    autoSuppression: autoSuppressionQuery.data || null,
+    autoSuppressionLoading: autoSuppressionQuery.isLoading,
+    saveAutoSuppression: saveAutoSuppressionMutation.mutateAsync,
+    isSavingAutoSuppression: saveAutoSuppressionMutation.isPending,
   };
 };  

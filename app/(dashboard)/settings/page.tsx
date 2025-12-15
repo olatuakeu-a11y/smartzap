@@ -94,6 +94,12 @@ export default function SettingsPage() {
             whatsappThrottleLoading={controller.whatsappThrottleLoading}
             saveWhatsAppThrottle={controller.saveWhatsAppThrottle}
             isSavingWhatsAppThrottle={controller.isSavingWhatsAppThrottle}
+
+            // Auto-supressão (Proteção de Qualidade)
+            autoSuppression={controller.autoSuppression}
+            autoSuppressionLoading={controller.autoSuppressionLoading}
+            saveAutoSuppression={controller.saveAutoSuppression}
+            isSavingAutoSuppression={controller.isSavingAutoSuppression}
             hideHeader
           />
         </div>

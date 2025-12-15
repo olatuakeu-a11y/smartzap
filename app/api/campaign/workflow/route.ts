@@ -9,6 +9,7 @@ import { createRateLimiter } from '@/lib/rate-limiter'
 import { recordStableBatch, recordThroughputExceeded, getAdaptiveThrottleConfig, getAdaptiveThrottleState } from '@/lib/whatsapp-adaptive-throttle'
 import { normalizePhoneNumber } from '@/lib/phone-formatter'
 import { getActiveSuppressionsByPhone } from '@/lib/phone-suppressions'
+import { maybeAutoSuppressByFailure } from '@/lib/auto-suppression'
 import { createHash } from 'crypto'
 
 function hashConfig(input: unknown): string {
@@ -675,6 +676,40 @@ export const { POST } = serve<CampaignWorkflowInput>(
                   }
                 )
                 dbTimeMs += Date.now() - t0
+              }
+
+              // Auto-supressão agressiva (cross-campaign) — best-effort
+              // Importante: não deve interromper o workflow; serve para proteger qualidade da conta.
+              try {
+                const result = await maybeAutoSuppressByFailure({
+                  phone: contact.phone,
+                  failureCode: errorCode,
+                  failureTitle: metaTitle || null,
+                  failureDetails: (metaDetails || metaMessage) ?? null,
+                  failureFbtraceId: metaFbtraceId || null,
+                  failureSubcode: typeof metaSubcode === 'number' ? metaSubcode : null,
+                  failureHref: metaHref || null,
+                  campaignId,
+                })
+                if (result.suppressed) {
+                  await emitWorkflowTrace({
+                    traceId,
+                    campaignId,
+                    step,
+                    batchIndex,
+                    contactId: contact.contactId,
+                    phoneMasked,
+                    phase: 'auto_suppressed',
+                    ok: true,
+                    extra: {
+                      failureCode: errorCode,
+                      recentCount: result.recentCount ?? null,
+                      expiresAt: result.expiresAt ?? null,
+                    },
+                  })
+                }
+              } catch (e) {
+                console.warn('[Workflow] Falha ao aplicar auto-supressão (best-effort):', e)
               }
 
               failedCount++

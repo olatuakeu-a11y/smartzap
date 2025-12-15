@@ -4,6 +4,7 @@ export const dynamic = 'force-dynamic' // Prevent caching of verification reques
 import { supabase } from '@/lib/supabase'
 import { normalizePhoneNumber } from '@/lib/phone-formatter'
 import { upsertPhoneSuppression } from '@/lib/phone-suppressions'
+import { maybeAutoSuppressByFailure } from '@/lib/auto-suppression'
 import {
   mapWhatsAppError,
   isCriticalError,
@@ -501,6 +502,28 @@ export async function POST(request: NextRequest) {
                       errorDetails,
                     },
                   })
+                }
+
+                // Auto-supressão agressiva (cross-campaign) — best-effort
+                // Objetivo: proteger qualidade da conta evitando insistência em números undeliverable.
+                try {
+                  const result = await maybeAutoSuppressByFailure({
+                    phone,
+                    failureCode: errorCode,
+                    failureTitle: errorTitle,
+                    failureDetails: errorDetails,
+                    failureHref: errorHref,
+                    campaignId,
+                    campaignContactId: existingUpdate.id,
+                    messageId,
+                  })
+                  if (result.suppressed) {
+                    console.log(
+                      `🛑 Auto-supressão aplicada para ${phoneMasked || phone} (code ${errorCode}, count ${result.recentCount ?? 'n/a'}) até ${result.expiresAt}`
+                    )
+                  }
+                } catch (e) {
+                  console.warn('[Webhook] Falha ao aplicar auto-supressão (best-effort):', e)
                 }
 
               } catch (e) {
