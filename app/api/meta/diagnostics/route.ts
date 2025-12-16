@@ -1,0 +1,812 @@
+import { NextResponse } from 'next/server'
+import { getWhatsAppCredentials, getCredentialsSource } from '@/lib/whatsapp-credentials'
+import { normalizeSubscribedFields, type MetaSubscribedApp } from '@/lib/meta-webhook-subscription'
+import { getVerifyToken } from '@/lib/verify-token'
+import { supabase } from '@/lib/supabase'
+
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
+const META_API_VERSION = 'v24.0'
+const META_API_BASE = `https://graph.facebook.com/${META_API_VERSION}`
+
+type CheckStatus = 'pass' | 'warn' | 'fail' | 'info'
+
+type DiagnosticCheck = {
+	id: string
+	title: string
+	status: CheckStatus
+	message: string
+	details?: Record<string, unknown>
+	actions?: Array<{
+		id: string
+		label: string
+		kind: 'link' | 'api'
+		href?: string
+		method?: 'POST' | 'DELETE'
+		endpoint?: string
+		body?: unknown
+	}>
+}
+
+function noStoreJson(payload: unknown, init?: { status?: number }) {
+	return NextResponse.json(payload, {
+		status: init?.status ?? 200,
+		headers: {
+			'Cache-Control': 'private, no-store, no-cache, must-revalidate, max-age=0',
+			Pragma: 'no-cache',
+			Expires: '0',
+		},
+	})
+}
+
+function maskTokenPreview(token: string | null | undefined): string {
+	const t = String(token || '').trim()
+	if (!t) return ''
+	if (t.length <= 12) return `${t.slice(0, 4)}…${t.slice(-2)}`
+	return `${t.slice(0, 6)}…${t.slice(-4)}`
+}
+
+function maskId(id: string | null | undefined): string {
+	const s = String(id || '').trim()
+	if (!s) return ''
+	if (s.length <= 8) return `${s.slice(0, 3)}…`
+	return `${s.slice(0, 4)}…${s.slice(-4)}`
+}
+
+function computeWebhookUrl(): { webhookUrl: string; vercelEnv: string | null } {
+	let webhookUrl: string
+	const vercelEnv = process.env.VERCEL_ENV || null
+
+	if (vercelEnv === 'production' && process.env.VERCEL_PROJECT_PRODUCTION_URL) {
+		webhookUrl = `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL.trim()}/api/webhook`
+	} else if (process.env.VERCEL_URL) {
+		webhookUrl = `https://${process.env.VERCEL_URL.trim()}/api/webhook`
+	} else if (process.env.NEXT_PUBLIC_APP_URL) {
+		webhookUrl = `${process.env.NEXT_PUBLIC_APP_URL.trim()}/api/webhook`
+	} else {
+		webhookUrl = 'http://localhost:3000/api/webhook'
+	}
+
+	return { webhookUrl, vercelEnv }
+}
+
+async function graphGet(
+	path: string,
+	accessToken: string,
+	params?: Record<string, string | number | boolean>
+) {
+	const url = new URL(`${META_API_BASE}${path.startsWith('/') ? path : `/${path}`}`)
+	for (const [k, v] of Object.entries(params || {})) url.searchParams.set(k, String(v))
+
+	const res = await fetch(url.toString(), {
+		method: 'GET',
+		headers: { Authorization: `Bearer ${accessToken}` },
+		cache: 'no-store',
+	})
+
+	const json = await res.json().catch(() => null)
+	return { ok: res.ok, status: res.status, json }
+}
+
+async function tryGetWithFields(objectId: string, accessToken: string, fieldsList: string[]) {
+	for (const fields of fieldsList) {
+		const res = await graphGet(`/${objectId}`, accessToken, { fields })
+		if (res.ok) return { ok: true as const, fields, data: res.json }
+	}
+	// Last attempt: no fields
+	const fallback = await graphGet(`/${objectId}`, accessToken)
+	return {
+		ok: false as const,
+		error: fallback.json?.error || fallback.json || { message: 'Falha ao consultar Graph' },
+	}
+}
+
+async function getMetaSubscriptionStatus(params: { wabaId: string; accessToken: string }) {
+	const { wabaId, accessToken } = params
+	const res = await graphGet(`/${wabaId}/subscribed_apps`, accessToken, {
+		fields: 'id,name,subscribed_fields',
+	})
+
+	if (!res.ok) {
+		return {
+			ok: false as const,
+			status: res.status,
+			error: res.json?.error?.message || 'Erro ao consultar subscribed_apps',
+			details: res.json?.error || res.json,
+		}
+	}
+
+	const apps = (res.json?.data || []) as MetaSubscribedApp[]
+	const subscribedFields = normalizeSubscribedFields(apps)
+	return {
+		ok: true as const,
+		status: 200,
+		apps,
+		subscribedFields,
+		messagesSubscribed: subscribedFields.includes('messages'),
+	}
+}
+
+async function getInternalRecentFailures() {
+	// Best-effort: se o Supabase não estiver configurado, não quebra o diagnóstico.
+	try {
+		const sevenDaysAgo = new Date()
+		sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+
+		const { data, error } = await supabase
+			.from('campaign_contacts')
+			.select('failure_code,failure_title,created_at')
+			.eq('status', 'failed')
+			.gte('created_at', sevenDaysAgo.toISOString())
+			.limit(500)
+
+		if (error) throw error
+
+		const counts = new Map<string, { code: number; title: string | null; count: number }>()
+		for (const row of (data || []) as any[]) {
+			const rawCode = row.failure_code
+			const code = typeof rawCode === 'number' ? rawCode : Number(rawCode)
+			if (!Number.isFinite(code)) continue
+			const key = String(code)
+			const prev = counts.get(key)
+			counts.set(key, {
+				code,
+				title:
+					row.failure_title && typeof row.failure_title === 'string'
+						? row.failure_title
+						: prev?.title || null,
+				count: (prev?.count || 0) + 1,
+			})
+		}
+
+		const top = Array.from(counts.values())
+			.sort((a, b) => b.count - a.count)
+			.slice(0, 20)
+
+		return { ok: true as const, top, totalFailedRows: (data || []).length }
+	} catch (e) {
+		return {
+			ok: false as const,
+			error: e instanceof Error ? e.message : String(e),
+		}
+	}
+}
+
+async function getInternalLastStatusUpdateAt(): Promise<
+	{ ok: true; lastAt: string | null } | { ok: false; error: string }
+> {
+	try {
+		// Observação: não existe uma tabela de "webhook_events" hoje.
+		// Usamos a atualização mais recente em campaign_contacts como proxy.
+		const { data, error } = await supabase
+			.from('campaign_contacts')
+			.select('updated_at')
+			.order('updated_at', { ascending: false })
+			.limit(1)
+
+		if (error) throw error
+		const lastAt = (data?.[0] as any)?.updated_at ? String((data?.[0] as any).updated_at) : null
+		return { ok: true, lastAt }
+	} catch (e) {
+		return { ok: false, error: e instanceof Error ? e.message : String(e) }
+	}
+}
+
+function buildReportText(
+	checks: DiagnosticCheck[],
+	meta: { vercelEnv: string | null; webhookUrl: string; source: string }
+) {
+	const statusEmoji = (s: CheckStatus) => {
+		switch (s) {
+			case 'pass':
+				return '✅'
+			case 'warn':
+				return '⚠️'
+			case 'fail':
+				return '❌'
+			default:
+				return 'ℹ️'
+		}
+	}
+
+	const lines = [] as string[]
+	lines.push(`SmartZap · Diagnóstico Meta/WhatsApp · ${new Date().toLocaleString('pt-BR')}`)
+	lines.push(`Ambiente: ${meta.vercelEnv || 'desconhecido'} · Credenciais: ${meta.source}`)
+	lines.push(`Webhook esperado: ${meta.webhookUrl}`)
+	lines.push('')
+
+	for (const c of checks) {
+		lines.push(`${statusEmoji(c.status)} ${c.title} — ${c.message}`)
+	}
+
+	return lines.join('\n')
+}
+
+/**
+ * GET /api/meta/diagnostics
+ * Centraliza o diagnóstico (infra + credenciais + Graph API + sinais internos).
+ */
+export async function GET() {
+	const ts = new Date().toISOString()
+
+	const { webhookUrl, vercelEnv } = computeWebhookUrl()
+	const webhookToken = await getVerifyToken().catch(() => null)
+
+	const source = await getCredentialsSource().catch(() => 'none' as const)
+	const credentials = await getWhatsAppCredentials().catch(() => null)
+
+	const checks: DiagnosticCheck[] = []
+
+	// 0) Infra básica
+	const hasQstashToken = Boolean(process.env.QSTASH_TOKEN)
+	const hasSupabaseUrl = Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL)
+	const hasSupabaseSecretKey = Boolean(process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY)
+
+	checks.push({
+		id: 'infra_supabase',
+		title: 'Supabase configurado',
+		status: hasSupabaseUrl && hasSupabaseSecretKey ? 'pass' : 'fail',
+		message:
+			hasSupabaseUrl && hasSupabaseSecretKey
+				? 'OK (URL + service role presentes)'
+				: 'Faltando NEXT_PUBLIC_SUPABASE_URL e/ou SUPABASE_SECRET_KEY',
+		details: {
+			hasSupabaseUrl,
+			hasSupabaseSecretKey,
+		},
+	})
+
+	checks.push({
+		id: 'infra_qstash',
+		title: 'QStash configurado (fila do workflow)',
+		status: hasQstashToken ? 'pass' : 'warn',
+		message: hasQstashToken
+			? 'OK'
+			: 'QSTASH_TOKEN ausente — campanhas podem falhar ao enfileirar em preview/prod',
+		details: { hasQstashToken },
+	})
+
+	// 1) Credenciais
+	if (!credentials?.accessToken || !credentials?.businessAccountId || !credentials?.phoneNumberId) {
+		checks.push({
+			id: 'creds',
+			title: 'Credenciais WhatsApp',
+			status: 'fail',
+			message: 'Não configuradas (precisa token + WABA ID + phone number ID)',
+			actions: [
+				{
+					id: 'open_settings',
+					label: 'Abrir Ajustes',
+					kind: 'link',
+					href: '/settings',
+				},
+			],
+		})
+
+		return noStoreJson(
+			{
+				ok: false,
+				ts,
+				checks,
+				env: {
+					vercelEnv,
+					vercelUrl: process.env.VERCEL_URL || null,
+					vercelProjectProductionUrl: process.env.VERCEL_PROJECT_PRODUCTION_URL || null,
+				},
+				webhook: {
+					expectedUrl: webhookUrl,
+					verifyTokenPreview: maskTokenPreview(webhookToken),
+				},
+				whatsapp: {
+					credentialsSource: source,
+					businessAccountId: credentials?.businessAccountId ? maskId(credentials.businessAccountId) : null,
+					phoneNumberId: credentials?.phoneNumberId ? maskId(credentials.phoneNumberId) : null,
+					accessTokenPreview: credentials?.accessToken ? maskTokenPreview(credentials.accessToken) : null,
+				},
+				meta: null,
+				internal: null,
+				report: {
+					text: buildReportText(checks, { vercelEnv, webhookUrl, source }),
+				},
+			},
+			{ status: 200 }
+		)
+	}
+
+	checks.push({
+		id: 'creds',
+		title: 'Credenciais WhatsApp',
+		status: 'pass',
+		message: `OK (fonte: ${source})`,
+		details: {
+			wabaId: maskId(credentials.businessAccountId),
+			phoneNumberId: maskId(credentials.phoneNumberId),
+			accessToken: maskTokenPreview(credentials.accessToken),
+		},
+		actions: [
+			{
+				id: 'open_settings',
+				label: 'Abrir Ajustes',
+				kind: 'link',
+				href: '/settings',
+			},
+		],
+	})
+
+	// 2) Graph API — token sanity
+	const meta: Record<string, unknown> = {
+		me: null,
+		mePermissions: null,
+		waba: null,
+		wabaPhoneNumbers: null,
+		phoneNumber: null,
+		templates: null,
+		subscription: null,
+		debugToken: null,
+	}
+
+	// 2a) debug_token (opcional, depende de APP_ID/APP_SECRET)
+	const appId = (process.env.META_APP_ID || '').trim()
+	const appSecret = (process.env.META_APP_SECRET || '').trim()
+	if (appId && appSecret) {
+		try {
+			const appAccessToken = `${appId}|${appSecret}`
+			const dbg = await graphGet('/debug_token', appAccessToken, { input_token: credentials.accessToken })
+			meta.debugToken = dbg.ok ? dbg.json?.data || dbg.json : dbg.json
+
+			if (dbg.ok && dbg.json?.data?.is_valid === false) {
+				checks.push({
+					id: 'meta_debug_token',
+					title: 'Token (debug_token)',
+					status: 'fail',
+					message: 'Token inválido segundo /debug_token',
+					details: { data: dbg.json?.data || null },
+				})
+			} else if (dbg.ok) {
+				checks.push({
+					id: 'meta_debug_token',
+					title: 'Token (debug_token)',
+					status: 'pass',
+					message: 'Token válido segundo /debug_token',
+					details: {
+						appId: dbg.json?.data?.app_id || null,
+						expiresAt: dbg.json?.data?.expires_at || null,
+						dataAccessExpiresAt: dbg.json?.data?.data_access_expires_at || null,
+						scopes: dbg.json?.data?.scopes || null,
+					},
+				})
+			} else {
+				checks.push({
+					id: 'meta_debug_token',
+					title: 'Token (debug_token)',
+					status: 'warn',
+					message: 'Não foi possível validar via /debug_token (ver detalhes)',
+					details: { error: dbg.json?.error || dbg.json },
+				})
+			}
+		} catch (e) {
+			checks.push({
+				id: 'meta_debug_token',
+				title: 'Token (debug_token)',
+				status: 'warn',
+				message: 'Falha ao chamar /debug_token (best-effort)',
+				details: { error: e instanceof Error ? e.message : String(e) },
+			})
+		}
+	} else {
+		checks.push({
+			id: 'meta_debug_token',
+			title: 'Token (debug_token)',
+			status: 'info',
+			message: 'Opcional — defina META_APP_ID e META_APP_SECRET para habilitar validação forte via /debug_token',
+		})
+	}
+
+	// 2b) /me + /me/permissions (melhor para identificar tipo/escopo do token)
+	try {
+		const me = await graphGet('/me', credentials.accessToken, { fields: 'id,name' })
+		meta.me = me.ok ? me.json : me.json
+
+		const perms = await graphGet('/me/permissions', credentials.accessToken)
+		meta.mePermissions = perms.ok ? perms.json : perms.json
+
+		if (me.ok) {
+			checks.push({
+				id: 'meta_me',
+				title: 'Token autenticado (me)',
+				status: 'pass',
+				message: 'Conseguiu ler /me',
+				details: { id: me.json?.id || null, name: me.json?.name || null },
+			})
+		} else {
+			checks.push({
+				id: 'meta_me',
+				title: 'Token autenticado (me)',
+				status: 'fail',
+				message: 'Falha ao ler /me — token pode estar inválido/expirado',
+				details: { error: me.json?.error || me.json },
+			})
+		}
+
+		// Permissões esperadas (heurística)
+		const granted = new Set<string>()
+		const rows = Array.isArray((perms as any)?.json?.data) ? (perms as any).json.data : []
+		for (const r of rows) {
+			if (r?.status === 'granted' && typeof r.permission === 'string') granted.add(r.permission)
+		}
+
+		const needs = ['whatsapp_business_management', 'whatsapp_business_messaging']
+		const missing = needs.filter((p) => !granted.has(p))
+		checks.push({
+			id: 'meta_permissions',
+			title: 'Permissões do token',
+			status: missing.length === 0 ? 'pass' : 'warn',
+			message:
+				missing.length === 0
+					? 'Permissões principais presentes'
+					: `Possíveis permissões ausentes: ${missing.join(', ')}`,
+			details: {
+				granted: Array.from(granted),
+				missing,
+				note: 'Nem todo tipo de token retorna /me/permissions de forma útil; trate como heurística.',
+			},
+		})
+	} catch (e) {
+		checks.push({
+			id: 'meta_me',
+			title: 'Token autenticado (me)',
+			status: 'warn',
+			message: 'Falha ao consultar /me (best-effort)',
+			details: { error: e instanceof Error ? e.message : String(e) },
+		})
+	}
+
+	// 2c) WABA
+	try {
+		const waba = await tryGetWithFields(credentials.businessAccountId, credentials.accessToken, [
+			'id,name,currency,timezone_id,ownership_type,account_review_status',
+			'id,name,currency,timezone_id',
+			'id,name',
+		])
+		meta.waba = waba.ok ? waba.data : waba
+
+		if (waba.ok) {
+			checks.push({
+				id: 'meta_waba',
+				title: 'WABA acessível',
+				status: 'pass',
+				message: 'OK',
+				details: {
+					id: (waba as any).data?.id || null,
+					name: (waba as any).data?.name || null,
+					accountReviewStatus: (waba as any).data?.account_review_status || null,
+				},
+			})
+		} else {
+			checks.push({
+				id: 'meta_waba',
+				title: 'WABA acessível',
+				status: 'fail',
+				message: 'Falha ao consultar WABA (token sem acesso ao ativo?)',
+				details: { error: (waba as any).error || null },
+			})
+		}
+
+		const wabaPhones = await graphGet(
+			`/${credentials.businessAccountId}/phone_numbers`,
+			credentials.accessToken,
+			{
+				fields: 'id,display_phone_number,verified_name,quality_rating,webhook_configuration',
+				limit: 50,
+			}
+		)
+		meta.wabaPhoneNumbers = wabaPhones.ok ? wabaPhones.json : wabaPhones.json
+
+		if (wabaPhones.ok) {
+			const list = Array.isArray(wabaPhones.json?.data) ? wabaPhones.json.data : []
+			const hasConfiguredPhoneId = list.some(
+				(p: any) => String(p?.id || '') === String(credentials.phoneNumberId)
+			)
+
+			checks.push({
+				id: 'meta_waba_phone_link',
+				title: 'Phone Number pertence ao WABA',
+				status: hasConfiguredPhoneId ? 'pass' : 'fail',
+				message: hasConfiguredPhoneId
+					? 'OK'
+					: 'O phoneNumberId configurado não apareceu na lista do WABA (IDs trocados ou token sem acesso)',
+				details: {
+					configuredPhoneNumberId: maskId(credentials.phoneNumberId),
+					wabaPhoneNumbersCount: list.length,
+				},
+			})
+		} else {
+			checks.push({
+				id: 'meta_waba_phone_link',
+				title: 'Phone Number pertence ao WABA',
+				status: 'warn',
+				message: 'Não foi possível listar phone_numbers do WABA (best-effort)',
+				details: { error: wabaPhones.json?.error || wabaPhones.json },
+			})
+		}
+	} catch (e) {
+		checks.push({
+			id: 'meta_waba',
+			title: 'WABA acessível',
+			status: 'warn',
+			message: 'Falha ao consultar WABA (best-effort)',
+			details: { error: e instanceof Error ? e.message : String(e) },
+		})
+	}
+
+	// 2d) Phone number (tier/quality)
+	try {
+		const phone = await tryGetWithFields(credentials.phoneNumberId, credentials.accessToken, [
+			'id,display_phone_number,verified_name,code_verification_status,quality_rating,messaging_limit_tier,status',
+			'id,display_phone_number,verified_name,quality_score,whatsapp_business_manager_messaging_limit',
+			'id,display_phone_number,verified_name',
+		])
+		meta.phoneNumber = phone.ok ? phone.data : phone
+
+		if (phone.ok) {
+			const data = (phone as any).data
+			const quality = data?.quality_rating || data?.quality_score?.score || null
+			const tier =
+				data?.messaging_limit_tier ||
+				data?.whatsapp_business_manager_messaging_limit?.current_limit ||
+				data?.whatsapp_business_manager_messaging_limit ||
+				null
+
+			checks.push({
+				id: 'meta_phone',
+				title: 'Número (tier/qualidade)',
+				status: 'pass',
+				message: 'OK',
+				details: {
+					displayPhoneNumber: data?.display_phone_number || null,
+					verifiedName: data?.verified_name || null,
+					status: data?.status || null,
+					quality,
+					tier,
+				},
+			})
+		} else {
+			checks.push({
+				id: 'meta_phone',
+				title: 'Número (tier/qualidade)',
+				status: 'fail',
+				message: 'Falha ao consultar phone number',
+				details: { error: (phone as any).error || null },
+			})
+		}
+	} catch (e) {
+		checks.push({
+			id: 'meta_phone',
+			title: 'Número (tier/qualidade)',
+			status: 'warn',
+			message: 'Falha ao consultar phone number (best-effort)',
+			details: { error: e instanceof Error ? e.message : String(e) },
+		})
+	}
+
+	// 2e) Templates
+	try {
+		const templates = await graphGet(
+			`/${credentials.businessAccountId}/message_templates`,
+			credentials.accessToken,
+			{ limit: 50 }
+		)
+		meta.templates = templates.ok ? templates.json : templates.json
+
+		if (templates.ok) {
+			const list = Array.isArray(templates.json?.data) ? templates.json.data : []
+			const approvedCount = list.filter(
+				(t: any) => String(t?.status || '').toUpperCase() === 'APPROVED'
+			).length
+			checks.push({
+				id: 'meta_templates',
+				title: 'Templates',
+				status: list.length > 0 ? 'pass' : 'warn',
+				message:
+					list.length > 0
+						? `${list.length} templates encontrados (${approvedCount} aprovados)`
+						: 'Nenhum template encontrado (ou token sem acesso)',
+				details: { total: list.length, approved: approvedCount },
+			})
+		} else {
+			checks.push({
+				id: 'meta_templates',
+				title: 'Templates',
+				status: 'warn',
+				message: 'Falha ao listar templates (best-effort)',
+				details: { error: templates.json?.error || templates.json },
+			})
+		}
+	} catch (e) {
+		checks.push({
+			id: 'meta_templates',
+			title: 'Templates',
+			status: 'warn',
+			message: 'Falha ao listar templates (best-effort)',
+			details: { error: e instanceof Error ? e.message : String(e) },
+		})
+	}
+
+	// 2f) Subscription messages no WABA
+	const sub = await getMetaSubscriptionStatus({
+		wabaId: credentials.businessAccountId,
+		accessToken: credentials.accessToken,
+	})
+	meta.subscription = sub
+
+	if (sub.ok) {
+		checks.push({
+			id: 'meta_subscription_messages',
+			title: 'Webhook (messages) inscrito no WABA',
+			status: sub.messagesSubscribed ? 'pass' : 'fail',
+			message: sub.messagesSubscribed
+				? 'Ativo via API (subscribed_apps)'
+				: 'Inativo via API (subscribed_apps) — não receberá status de mensagens',
+			details: {
+				subscribedFields: sub.subscribedFields,
+				apps: sub.apps,
+			},
+			actions: sub.messagesSubscribed
+				? [
+						{
+							id: 'unsubscribe_messages',
+							label: 'Desativar messages',
+							kind: 'api',
+							endpoint: '/api/meta/webhooks/subscription',
+							method: 'DELETE',
+						},
+					]
+				: [
+						{
+							id: 'subscribe_messages',
+							label: 'Ativar messages',
+							kind: 'api',
+							endpoint: '/api/meta/webhooks/subscription',
+							method: 'POST',
+							body: { fields: ['messages'] },
+						},
+					],
+		})
+	} else {
+		checks.push({
+			id: 'meta_subscription_messages',
+			title: 'Webhook (messages) inscrito no WABA',
+			status: 'warn',
+			message: sub.error || 'Erro ao consultar subscribed_apps',
+			details: { details: (sub as any).details || null },
+			actions: [
+				{
+					id: 'open_settings',
+					label: 'Abrir Ajustes',
+					kind: 'link',
+					href: '/settings',
+				},
+			],
+		})
+	}
+
+	// 3) Sinais internos (DB) — falhas e "webhook vivo"
+	const lastStatus = await getInternalLastStatusUpdateAt()
+	const recentFailures = await getInternalRecentFailures()
+
+	if (lastStatus.ok) {
+		checks.push({
+			id: 'internal_last_status_update',
+			title: 'Sinais internos (atividade)',
+			status: lastStatus.lastAt ? 'pass' : 'warn',
+			message: lastStatus.lastAt
+				? `Última atualização no DB: ${new Date(lastStatus.lastAt).toLocaleString('pt-BR')}`
+				: 'Sem atualizações recentes detectáveis (ou base vazia)',
+			details: { lastAt: lastStatus.lastAt },
+		})
+	} else {
+		checks.push({
+			id: 'internal_last_status_update',
+			title: 'Sinais internos (atividade)',
+			status: 'warn',
+			message: 'Não foi possível consultar atividade no DB (best-effort)',
+			details: { error: lastStatus.error },
+		})
+	}
+
+	if (recentFailures.ok) {
+		checks.push({
+			id: 'internal_recent_failures',
+			title: 'Falhas recentes (últimos 7 dias)',
+			status: recentFailures.totalFailedRows > 0 ? 'warn' : 'pass',
+			message:
+				recentFailures.totalFailedRows > 0
+					? `${recentFailures.totalFailedRows} mensagens falharam (top códigos no detalhe)`
+					: 'Nenhuma falha registrada nos últimos 7 dias',
+			details: {
+				totalFailedRows: recentFailures.totalFailedRows,
+				top: recentFailures.top,
+			},
+		})
+	} else {
+		checks.push({
+			id: 'internal_recent_failures',
+			title: 'Falhas recentes (últimos 7 dias)',
+			status: 'warn',
+			message: 'Não foi possível consultar falhas recentes (best-effort)',
+			details: { error: recentFailures.error },
+		})
+	}
+
+	// 4) Webhook URL + verify token (o que o aluno tem que configurar no painel)
+	checks.push({
+		id: 'webhook_expected',
+		title: 'Webhook esperado (ambiente atual)',
+		status: 'info',
+		message: webhookUrl,
+		details: {
+			expectedUrl: webhookUrl,
+			verifyTokenPreview: maskTokenPreview(webhookToken),
+			note: 'A configuração do callback URL do WhatsApp (no nível do App) ainda é via Dashboard da Meta. Não é automatizável por /{app-id}/subscriptions.',
+		},
+	})
+
+	const reportText = buildReportText(checks, { vercelEnv, webhookUrl, source })
+
+	return noStoreJson({
+		ok: true,
+		ts,
+		env: {
+			vercelEnv,
+			vercelUrl: process.env.VERCEL_URL || null,
+			vercelProjectProductionUrl: process.env.VERCEL_PROJECT_PRODUCTION_URL || null,
+			appUrl: process.env.NEXT_PUBLIC_APP_URL || null,
+			gitCommitSha: process.env.VERCEL_GIT_COMMIT_SHA || null,
+			gitCommitRef: process.env.VERCEL_GIT_COMMIT_REF || null,
+			deploymentId: process.env.VERCEL_DEPLOYMENT_ID || null,
+			flags: {
+				hasQstashToken,
+				hasSupabaseUrl,
+				hasSupabaseSecretKey,
+				hasMetaAppId: Boolean(appId),
+				hasMetaAppSecret: Boolean(appSecret),
+			},
+		},
+		webhook: {
+			expectedUrl: webhookUrl,
+			verifyTokenPreview: maskTokenPreview(webhookToken),
+		},
+		whatsapp: {
+			credentialsSource: source,
+			businessAccountId: maskId(credentials.businessAccountId),
+			phoneNumberId: maskId(credentials.phoneNumberId),
+			accessTokenPreview: maskTokenPreview(credentials.accessToken),
+		},
+		checks,
+		meta,
+		internal: {
+			lastStatusUpdateAt: lastStatus.ok ? lastStatus.lastAt : null,
+			recentFailures,
+		},
+		report: {
+			text: reportText,
+		},
+	})
+}
+
+/**
+ * POST /api/meta/diagnostics/actions
+ * (Reservado para ações futuras.)
+ */
+export async function POST() {
+	return noStoreJson(
+		{
+			ok: false,
+			error: 'Use os endpoints específicos (ex.: /api/meta/webhooks/subscription) para ações no momento.',
+		},
+		{ status: 400 }
+	)
+}
+

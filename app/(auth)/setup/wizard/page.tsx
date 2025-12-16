@@ -610,6 +610,14 @@ function WizardContent() {
             QSTASH_TOKEN: data.qstashToken,
             UPSTASH_EMAIL: data.upstashEmail,
             UPSTASH_API_KEY: data.upstashApiKey,
+            // Persistimos também o perfil da empresa no modo local para que,
+            // após reiniciar o dev server, o backend possa inicializar o banco
+            // automaticamente via /api/setup/init-company (sem re-digitar).
+            SETUP_COMPLETE: 'true',
+            SETUP_COMPANY_NAME: data.companyName,
+            SETUP_COMPANY_ADMIN: data.companyAdmin,
+            SETUP_COMPANY_EMAIL: data.email,
+            SETUP_COMPANY_PHONE: data.phone,
           }
 
           // WhatsApp é opcional: só persistir se foi preenchido.
@@ -734,7 +742,10 @@ function WizardContent() {
             <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 text-left">
               <ol className="list-decimal pl-5 space-y-2 text-sm text-zinc-300">
                 <li>Pare o <code className="bg-zinc-800 px-1.5 py-0.5 rounded">npm run dev</code> e inicie novamente.</li>
-                <li>Reabra o wizard em modo resume para finalizar o cadastro da empresa.</li>
+                <li>
+                  Depois, vá em <code className="bg-zinc-800 px-1.5 py-0.5 rounded">/login</code>. O SmartZap vai tentar inicializar automaticamente
+                  o cadastro da empresa. Se algo faltar, você ainda pode finalizar pelo wizard.
+                </li>
               </ol>
 
               <div className="mt-4 flex flex-col gap-3">

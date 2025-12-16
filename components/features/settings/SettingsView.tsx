@@ -1051,6 +1051,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 >
                   Performance
                 </Link>
+                <Link
+                  href="/settings/meta-diagnostics"
+                  className="px-4 py-2 rounded-xl bg-white/5 text-white hover:bg-white/10 border border-white/10 hover:border-white/20 transition-all text-sm font-medium"
+                  title="Abrir central de diagnóstico Meta (Graph API + infra + ações)"
+                >
+                  Diagnóstico
+                </Link>
                 <button
                   onClick={() => setIsEditingTurbo((v) => !v)}
                   className="px-4 py-2 rounded-xl bg-white/5 text-white hover:bg-white/10 border border-white/10 hover:border-white/20 transition-all text-sm font-medium"
