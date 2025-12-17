@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { settingsDb } from '@/lib/supabase-db'
+import { isSupabaseConfigured } from '@/lib/supabase'
+
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
 
 // Credentials are stored in Supabase settings table
 // Environment variables are used as fallback (read-only)
@@ -15,20 +19,40 @@ interface WhatsAppCredentials {
 // GET - Fetch credentials from DB, fallback to Env
 export async function GET() {
   try {
-    // 1. Try to get from DB
-    const dbSettings = await settingsDb.getAll()
+    if (!isSupabaseConfigured()) {
+      return NextResponse.json({
+        source: 'none',
+        isConnected: false,
+        warning: 'Supabase não configurado (variáveis de ambiente ausentes).',
+      })
+    }
+
+    // 1. Try to get from DB (sem derrubar a UI em caso de erro)
+    let dbSettings = {
+      phoneNumberId: '',
+      businessAccountId: '',
+      accessToken: '',
+      isConnected: false,
+    }
+
+    let dbErrorMsg: string | null = null
+    try {
+      dbSettings = await settingsDb.getAll()
+    } catch (err: any) {
+      dbErrorMsg = String(err?.message || err)
+    }
 
     let phoneNumberId = dbSettings.phoneNumberId
     let businessAccountId = dbSettings.businessAccountId
     let accessToken = dbSettings.accessToken
-    let source = 'db'
+    let source: 'db' | 'env_fallback' | 'db_error' = dbErrorMsg ? 'db_error' : 'db'
 
     // 2. Fallback to Env if missing in DB
     if (!phoneNumberId || !businessAccountId || !accessToken) {
       phoneNumberId = phoneNumberId || process.env.WHATSAPP_PHONE_ID || ''
       businessAccountId = businessAccountId || process.env.WHATSAPP_BUSINESS_ACCOUNT_ID || ''
       accessToken = accessToken || process.env.WHATSAPP_TOKEN || ''
-      source = 'env_fallback'
+      source = dbErrorMsg ? 'db_error' : 'env_fallback'
     }
 
     if (phoneNumberId && businessAccountId && accessToken) {
@@ -37,10 +61,13 @@ export async function GET() {
       let verifiedName: string | undefined
 
       try {
+        const controller = new AbortController()
+        const timeout = setTimeout(() => controller.abort(), 2500)
         const metaResponse = await fetch(
           `https://graph.facebook.com/v24.0/${phoneNumberId}?fields=display_phone_number,verified_name`,
-          { headers: { 'Authorization': `Bearer ${accessToken}` } }
+          { headers: { 'Authorization': `Bearer ${accessToken}` }, signal: controller.signal }
         )
+        clearTimeout(timeout)
         if (metaResponse.ok) {
           const metaData = await metaResponse.json()
           displayPhoneNumber = metaData.display_phone_number
@@ -59,20 +86,25 @@ export async function GET() {
         hasToken: true,
         tokenPreview: '••••••••••',
         isConnected: true,
+        ...(dbErrorMsg ? { warning: `Falha ao ler credenciais do DB: ${dbErrorMsg}` } : {}),
       })
     }
 
     // Not configured
     return NextResponse.json({
-      source: 'none',
+      source: dbErrorMsg ? 'db_error' : 'none',
       isConnected: false,
+      ...(dbErrorMsg ? { warning: `Falha ao ler credenciais do DB: ${dbErrorMsg}` } : {}),
     })
   } catch (error) {
     console.error('Error fetching credentials:', error)
-    return NextResponse.json(
-      { error: 'Failed to fetch credentials' },
-      { status: 500 }
-    )
+    // Evita 500 para não causar cascata de retries/lentidão no frontend.
+    return NextResponse.json({
+      source: 'none',
+      isConnected: false,
+      error: 'Failed to fetch credentials',
+      details: String((error as any)?.message || error),
+    })
   }
 }
 
