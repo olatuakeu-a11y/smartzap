@@ -8,6 +8,7 @@ import { ContactQuickEditModal } from '@/components/features/contacts/ContactQui
 import { humanizePrecheckReason } from '@/lib/precheck-humanizer';
 import { Page, PageHeader, PageTitle } from '@/components/ui/page';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { computeCampaignUiCounters } from '@/lib/campaign-ui-counters';
 
 interface DetailCardProps {
   title: string;
@@ -334,15 +335,29 @@ export const CampaignDetailsView: React.FC<CampaignDetailsViewProps> = ({
   const skippedCount = (messageStats?.skipped ?? realStats?.skipped ?? campaign.skipped ?? 0);
 
   // Stats "ao vivo" para alimentar os cards principais.
-  // Motivação: os contadores da tabela `campaigns` podem atrasar (batching/edge/cache/erro de update),
-  // enquanto `messageStats` é fonte da verdade agregada de `campaign_contacts`.
+  // Observação importante:
+  // - `messageStats` vem agregado do endpoint de mensagens (ideal), mas pode ficar temporariamente
+  //   menor por inconsistências/transição de status ou condições de paginação/refetch.
+  // - `campaign.*` é o contador persistido na tabela `campaigns` (atualizado por workflow/webhook).
+  // Para evitar regressões visuais (ex.: cair para 50 quando a campanha já tem 165 entregues),
+  // exibimos sempre o MAIOR valor observado entre as fontes.
   const liveStats = messageStats ?? realStats ?? null;
-  const sentCountForUi = liveStats?.sent ?? campaign.sent ?? 0;
-  const deliveredCountForUi = liveStats?.delivered ?? campaign.delivered ?? 0;
-  const readCountForUi = liveStats?.read ?? campaign.read ?? 0;
-  const failedCountForUi = liveStats?.failed ?? campaign.failed ?? 0;
   const hasLiveStats = Boolean(liveStats);
 
+  const uiCounters = computeCampaignUiCounters({
+    campaign: {
+      sent: campaign.sent,
+      delivered: campaign.delivered,
+      read: campaign.read,
+      failed: campaign.failed,
+    },
+    live: liveStats,
+  });
+
+  const sentCountForUi = uiCounters.sent;
+  const deliveredCountForUi = uiCounters.delivered;
+  const readCountForUi = uiCounters.read;
+  const failedCountForUi = uiCounters.failed;
   // Performance sent-only "ao vivo" (melhora UX durante SENDING)
   // - Usamos first_dispatch_at / last_sent_at quando disponíveis.
   // - Se last_sent_at ainda não existe, estimamos usando Date.now() e mostramos isso no subtexto.
@@ -526,10 +541,10 @@ export const CampaignDetailsView: React.FC<CampaignDetailsViewProps> = ({
         />
         <DetailCard
           title="Entregues"
-          value={hasLiveStats ? Number(deliveredCountForUi || 0).toLocaleString() : ((campaign.delivered ?? 0) > 0 ? (campaign.delivered ?? 0).toLocaleString() : '—')}
-          subvalue={hasLiveStats
+          value={Number(deliveredCountForUi || 0).toLocaleString()}
+          subvalue={(deliveredCountForUi || 0) > 0
             ? `${(((Number(deliveredCountForUi || 0)) / (campaign.recipients ?? 1)) * 100).toFixed(1)}% taxa de entrega`
-            : ((campaign.delivered ?? 0) > 0 ? `${(((campaign.delivered ?? 0) / (campaign.recipients ?? 1)) * 100).toFixed(1)}% taxa de entrega` : 'Aguardando webhook')}
+            : (hasLiveStats ? 'Aguardando webhook' : 'Aguardando webhook')}
           icon={CheckCircle2}
           color="#10b981"
           isActive={filterStatus === MessageStatus.DELIVERED}
@@ -537,10 +552,10 @@ export const CampaignDetailsView: React.FC<CampaignDetailsViewProps> = ({
         />
         <DetailCard
           title="Lidas"
-          value={hasLiveStats ? Number(readCountForUi || 0).toLocaleString() : ((campaign.read ?? 0) > 0 ? (campaign.read ?? 0).toLocaleString() : '—')}
-          subvalue={hasLiveStats
+          value={Number(readCountForUi || 0).toLocaleString()}
+          subvalue={(readCountForUi || 0) > 0
             ? `${(((Number(readCountForUi || 0)) / (campaign.recipients ?? 1)) * 100).toFixed(1)}% taxa de abertura`
-            : ((campaign.read ?? 0) > 0 ? `${(((campaign.read ?? 0) / (campaign.recipients ?? 1)) * 100).toFixed(1)}% taxa de abertura` : 'Aguardando webhook')}
+            : (hasLiveStats ? 'Aguardando webhook' : 'Aguardando webhook')}
           icon={Eye}
           color="#3b82f6"
           isActive={filterStatus === MessageStatus.READ}
@@ -791,7 +806,10 @@ export const CampaignDetailsView: React.FC<CampaignDetailsViewProps> = ({
       <div className="glass-panel rounded-2xl overflow-hidden">
         <div className="p-5 border-b border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <h3 className="font-bold text-white flex items-center gap-2">
-            Logs de Envio <span className="text-xs font-normal text-gray-500 bg-zinc-900 px-2 py-0.5 rounded-full">{messages.length}</span>
+            Logs de Envio{' '}
+            <span className="text-xs font-normal text-gray-500 bg-zinc-900 px-2 py-0.5 rounded-full">
+              {Number(messageStats?.total ?? messages.length).toLocaleString()}
+            </span>
           </h3>
 
           <div className="flex gap-2">
