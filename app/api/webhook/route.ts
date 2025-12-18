@@ -15,6 +15,14 @@ import {
 } from '@/lib/whatsapp-errors'
 
 import { emitWorkflowTrace, maskPhone } from '@/lib/workflow-trace'
+import {
+  applyStatusUpdateToCampaignContact,
+  enqueueWebhookStatusReconcileBestEffort,
+  markEventAttempt,
+  normalizeMetaStatus,
+  recordStatusEvent,
+  tryParseWebhookTimestampSeconds,
+} from '@/lib/whatsapp-status-events'
 
 
 import { getWhatsAppCredentials } from '@/lib/whatsapp-credentials'
@@ -138,12 +146,21 @@ function isMissingColumnError(e: unknown, columnName: string): boolean {
   return msg.toLowerCase().includes('column') && msg.toLowerCase().includes(columnName.toLowerCase())
 }
 
-function tryParseWebhookTimestampSeconds(ts: unknown): string | null {
-  const n = Number(ts)
-  if (!Number.isFinite(n) || n <= 0) return null
-  const d = new Date(n * 1000)
-  if (Number.isNaN(d.getTime())) return null
-  return d.toISOString()
+function isMissingTableError(e: unknown, tableName: string): boolean {
+  const code = String((e as any)?.code || '')
+  const msg = String((e as any)?.message || (e instanceof Error ? e.message : e || ''))
+  const m = msg.toLowerCase()
+  const t = tableName.toLowerCase()
+
+  // Postgres undefined_table
+  if (code === '42P01') return true
+
+  // PostgREST / Supabase cache errors often include the table name.
+  if (m.includes('does not exist') && m.includes(t)) return true
+  if (m.includes('relation') && m.includes(t)) return true
+  if (m.includes('schema cache') && m.includes(t)) return true
+
+  return false
 }
 
 // Meta Webhook Verification
@@ -187,7 +204,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ status: 'ignored' })
   }
 
-  console.log('📨 Webhook received:', JSON.stringify(body))
+  // Evita logs gigantes: guardamos payload estruturado em DB (whatsapp_status_events)
+  // e fazemos logs de alto nível aqui.
+  console.log('📨 Webhook received:', JSON.stringify({
+    object: body?.object,
+    entryCount: Array.isArray(body?.entry) ? body.entry.length : 0,
+  }))
 
   try {
     const entries = body.entry || []
@@ -268,193 +290,80 @@ export async function POST(request: NextRequest) {
 
         const statuses = change.value?.statuses || []
 
+        // =========================================================
+        // Message Status Updates (durável + idempotente)
+        // - 1) Persistimos o evento em whatsapp_status_events (nunca perde)
+        // - 2) Aplicamos no campaign_contacts (idempotente)
+        // - 3) Em erro de persistência/aplicação, retornamos 500 para forçar retry
+        // =========================================================
         for (const statusUpdate of statuses) {
-          const {
-            id: messageId,
-            status: msgStatus,
-            errors
-          } = statusUpdate
+          const messageId = String(statusUpdate?.id || '').trim()
+          const status = normalizeMetaStatus(statusUpdate?.status)
+          if (!messageId || !status) continue
 
-          // Lookup single row once (dedupe + context)
-          const { data: existingUpdate } = await supabase
-            .from('campaign_contacts')
-            .select('id, status, campaign_id, phone, trace_id, delivered_at')
-            .eq('message_id', messageId)
-            .single()
+          const { iso: eventTsIso, raw: eventTsRaw } = tryParseWebhookTimestampSeconds((statusUpdate as any)?.timestamp)
 
-          // Message not from a campaign, skip
-          if (!existingUpdate) continue
+          // (A) Persistir evento primeiro (durável)
+          let eventId: string | null = null
+          try {
+            const payloadSubset = {
+              waba_id: entry?.id || null,
+              phone_number_id: change?.value?.metadata?.phone_number_id || null,
+            }
 
-          const campaignId = existingUpdate.campaign_id
-          const phone = existingUpdate.phone
-          const traceId = (existingUpdate as any).trace_id as string | null
-          const phoneMasked = maskPhone(phone)
-
-          // Status progression: pending → sent → delivered → read
-          // Only update if new status is "later" in progression.
-          // Observação importante: o workflow já marca como `sent` no DB.
-          // Então o webhook com status `sent` tende a chegar com `newOrder === currentOrder`.
-          // Mesmo assim, queremos emitir `webhook_sent` para medir latência e correlação.
-          const statusOrder = { pending: 0, sent: 1, delivered: 2, read: 3, failed: 4 }
-          const currentOrder = statusOrder[existingUpdate.status as keyof typeof statusOrder] ?? 0
-          const newOrder = statusOrder[msgStatus as keyof typeof statusOrder] ?? 0
-
-          // Emit structured event (easy to filter by traceId)
-          // Regras:
-          // - Sempre emite para `sent` (mesmo duplicado) para termos essa etapa no trace.
-          // - Emite para `failed` sempre.
-          // - Emite para progressão (delivered/read) quando avança.
-          if (traceId && (msgStatus === 'sent' || msgStatus === 'failed' || newOrder > currentOrder)) {
-            await emitWorkflowTrace({
-              traceId,
-              campaignId,
-              step: 'webhook',
-              phase: `webhook_${msgStatus}`,
-              ok: msgStatus !== 'failed',
-              phoneMasked,
-              extra: {
-                messageId,
-                previousStatus: existingUpdate.status,
-                duplicate: newOrder <= currentOrder,
-              },
+            const rec = await recordStatusEvent({
+              messageId,
+              status,
+              eventTsIso,
+              eventTsRaw,
+              recipientId: (statusUpdate as any)?.recipient_id || null,
+              errors: (statusUpdate as any)?.errors ?? null,
+              payload: payloadSubset,
             })
+            eventId = rec.id
+          } catch (e) {
+            // Compat: se a migração ainda não foi aplicada em produção,
+            // não podemos 500ar para sempre. Seguimos sem “durable inbox” até o banco estar pronto.
+            if (isMissingTableError(e, 'whatsapp_status_events')) {
+              console.warn('[Webhook] Tabela whatsapp_status_events ausente — seguindo sem persistência (compat):', e)
+              eventId = null
+            } else {
+              console.error('[Webhook] Falha ao persistir whatsapp_status_events:', e)
+              return NextResponse.json(
+                { status: 'error', error: 'Falha ao persistir evento do webhook (retry)' },
+                { status: 500 }
+              )
+            }
           }
 
-          // Skip processing if it does not advance status (except `failed`).
-          // Para `sent`, a gente normalmente não quer reprocessar (o workflow já contou),
-          // mas mantemos o trace acima.
-          if (newOrder <= currentOrder && msgStatus !== 'failed') {
-            console.log(`⏭️ Skipping: ${messageId} already at ${existingUpdate.status}, ignoring ${msgStatus}`)
-            continue
-          }
+          // (B) Aplicar no banco (fonte da verdade)
+          try {
+            if (status === 'failed') {
+              // Mantemos o tratamento rico existente (alerts/supressão/opt-out)
+              // para não regredir features.
 
-          // Atualiza o banco (Supabase) — fonte da verdade
-          switch (msgStatus) {
-            case 'sent':
-              console.log(`📤 Sent confirmed: ${phoneMasked || phone} (campaign: ${campaignId})${traceId ? ` (traceId: ${traceId})` : ''}`)
-              // sent is already tracked in workflow, skip
-              break
+              const { data: rows, error: lookupErr } = await supabase
+                .from('campaign_contacts')
+                .select('id, status, campaign_id, phone, trace_id, delivered_at')
+                .eq('message_id', messageId)
+                .limit(1)
 
-            case 'delivered':
-              console.log(`📬 Delivered: ${phoneMasked || phone} (campaign: ${campaignId})${traceId ? ` (traceId: ${traceId})` : ''}`)
-              try {
-                // Atomic update: only update if status was NOT already delivered/read
-                const now = new Date().toISOString()
-                const { data: updatedRows, error: updateError } = await supabase
-                  .from('campaign_contacts')
-                  .update({ status: 'delivered', delivered_at: now })
-                  .eq('message_id', messageId)
-                  .neq('status', 'delivered')
-                  .neq('status', 'read')
-                  .select('id')
-
-                if (updateError) throw updateError
-
-                if (updatedRows && updatedRows.length > 0) {
-                  // Increment campaign counter (Atomic RPC)
-                  const { error: rpcError } = await supabase
-                    .rpc('increment_campaign_stat', {
-                      campaign_id_input: campaignId,
-                      field: 'delivered'
-                    })
-
-                  if (rpcError) console.error('Failed to increment delivered count:', rpcError)
-
-                  console.log(`✅ Delivered count incremented for campaign ${campaignId}`)
-
-                  // Auto-dismiss payment alerts when delivery succeeds
-                  // This means the payment issue was resolved
-                  // Auto-dismiss payment alerts when delivery succeeds
-                  await supabase
-                    .from('account_alerts')
-                    .update({ dismissed: 1 }) // Boolean/Integer? Schema says 1/0 usually in sqlite, check supabase schema? Assuming 1/0 ok or true/false. Postgres boolean usually true/false. Let's use true if possible, but existing code used 1.
-                    // Wait, existing was `dismissed = 1`. I'll stick to 1 or true.
-                    // Let's assume boolean `true` is safer for Supabase/Postgres.
-                    .eq('type', 'payment')
-                    .eq('dismissed', false)
-
-                  console.log(`✅ Payment alerts auto-dismissed (delivery succeeded)`)
-
-                  // Supabase Realtime will automatically propagate database changes
-                } else {
-                  console.log(`⏭️ Contact already delivered/read, skipping increment`)
+              if (lookupErr) throw lookupErr
+              const existingUpdate = Array.isArray(rows) ? rows[0] : (rows as any)
+              if (!existingUpdate) {
+                if (eventId) {
+                  await markEventAttempt({ eventId, state: 'unmatched', error: 'campaign_contact_not_found' })
+                  await enqueueWebhookStatusReconcileBestEffort('unmatched_failed')
                 }
-              } catch (e) {
-                console.error('DB update failed (delivered):', e)
+                continue
               }
-              break
 
-            case 'read':
-              console.log(`👁️ Read: ${phoneMasked || phone} (campaign: ${campaignId})${traceId ? ` (traceId: ${traceId})` : ''}`)
-              try {
-                // Atomic update: only update if status was NOT already read
-                const nowRead = new Date().toISOString()
-                const { data: updatedRowsRead, error: updateErrorRead } = await supabase
-                  .from('campaign_contacts')
-                  .update({ status: 'read', read_at: nowRead })
-                  .eq('message_id', messageId)
-                  .neq('status', 'read')
-                  .select('id')
+              const campaignId = existingUpdate.campaign_id
+              const phone = existingUpdate.phone
+              const traceId = (existingUpdate as any).trace_id as string | null
+              const phoneMasked = maskPhone(phone)
 
-                if (updateErrorRead) throw updateErrorRead
-
-                // Only increment campaign counter if we actually updated a row
-                if (updatedRowsRead && updatedRowsRead.length > 0) {
-                  // READ implica que também foi entregue. Em alguns casos a Meta manda READ
-                  // sem nunca mandar DELIVERED (ou DELIVERED se perde). Para manter a
-                  // progressão e evitar delivered < read, setamos delivered_at se estiver nulo
-                  // e incrementamos campaigns.delivered APENAS quando este campo foi preenchido agora.
-                  let shouldIncrementDelivered = false
-
-                  try {
-                    const hadDeliveredAt = Boolean((existingUpdate as any)?.delivered_at)
-                    if (!hadDeliveredAt) {
-                      const { data: deliveredAtRows, error: deliveredAtErr } = await supabase
-                        .from('campaign_contacts')
-                        .update({ delivered_at: nowRead })
-                        .eq('message_id', messageId)
-                        .is('delivered_at', null)
-                        .select('id')
-
-                      if (deliveredAtErr) throw deliveredAtErr
-                      if (deliveredAtRows && deliveredAtRows.length > 0) {
-                        shouldIncrementDelivered = true
-                      }
-                    }
-                  } catch (e) {
-                    console.warn('[Webhook] Falha ao garantir delivered_at em evento read (best-effort):', e)
-                  }
-
-                  if (shouldIncrementDelivered) {
-                    const { error: rpcDeliveredErr } = await supabase
-                      .rpc('increment_campaign_stat', {
-                        campaign_id_input: campaignId,
-                        field: 'delivered'
-                      })
-
-                    if (rpcDeliveredErr) console.error('Failed to increment delivered count (via read):', rpcDeliveredErr)
-                  }
-
-                  // Increment campaign counter (Atomic RPC)
-                  const { error: rpcError } = await supabase
-                    .rpc('increment_campaign_stat', {
-                      campaign_id_input: campaignId,
-                      field: 'read'
-                    })
-
-                  if (rpcError) console.error('Failed to increment read count:', rpcError)
-
-                  console.log(`✅ Read count incremented for campaign ${campaignId}`)
-                  // Supabase Realtime will automatically propagate database changes
-                } else {
-                  console.log(`⏭️ Contact already read, skipping increment`)
-                }
-              } catch (e) {
-                console.error('DB update failed (read):', e)
-              }
-              break
-
-            case 'failed':
+              const errors = (statusUpdate as any)?.errors
               const metaError = errors?.[0] || null
               const errorCode = metaError?.code || 0
               const errorTitle = metaError?.title || 'Unknown error'
@@ -463,7 +372,6 @@ export async function POST(request: NextRequest) {
               const errorDetails = metaDetails || metaMessage
               const errorHref = metaError?.href || ''
 
-              // Map error to friendly message
               const mappedError = mapWhatsAppError(errorCode)
               const failureReason = getUserFriendlyMessageForMetaError({
                 code: errorCode,
@@ -478,7 +386,9 @@ export async function POST(request: NextRequest) {
                 details: metaDetails,
               })
 
-              console.log(`❌ Failed: ${phoneMasked || phone} - [${errorCode}] ${errorTitle} (campaign: ${campaignId})${traceId ? ` (traceId: ${traceId})` : ''}`)
+              console.log(
+                `❌ Failed: ${phoneMasked || phone} - [${errorCode}] ${errorTitle} (campaign: ${campaignId})${traceId ? ` (traceId: ${traceId})` : ''}`
+              )
               console.log(`   Category: ${mappedError.category}, Retryable: ${mappedError.retryable}`)
 
               if (traceId) {
@@ -500,60 +410,45 @@ export async function POST(request: NextRequest) {
                 })
               }
 
-              try {
-                const nowFailed = new Date().toISOString()
+              const nowFailed = eventTsIso || new Date().toISOString()
 
-                // Update contact with failure details
-                const { data: updatedRowsFailed, error: updateErrorFailed } = await supabase
-                  .from('campaign_contacts')
-                  .update({
-                    status: 'failed',
-                    failed_at: nowFailed,
-                    failure_code: errorCode,
-                    failure_reason: failureReason,
-                    failure_title: normalizeMetaErrorTextForStorage(errorTitle, 200),
-                    failure_details: normalizeMetaErrorTextForStorage(errorDetails, 800),
-                    failure_href: normalizeMetaErrorTextForStorage(errorHref, 400),
-                  })
-                  .eq('message_id', messageId)
-                  .neq('status', 'failed')
-                  .select('id')
+              const { data: updatedRowsFailed, error: updateErrorFailed } = await supabase
+                .from('campaign_contacts')
+                .update({
+                  status: 'failed',
+                  failed_at: nowFailed,
+                  failure_code: errorCode,
+                  failure_reason: failureReason,
+                  failure_title: normalizeMetaErrorTextForStorage(errorTitle, 200),
+                  failure_details: normalizeMetaErrorTextForStorage(errorDetails, 800),
+                  failure_href: normalizeMetaErrorTextForStorage(errorHref, 400),
+                })
+                .eq('message_id', messageId)
+                .neq('status', 'failed')
+                .select('id')
 
-                if (updateErrorFailed) throw updateErrorFailed
+              if (updateErrorFailed) throw updateErrorFailed
 
-                // Only increment campaign counter if we actually updated a row
-                if (updatedRowsFailed && updatedRowsFailed.length > 0) {
-                  // Increment campaign counter (Atomic RPC)
-                  const { error: rpcError } = await supabase
-                    .rpc('increment_campaign_stat', {
-                      campaign_id_input: campaignId,
-                      field: 'failed'
-                    })
+              if (updatedRowsFailed && updatedRowsFailed.length > 0) {
+                const { error: rpcError } = await supabase.rpc('increment_campaign_stat', {
+                  campaign_id_input: campaignId,
+                  field: 'failed',
+                })
 
-                  if (rpcError) console.error('Failed to increment failed count:', rpcError)
+                if (rpcError) console.error('Failed to increment failed count:', rpcError)
 
-                  console.log(`✅ Failed count incremented for campaign ${campaignId}`)
-                  // Supabase Realtime will automatically propagate database changes
-                }
-
-                // Handle critical errors - create account alert
                 if (isCriticalError(errorCode)) {
-                  console.log(`🚨 Critical error detected: ${errorCode} - Creating account alert`)
-                  await supabase
-                    .from('account_alerts')
-                    .upsert({
-                      id: `alert_${errorCode}_${Date.now()}`,
-                      type: mappedError.category,
-                      code: errorCode,
-                      message: failureReason,
-                      details: JSON.stringify({ title: errorTitle, details: errorDetails, action: recommendedAction }),
-                      created_at: nowFailed
-                    })
+                  await supabase.from('account_alerts').upsert({
+                    id: `alert_${errorCode}_${Date.now()}`,
+                    type: mappedError.category,
+                    code: errorCode,
+                    message: failureReason,
+                    details: JSON.stringify({ title: errorTitle, details: errorDetails, action: recommendedAction }),
+                    created_at: nowFailed,
+                  })
                 }
 
-                // Handle opt-out - mark contact
                 if (isOptOutError(errorCode)) {
-                  console.log(`📵 Opt-out detected for ${phone} - Marking contact`)
                   await markContactOptOutAndSuppress({
                     phoneRaw: phone,
                     source: 'meta_opt_out_error',
@@ -567,10 +462,8 @@ export async function POST(request: NextRequest) {
                   })
                 }
 
-                // Auto-supressão agressiva (cross-campaign) — best-effort
-                // Objetivo: proteger qualidade da conta evitando insistência em números undeliverable.
                 try {
-                  const result = await maybeAutoSuppressByFailure({
+                  await maybeAutoSuppressByFailure({
                     phone,
                     failureCode: errorCode,
                     failureTitle: errorTitle,
@@ -580,19 +473,54 @@ export async function POST(request: NextRequest) {
                     campaignContactId: existingUpdate.id,
                     messageId,
                   })
-                  if (result.suppressed) {
-                    console.log(
-                      `🛑 Auto-supressão aplicada para ${phoneMasked || phone} (code ${errorCode}, count ${result.recentCount ?? 'n/a'}) até ${result.expiresAt}`
-                    )
-                  }
                 } catch (e) {
                   console.warn('[Webhook] Falha ao aplicar auto-supressão (best-effort):', e)
                 }
-
-              } catch (e) {
-                console.error('DB update failed (failed):', e)
               }
-              break
+
+              if (eventId) {
+                await markEventAttempt({ eventId, state: 'applied', campaignId, campaignContactId: existingUpdate.id })
+              }
+              continue
+            }
+
+            const result = await applyStatusUpdateToCampaignContact({
+              messageId,
+              status,
+              eventTsIso,
+              errors: (statusUpdate as any)?.errors ?? null,
+            })
+
+            if (eventId) {
+              if (result.reason === 'applied') {
+                await markEventAttempt({
+                  eventId,
+                  state: 'applied',
+                  campaignId: result.campaignId || null,
+                  campaignContactId: result.campaignContactId || null,
+                })
+              } else if (result.reason === 'unmatched') {
+                await markEventAttempt({ eventId, state: 'unmatched', error: 'campaign_contact_not_found' })
+                await enqueueWebhookStatusReconcileBestEffort('unmatched_status')
+              } else {
+                await markEventAttempt({
+                  eventId,
+                  state: 'pending',
+                  campaignId: result.campaignId || null,
+                  campaignContactId: result.campaignContactId || null,
+                })
+              }
+            }
+          } catch (e) {
+            console.error('[Webhook] Falha ao aplicar status no DB:', e)
+            if (eventId) {
+              await markEventAttempt({ eventId, state: 'error', error: e instanceof Error ? e.message : String(e) })
+              await enqueueWebhookStatusReconcileBestEffort('apply_error')
+            }
+            return NextResponse.json(
+              { status: 'error', error: e instanceof Error ? e.message : String(e) },
+              { status: 500 }
+            )
           }
         }
 
@@ -637,7 +565,7 @@ export async function POST(request: NextRequest) {
 
               const responseRaw = typeof nfm.response_json === 'string' ? nfm.response_json : JSON.stringify(nfm.response_json)
               const responseJson = safeParseJson(nfm.response_json)
-              const messageTimestamp = tryParseWebhookTimestampSeconds(message?.timestamp)
+              const messageTimestamp = tryParseWebhookTimestampSeconds(message?.timestamp).iso
 
               const flowId = (nfm?.flow_id || nfm?.flowId || null) as string | null
               const flowName = (nfm?.name || null) as string | null

@@ -328,16 +328,31 @@ export async function handleWhatsAppStatusWebhookEvent(params: {
 
   const { iso: eventTsIso, raw: eventTsRaw } = tryParseWebhookTimestampSeconds(params.statusUpdate?.timestamp)
 
-  // 1) Persist event first (durable inbox). If this fails, return error to force Meta retry.
-  const { id: eventId } = await recordStatusEvent({
-    messageId,
-    status,
-    eventTsIso,
-    eventTsRaw,
-    recipientId: (params.statusUpdate as any)?.recipient_id || null,
-    errors: (params.statusUpdate as any)?.errors ?? null,
-    payload: params.payload ?? null,
-  })
+  // 1) Persist event first (durable inbox).
+  // Compat: se a migration ainda não foi aplicada, seguimos sem persistência.
+  let eventId: string | null = null
+  try {
+    const rec = await recordStatusEvent({
+      messageId,
+      status,
+      eventTsIso,
+      eventTsRaw,
+      recipientId: (params.statusUpdate as any)?.recipient_id || null,
+      errors: (params.statusUpdate as any)?.errors ?? null,
+      payload: params.payload ?? null,
+    })
+    eventId = rec.id
+  } catch (e: any) {
+    const code = String(e?.code || '')
+    const msg = String(e?.message || '')
+    const m = msg.toLowerCase()
+    if (code === '42P01' || (m.includes('whatsapp_status_events') && m.includes('does not exist'))) {
+      // Table missing: skip durable storage (rollout compat)
+      eventId = null
+    } else {
+      throw e
+    }
+  }
 
   // 2) Try to apply immediately.
   try {
@@ -361,7 +376,7 @@ export async function handleWhatsAppStatusWebhookEvent(params: {
       await markEventAttempt({ eventId, state: 'pending', campaignId: result.campaignId, campaignContactId: result.campaignContactId })
     }
 
-    return { stored: true, applied: false, unmatched: result.reason === 'unmatched', noop: result.reason === 'noop' }
+    return { stored: Boolean(eventId), applied: false, unmatched: result.reason === 'unmatched', noop: result.reason === 'noop' }
   } catch (e) {
     if (eventId) {
       await markEventAttempt({ eventId, state: 'error', error: e instanceof Error ? e.message : String(e) })
@@ -391,6 +406,7 @@ export async function reconcilePendingStatusEvents(params?: { limit?: number }) 
   for (const ev of events || []) {
     const status = normalizeMetaStatus(ev.status)
     if (!status || !ev.message_id) continue
+    if (status === 'failed' || status === 'sent') continue
 
     try {
       const result = await applyStatusUpdateToCampaignContact({

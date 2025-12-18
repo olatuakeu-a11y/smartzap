@@ -6,10 +6,62 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { setEnvVars, redeployLatest, getDeploymentStatus } from '@/lib/vercel-api'
+import { randomBytes } from 'node:crypto'
+
+export const runtime = 'nodejs'
+
+function generateKey(prefix: string): string {
+  // 32 bytes ~= 43 chars base64url
+  return `${prefix}${randomBytes(32).toString('base64url')}`
+}
+
+function ensureInternalKeys(envVars: Record<string, any>): { generated: string[] } {
+  const generated: string[] = []
+
+  // Importante: o Wizard NÃO envia essas chaves no payload.
+  // Se já existirem no ambiente atual (Vercel), preservamos para não rotacionar em cada execução.
+  const existingAdmin = (process.env.SMARTZAP_ADMIN_KEY || '').trim()
+  const existingApi = (process.env.SMARTZAP_API_KEY || '').trim()
+
+  const adminKey = typeof envVars.SMARTZAP_ADMIN_KEY === 'string' ? envVars.SMARTZAP_ADMIN_KEY.trim() : ''
+  const apiKey = typeof envVars.SMARTZAP_API_KEY === 'string' ? envVars.SMARTZAP_API_KEY.trim() : ''
+
+  if (!adminKey && existingAdmin) envVars.SMARTZAP_ADMIN_KEY = existingAdmin
+  if (!apiKey && existingApi) envVars.SMARTZAP_API_KEY = existingApi
+
+  const finalAdmin = (typeof envVars.SMARTZAP_ADMIN_KEY === 'string' ? envVars.SMARTZAP_ADMIN_KEY.trim() : '')
+  const finalApi = (typeof envVars.SMARTZAP_API_KEY === 'string' ? envVars.SMARTZAP_API_KEY.trim() : '')
+
+  // Se nenhuma foi informada, geramos as duas.
+  if (!finalAdmin && !finalApi) {
+    envVars.SMARTZAP_ADMIN_KEY = generateKey('szap_admin_')
+    envVars.SMARTZAP_API_KEY = generateKey('szap_')
+    generated.push('SMARTZAP_ADMIN_KEY', 'SMARTZAP_API_KEY')
+    return { generated }
+  }
+
+  // Se só uma existir, garantimos pelo menos a ADMIN (mais forte).
+  if (!finalAdmin) {
+    envVars.SMARTZAP_ADMIN_KEY = generateKey('szap_admin_')
+    generated.push('SMARTZAP_ADMIN_KEY')
+  }
+
+  // API_KEY é opcional; só geramos se realmente ausente.
+  if (!finalApi) {
+    envVars.SMARTZAP_API_KEY = generateKey('szap_')
+    generated.push('SMARTZAP_API_KEY')
+  }
+
+  return { generated }
+}
 
 export interface SetupEnvVars {
   // Auth
   MASTER_PASSWORD: string
+
+  // Security (recommended)
+  SMARTZAP_API_KEY?: string
+  SMARTZAP_ADMIN_KEY?: string
 
   // Supabase
   NEXT_PUBLIC_SUPABASE_URL: string
@@ -96,6 +148,12 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         )
       }
+    }
+
+    // Garante chaves internas (reconciliação, rotas protegidas, etc.)
+    const { generated } = ensureInternalKeys(envVars as any)
+    if (generated.length > 0) {
+      console.log('[save-env] Generated internal keys:', generated)
     }
 
     // Prepare env vars array

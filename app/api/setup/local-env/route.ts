@@ -13,6 +13,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
+import { randomBytes } from 'node:crypto'
 
 export const runtime = 'nodejs'
 
@@ -20,6 +21,9 @@ const ALLOWED_HOSTS = new Set(['localhost', '127.0.0.1', '::1'])
 
 const ALLOWED_KEYS = new Set([
   'MASTER_PASSWORD',
+  // Security (recommended)
+  'SMARTZAP_API_KEY',
+  'SMARTZAP_ADMIN_KEY',
   'NEXT_PUBLIC_SUPABASE_URL',
   'NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY',
   // Alias compat: some setups use *_DEFAULT_KEY
@@ -42,6 +46,48 @@ const ALLOWED_KEYS = new Set([
   'SETUP_COMPANY_EMAIL',
   'SETUP_COMPANY_PHONE',
 ])
+
+function ensureInternalKeys(envVars: Record<string, string>) {
+  const adminKey = (envVars.SMARTZAP_ADMIN_KEY || '').trim()
+  const apiKey = (envVars.SMARTZAP_API_KEY || '').trim()
+
+  // Preserve from current process env (dev) if present
+  const existingAdmin = (process.env.SMARTZAP_ADMIN_KEY || '').trim()
+  const existingApi = (process.env.SMARTZAP_API_KEY || '').trim()
+  if (!adminKey && existingAdmin) envVars.SMARTZAP_ADMIN_KEY = existingAdmin
+  if (!apiKey && existingApi) envVars.SMARTZAP_API_KEY = existingApi
+
+  const finalAdmin = (envVars.SMARTZAP_ADMIN_KEY || '').trim()
+  const finalApi = (envVars.SMARTZAP_API_KEY || '').trim()
+
+  if (!finalAdmin && !finalApi) {
+    envVars.SMARTZAP_ADMIN_KEY = `szap_admin_${randomBytes(32).toString('base64url')}`
+    envVars.SMARTZAP_API_KEY = `szap_${randomBytes(32).toString('base64url')}`
+    return
+  }
+
+  if (!finalAdmin) {
+    envVars.SMARTZAP_ADMIN_KEY = `szap_admin_${randomBytes(32).toString('base64url')}`
+  }
+
+  if (!finalApi) {
+    envVars.SMARTZAP_API_KEY = `szap_${randomBytes(32).toString('base64url')}`
+  }
+}
+
+function getEnvValueFromFile(content: string, key: string): string | null {
+  // Supports: KEY=value, export KEY=value, spaces.
+  const re = new RegExp(`^\\s*(?:export\\s+)?${key}\\s*=\\s*(.*)\\s*$`, 'm')
+  const m = content.match(re)
+  if (!m) return null
+  const raw = (m[1] || '').trim()
+  if (!raw) return ''
+  // Remove surrounding quotes (simple .env parsing)
+  if ((raw.startsWith('"') && raw.endsWith('"')) || (raw.startsWith("'") && raw.endsWith("'"))) {
+    return raw.slice(1, -1)
+  }
+  return raw
+}
 
 function getHostnameFromHeaders(request: NextRequest): string {
   const raw =
@@ -205,14 +251,6 @@ export async function POST(request: NextRequest) {
 
   const envVars = pickAllowedEnvVars((body as any)?.envVars)
 
-  const keys = Object.keys(envVars)
-  if (keys.length === 0) {
-    return NextResponse.json(
-      { error: 'Nenhuma variável válida para salvar' },
-      { status: 400 }
-    )
-  }
-
   const envPath = path.join(process.cwd(), '.env.local')
 
   let existing = ''
@@ -223,6 +261,23 @@ export async function POST(request: NextRequest) {
       console.error('Failed to read .env.local:', err)
       return NextResponse.json({ error: 'Erro ao ler .env.local' }, { status: 500 })
     }
+  }
+
+  // Preserva chaves internas existentes no arquivo ao reexecutar wizard.
+  const existingAdmin = getEnvValueFromFile(existing, 'SMARTZAP_ADMIN_KEY')
+  const existingApi = getEnvValueFromFile(existing, 'SMARTZAP_API_KEY')
+  if (!envVars.SMARTZAP_ADMIN_KEY && existingAdmin) envVars.SMARTZAP_ADMIN_KEY = existingAdmin
+  if (!envVars.SMARTZAP_API_KEY && existingApi) envVars.SMARTZAP_API_KEY = existingApi
+
+  // Gera chaves internas automaticamente no modo local (somente se faltarem).
+  ensureInternalKeys(envVars)
+
+  const keys = Object.keys(envVars)
+  if (keys.length === 0) {
+    return NextResponse.json(
+      { error: 'Nenhuma variável válida para salvar' },
+      { status: 400 }
+    )
   }
 
   const updated = upsertEnvFileContent(existing, envVars)

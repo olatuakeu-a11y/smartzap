@@ -8,6 +8,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint app components hooks lib services scripts utils --ext .js,.jsx,.ts,.tsx,.mjs,.cjs",
+    "db:migrate:0018": "node scripts/apply-migration-pg.mjs supabase/migrations/0018_add_whatsapp_status_events.sql",
     "logs:follow:prod": "node scripts/vercel-logs-follow.mjs https://smartzap-eta.vercel.app tmp/vercel-logs-follow.jsonl",
     "monitor:all": "node scripts/monitor-all.mjs --vercel-url https://smartzap-eta.vercel.app --qstash-url https://smartzap-eta.vercel.app/api/campaign/workflow",
     "test": "vitest run",

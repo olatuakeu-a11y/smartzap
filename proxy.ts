@@ -50,7 +50,43 @@ export async function proxy(request: NextRequest) {
     // BOOTSTRAP CHECK - Redirect to setup if not configured
     // ==========================================================================
     const hasMasterPassword = !!process.env.MASTER_PASSWORD
-    const isSetupComplete = process.env.SETUP_COMPLETE === 'true'
+
+    // ==========================================================================
+    // SETUP LOCKDOWN (produção)
+    // - Após o setup, ninguém “anônimo” deveria conseguir abrir o wizard
+    // - As APIs de setup também não devem ficar abertas após concluído
+    //   (exceto com sessão ou admin key)
+    // ==========================================================================
+    // Em produção, se já existe MASTER_PASSWORD, o setup não pode ser público.
+    // Isso protege mesmo quando SETUP_COMPLETE não estiver setado corretamente.
+    const shouldLockSetup = process.env.NODE_ENV === 'production' && hasMasterPassword
+    const isSetupPage = pathname === '/setup' || pathname.startsWith('/setup/')
+    const isSetupApi = pathname.startsWith('/api/setup')
+
+    if (shouldLockSetup && (isSetupPage || isSetupApi)) {
+        // Para páginas: exige sessão (login)
+        if (isSetupPage) {
+            if (!sessionCookie?.value) {
+                const loginUrl = new URL('/login', request.url)
+                loginUrl.searchParams.set('reason', 'setup_locked')
+                loginUrl.searchParams.set('redirect', pathname)
+                return NextResponse.redirect(loginUrl)
+            }
+        }
+
+        // Para APIs: permite sessão OU admin key
+        if (isSetupApi) {
+            if (sessionCookie?.value) {
+                return NextResponse.next()
+            }
+
+            const adminAuth = await verifyAdminAccess(request)
+            if (!adminAuth.valid) {
+                return unauthorizedResponse('Setup API bloqueada após setup. Faça login ou use SMARTZAP_ADMIN_KEY.')
+            }
+            return NextResponse.next()
+        }
+    }
 
     // If not configured and not already on setup, redirect immediately
     if (!hasMasterPassword) {

@@ -35,6 +35,15 @@ export async function POST(req: NextRequest) {
     const result = await reconcilePendingStatusEvents({ limit })
     return NextResponse.json({ ok: true, ...result })
   } catch (e) {
+    const code = String((e as any)?.code || '')
+    const msg = String((e as any)?.message || (e instanceof Error ? e.message : e || ''))
+    const m = msg.toLowerCase()
+    if (code === '42P01' || (m.includes('whatsapp_status_events') && m.includes('does not exist'))) {
+      return NextResponse.json(
+        { ok: false, error: 'missing_table_whatsapp_status_events', hint: 'Aplique a migration 0018 antes de usar a reconciliação.' },
+        { status: 501 }
+      )
+    }
     return NextResponse.json(
       { ok: false, error: e instanceof Error ? e.message : String(e) },
       { status: 500 }
@@ -55,6 +64,15 @@ export async function GET(req: NextRequest) {
     const result = await reconcilePendingStatusEvents({ limit })
     return NextResponse.json({ ok: true, ...result })
   } catch (e) {
+    const code = String((e as any)?.code || '')
+    const msg = String((e as any)?.message || (e instanceof Error ? e.message : e || ''))
+    const m = msg.toLowerCase()
+    if (code === '42P01' || (m.includes('whatsapp_status_events') && m.includes('does not exist'))) {
+      return NextResponse.json(
+        { ok: false, error: 'missing_table_whatsapp_status_events', hint: 'Aplique a migration 0018 antes de usar a reconciliação.' },
+        { status: 501 }
+      )
+    }
     return NextResponse.json(
       { ok: false, error: e instanceof Error ? e.message : String(e) },
       { status: 500 }
