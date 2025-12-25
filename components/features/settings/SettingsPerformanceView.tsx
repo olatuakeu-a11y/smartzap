@@ -162,6 +162,7 @@ export function SettingsPerformanceView(props: {
   hint?: string
 }) {
   const { data } = props
+  const [isMounted, setIsMounted] = React.useState(false)
 
   const gaugeMax = React.useMemo(() => {
     const candidates: number[] = []
@@ -184,6 +185,10 @@ export function SettingsPerformanceView(props: {
       }
     })
   }, [props.filteredRuns])
+
+  React.useEffect(() => {
+    setIsMounted(true)
+  }, [])
 
   return (
     <Page>
@@ -337,8 +342,9 @@ export function SettingsPerformanceView(props: {
         </div>
 
         <div className="mt-4 h-72 w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={chartData}>
+          {isMounted ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={chartData}>
               <defs>
                 <linearGradient id="colorThroughput" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#10b981" stopOpacity={0.25} />
@@ -358,8 +364,11 @@ export function SettingsPerformanceView(props: {
                 labelFormatter={(label: any) => `Quando: ${label}`}
               />
               <Area type="monotone" dataKey="throughput" stroke="#10b981" strokeWidth={2} fillOpacity={1} fill="url(#colorThroughput)" />
-            </AreaChart>
-          </ResponsiveContainer>
+              </AreaChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="h-full w-full rounded-xl bg-white/5" aria-hidden="true" />
+          )}
         </div>
       </div>
 

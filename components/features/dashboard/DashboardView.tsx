@@ -1,3 +1,5 @@
+'use client';
+
 import React from 'react';
 import { PrefetchLink } from '@/components/ui/PrefetchLink';
 import { Page, PageActions, PageDescription, PageHeader, PageTitle } from '@/components/ui/page';
@@ -79,6 +81,7 @@ const StatusBadge = ({ status }: { status: CampaignStatus }) => {
 export const DashboardView: React.FC<DashboardViewProps> = ({ stats, recentCampaigns, isLoading }) => {
   // Skeleton loader for stats cards
   const [range, setRange] = React.useState<'7D' | '15D' | '30D'>('7D');
+  const [isMounted, setIsMounted] = React.useState(false);
   const rangeSize = range === '7D' ? 7 : range === '15D' ? 15 : 30;
   const chartData = stats.chartData || [];
   const StatSkeleton = () => (
@@ -104,6 +107,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ stats, recentCampa
       <div className="w-20 h-6 bg-zinc-700/50 rounded-full animate-pulse" style={{ animationDelay: '300ms' }} />
     </div>
   );
+
+  React.useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   return (
     <Page>
@@ -191,9 +198,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ stats, recentCampa
             aria-labelledby="chart-title"
             aria-describedby="chart-description"
           >
-            <div className="h-75 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={chartData.slice(-rangeSize)} aria-hidden="true">
+            <div className="h-72 w-full">
+              {isMounted ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={chartData.slice(-rangeSize)} aria-hidden="true">
                   <defs>
                     <linearGradient id="colorSent" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#10b981" stopOpacity={0.22}/>
@@ -229,6 +237,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ stats, recentCampa
                 />
               </AreaChart>
             </ResponsiveContainer>
+              ) : (
+                <div className="h-full w-full rounded-xl bg-white/5" aria-hidden="true" />
+              )}
           </div>
           <p id="chart-description" className="sr-only">
             Gráfico de área mostrando o volume de mensagens enviadas ao longo do tempo. 

@@ -10,35 +10,38 @@ const log = (...args: any[]) => {
     if (!isProd) console.log(...args)
 }
 
+const SUPABASE_MIGRATIONS_DIR = path.join(process.cwd(), 'supabase', 'migrations')
+const LEGACY_MIGRATIONS_DIR = path.join(process.cwd(), 'lib', 'migrations')
+
 async function resolveMigrationsDir(): Promise<{ dir: string; files: string[] }> {
     // Fonte única de verdade: supabase/migrations
     // O diretório `lib/migrations` pode existir apenas como legado/mirror; não é caminho oficial.
-    const supabaseDir = path.join(process.cwd(), 'supabase/migrations')
-    const legacyDir = path.join(process.cwd(), 'lib/migrations')
-
-    const tryRead = async (dir: string) => {
-        const entries = await fs.readdir(dir)
+    const readSqlFiles = async (dir: string) => {
+        const entries = await fs.readdir(dir, { withFileTypes: true })
         const files = entries
-            .filter((f) => f.toLowerCase().endsWith('.sql'))
+            .filter((entry) => entry.isFile() && entry.name.toLowerCase().endsWith('.sql'))
+            .map((entry) => entry.name)
             .sort((a, b) => a.localeCompare(b))
         return { dir, files }
     }
 
     try {
-        return await tryRead(supabaseDir)
+        return await readSqlFiles(SUPABASE_MIGRATIONS_DIR)
     } catch (e) {
         // Se ainda existir legado, damos uma mensagem clara para migração de pasta.
+        let legacyHasFiles = false
         try {
-            const legacy = await tryRead(legacyDir)
-            if (legacy.files.length) {
-                throw new Error(
-                    `Migrations canônicas não encontradas em ${supabaseDir}. ` +
-                    `Foi encontrado legado em ${legacyDir}, mas este caminho não é mais oficial. ` +
-                    `Mova as migrations para supabase/migrations.`
-                )
-            }
+            const legacy = await readSqlFiles(LEGACY_MIGRATIONS_DIR)
+            legacyHasFiles = legacy.files.length > 0
         } catch {
             // ignore
+        }
+        if (legacyHasFiles) {
+            throw new Error(
+                `Migrations canônicas não encontradas em ${SUPABASE_MIGRATIONS_DIR}. ` +
+                `Foi encontrado legado em ${LEGACY_MIGRATIONS_DIR}, mas este caminho não é mais oficial. ` +
+                `Mova as migrations para supabase/migrations.`
+            )
         }
         throw e
     }
@@ -182,7 +185,7 @@ export async function POST(request: NextRequest) {
         }
 
         for (const file of resolved.files) {
-            const filePath = path.join(resolved.dir, file)
+            const filePath = path.join(SUPABASE_MIGRATIONS_DIR, file)
             const content = await fs.readFile(filePath, 'utf-8')
             fullSql += `\n\n-- === MIGRATION: ${file} ===\n\n` + content + '\n'
         }
