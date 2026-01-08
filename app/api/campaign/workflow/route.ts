@@ -12,11 +12,116 @@ import { getActiveSuppressionsByPhone } from '@/lib/phone-suppressions'
 import { maybeAutoSuppressByFailure } from '@/lib/auto-suppression'
 import { createCampaignProgressBroadcaster, broadcastCampaignPhase } from '@/lib/realtime-broadcast-server'
 import { createHash } from 'crypto'
+import { getWhatsAppCredentials } from '@/lib/whatsapp-credentials'
+import { fetchWithTimeout, safeJson } from '@/lib/server-http'
 
 function hashConfig(input: unknown): string {
   // Observação: o objetivo é agrupar configs; não precisamos de criptografia forte aqui.
   // JSON.stringify é estável o suficiente porque este objeto tem chaves fixas.
   return createHash('sha256').update(JSON.stringify(input)).digest('hex').slice(0, 16)
+}
+
+function isHttpUrl(value: string): boolean {
+  const v = String(value || '').trim()
+  return /^https?:\/\//i.test(v)
+}
+
+function getTemplateHeaderMediaExampleLink(template: any): { format?: string; example?: string } {
+  const components = (template as any)?.components
+  if (!Array.isArray(components)) return {}
+  const header = components.find((c: any) => String(c?.type || '').toUpperCase() === 'HEADER') as any | undefined
+  if (!header) return {}
+
+  const format = header?.format ? String(header.format).toUpperCase() : undefined
+  if (!format || !['IMAGE', 'VIDEO', 'DOCUMENT', 'GIF'].includes(format)) return { format }
+
+  let exampleObj: any = header.example
+  if (typeof header.example === 'string') {
+    try {
+      exampleObj = JSON.parse(header.example)
+    } catch {
+      exampleObj = undefined
+    }
+  }
+
+  const arr = exampleObj?.header_handle
+  const example = Array.isArray(arr) && typeof arr[0] === 'string' ? String(arr[0]).trim() : undefined
+  return { format, example }
+}
+
+function isWeplinkForbiddenMediaError(args: {
+  errorCode: number
+  metaMessage?: string
+  metaDetails?: string
+}): boolean {
+  const code = Number(args.errorCode || 0)
+  if (code !== 131052 && code !== 131053 && code !== 131054) return false
+  const blob = `${args.metaMessage || ''} ${args.metaDetails || ''}`.toLowerCase()
+  return blob.includes('weblink') && (blob.includes('403') || blob.includes('forbidden'))
+}
+
+async function fetchSingleTemplateFromMeta(params: {
+  businessAccountId: string
+  accessToken: string
+  templateName: string
+}): Promise<
+  | {
+      name: string
+      language?: string
+      category?: string
+      status?: string
+      components?: unknown
+      parameter_format?: 'positional' | 'named' | string
+      spec_hash?: string | null
+      fetched_at?: string | null
+    }
+  | null
+> {
+  const { businessAccountId, accessToken, templateName } = params
+  const now = new Date().toISOString()
+
+  const url = new URL(`https://graph.facebook.com/v24.0/${businessAccountId}/message_templates`)
+  url.searchParams.set('name', templateName)
+  // Campos usados no cache local (o payload de envio depende de components.example.header_handle)
+  url.searchParams.set('fields', 'name,language,category,status,components,parameter_format,last_updated_time')
+
+  const res = await fetchWithTimeout(url.toString(), {
+    method: 'GET',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+    timeoutMs: 20_000,
+  })
+
+  const json = (await safeJson<any>(res)) || {}
+  const first = Array.isArray(json?.data) ? json.data[0] : null
+  if (!res.ok || !first?.name) return null
+
+  const parameterFormat = (() => {
+    const pf = String(first.parameter_format || '').toLowerCase()
+    return pf === 'named' ? 'named' : 'positional'
+  })()
+
+  const specPayload = {
+    name: String(first.name),
+    language: String(first.language || 'pt_BR'),
+    category: String(first.category || ''),
+    parameter_format: parameterFormat,
+    components: first.components || [],
+  }
+
+  const specHash = createHash('sha256').update(JSON.stringify(specPayload)).digest('hex')
+
+  return {
+    name: String(first.name),
+    language: String(first.language || 'pt_BR'),
+    category: first.category ? String(first.category) : undefined,
+    status: first.status ? String(first.status) : undefined,
+    components: first.components || [],
+    parameter_format: parameterFormat,
+    spec_hash: specHash,
+    fetched_at: now,
+  }
 }
 
 interface Contact {
@@ -405,8 +510,45 @@ export const { POST } = serve<CampaignWorkflowInput>(
             // best-effort
           }
 
-          const template: any = templateSnapshot || (await templateDb.getByName(templateName))
-          if (!template) throw new Error(`Template ${templateName} não encontrado no banco local. Sincronize Templates.`)
+          const initialTemplate = await templateDb.getByName(templateName)
+          if (!initialTemplate) throw new Error(`Template ${templateName} não encontrado no banco local. Sincronize Templates.`)
+
+          // Fonte operacional do batch: preferimos snapshot da campanha quando existir.
+          let templateForBatch: any = templateSnapshot || initialTemplate
+
+          // Refresh sob demanda para reduzir 403/URL expirada em header de mídia.
+          let refreshedTemplateForBatch: any | null = null
+          let refreshPromise: Promise<any | null> | null = null
+
+          const ensureRefreshedTemplateForBatch = async (): Promise<any | null> => {
+            if (refreshedTemplateForBatch) return refreshedTemplateForBatch
+            if (refreshPromise) return await refreshPromise
+            refreshPromise = (async () => {
+              try {
+                const creds = await getWhatsAppCredentials()
+                if (!creds?.businessAccountId || !accessToken) return null
+
+                const refreshed = await fetchSingleTemplateFromMeta({
+                  businessAccountId: creds.businessAccountId,
+                  accessToken,
+                  templateName,
+                })
+
+                if (!refreshed) return null
+                await templateDb.upsert([refreshed])
+                const local = await templateDb.getByName(templateName)
+                refreshedTemplateForBatch = local || refreshed
+                templateForBatch = refreshedTemplateForBatch
+                return refreshedTemplateForBatch
+              } catch (e) {
+                console.warn('[Workflow] Falha ao fazer refresh pontual do template na Meta (best-effort):', e)
+                return null
+              }
+            })()
+
+            const out = await refreshPromise
+            return out
+          }
 
           // Check pause status once per batch (trade-off: no DB hit per contact)
           const { data: campaignStatusAtBatchStart } = await supabase
@@ -601,6 +743,8 @@ export const { POST } = serve<CampaignWorkflowInput>(
               // Persistimos via bulk upsert para manter a utilidade de `sending_at`
               // sem round-trip por contato.
 
+            const activeTemplateForContact = refreshedTemplateForBatch || templateForBatch
+
             // Contrato Ouro: pré-check/guard-rail por contato (documented-only)
             const precheck = precheckContactForTemplate(
               {
@@ -610,7 +754,7 @@ export const { POST } = serve<CampaignWorkflowInput>(
                 custom_fields: contact.custom_fields,
                 contactId: contact.contactId || null,
               },
-              template as any,
+              activeTemplateForContact as any,
               templateVariables as any
             )
 
@@ -708,13 +852,14 @@ export const { POST } = serve<CampaignWorkflowInput>(
 
             let whatsappPayload: any
             try {
+              const activeTemplate = refreshedTemplateForBatch || templateForBatch
               whatsappPayload = buildMetaTemplatePayload({
                 to: precheck.normalizedPhone,
                 templateName,
-                language: (template as any).language || 'pt_BR',
-                parameterFormat: (template as any).parameter_format || (template as any).parameterFormat || 'positional',
+                language: (activeTemplate as any).language || 'pt_BR',
+                parameterFormat: (activeTemplate as any).parameter_format || (activeTemplate as any).parameterFormat || 'positional',
                 values: precheck.values,
-                template: template as any,
+                template: activeTemplate as any,
               })
             } catch (e) {
               const reason = e instanceof Error ? e.message : String(e)
@@ -838,6 +983,146 @@ export const { POST } = serve<CampaignWorkflowInput>(
               const metaFbtraceId = data.error?.fbtrace_id || ''
               const metaSubcode = typeof data.error?.error_subcode === 'number' ? data.error.error_subcode : undefined
               const metaHref = data.error?.href || ''
+
+              // Caso típico: template com HEADER de mídia usando `link` expirado/bloqueado.
+              // A Meta tenta baixar do weblink e retorna 403 -> erro de mídia.
+              // Estratégia: refresh pontual do template (Meta → local) e retry 1x.
+              const activeTemplate0 = refreshedTemplateForBatch || templateForBatch
+              const headerInfo0 = getTemplateHeaderMediaExampleLink(activeTemplate0)
+              const canRetryWithRefresh =
+                Boolean(headerInfo0.format && ['IMAGE', 'VIDEO', 'DOCUMENT', 'GIF'].includes(String(headerInfo0.format))) &&
+                isWeplinkForbiddenMediaError({
+                  errorCode,
+                  metaMessage,
+                  metaDetails,
+                })
+
+              if (canRetryWithRefresh) {
+                try {
+                  await emitWorkflowTrace({
+                    traceId,
+                    campaignId,
+                    step,
+                    batchIndex,
+                    contactId: contact.contactId,
+                    phoneMasked,
+                    phase: 'template_refresh_retry_start',
+                    ok: true,
+                    extra: {
+                      errorCode,
+                      headerFormat: headerInfo0.format,
+                      examplePreview: headerInfo0.example || null,
+                    },
+                  })
+
+                  const refreshed = await ensureRefreshedTemplateForBatch()
+                  const activeTemplate1 = refreshed || refreshedTemplateForBatch || templateForBatch
+                  const headerInfo1 = getTemplateHeaderMediaExampleLink(activeTemplate1)
+
+                  // Só tenta retry se continuamos tendo um exemplo http(s) (para reduzir retries inúteis).
+                  if (headerInfo1.example && isHttpUrl(headerInfo1.example)) {
+                    const retryPayload = buildMetaTemplatePayload({
+                      to: precheck.normalizedPhone,
+                      templateName,
+                      language: (activeTemplate1 as any).language || 'pt_BR',
+                      parameterFormat:
+                        (activeTemplate1 as any).parameter_format || (activeTemplate1 as any).parameterFormat || 'positional',
+                      values: precheck.values,
+                      template: activeTemplate1 as any,
+                    })
+
+                    const retryStart = Date.now()
+                    const controller2 = new AbortController()
+                    const timeout2 = setTimeout(() => controller2.abort(), metaTimeoutMs)
+                    let response2: Response
+                    let data2: any
+                    try {
+                      response2 = await fetch(`https://graph.facebook.com/v24.0/${phoneNumberId}/messages`, {
+                        method: 'POST',
+                        headers: {
+                          Authorization: `Bearer ${accessToken}`,
+                          'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(retryPayload),
+                        signal: controller2.signal,
+                      })
+                      data2 = await response2.json()
+                    } finally {
+                      clearTimeout(timeout2)
+                    }
+
+                    const retryMs = Date.now() - retryStart
+                    metaTimeMs += retryMs
+
+                    if (response2.ok && data2?.messages?.[0]?.id) {
+                      const messageId = data2.messages[0].id
+                      const db0 = Date.now()
+                      await updateContactStatus(
+                        campaignId,
+                        { contactId: contact.contactId, phone: contact.phone },
+                        'sent',
+                        { sendingAt: sendingAtIso, messageId, traceId }
+                      )
+                      dbTimeMs += Date.now() - db0
+                      lastSentAtInBatch = new Date().toISOString()
+
+                      await emitWorkflowTrace({
+                        traceId,
+                        campaignId,
+                        step,
+                        batchIndex,
+                        contactId: contact.contactId,
+                        phoneMasked,
+                        phase: 'template_refresh_retry_ok',
+                        ok: true,
+                        ms: retryMs,
+                        extra: { messageId },
+                      })
+
+                      sentCount++
+                      progress.bump({ sent: 1 })
+                      console.log(`✅ Sent (retry after template refresh) to ${contact.phone}`)
+                      return
+                    }
+
+                    await emitWorkflowTrace({
+                      traceId,
+                      campaignId,
+                      step,
+                      batchIndex,
+                      contactId: contact.contactId,
+                      phoneMasked,
+                      phase: 'template_refresh_retry_fail',
+                      ok: false,
+                      ms: retryMs,
+                      extra: {
+                        status: response2.status,
+                        errorCode: data2?.error?.code,
+                        errorType: data2?.error?.type,
+                        fbtrace_id: data2?.error?.fbtrace_id,
+                      },
+                    })
+                  } else {
+                    await emitWorkflowTrace({
+                      traceId,
+                      campaignId,
+                      step,
+                      batchIndex,
+                      contactId: contact.contactId,
+                      phoneMasked,
+                      phase: 'template_refresh_retry_skip',
+                      ok: true,
+                      extra: {
+                        reason: 'no_http_example_after_refresh',
+                        headerFormat: headerInfo1.format || null,
+                        examplePreview: headerInfo1.example || null,
+                      },
+                    })
+                  }
+                } catch (e) {
+                  console.warn('[Workflow] Retry após refresh do template falhou (seguindo com erro original):', e)
+                }
+              }
 
               const translatedError = getUserFriendlyMessageForMetaError({
                 code: errorCode,
