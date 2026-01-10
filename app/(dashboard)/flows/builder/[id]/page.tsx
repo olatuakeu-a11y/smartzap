@@ -242,10 +242,10 @@ export default function FlowBuilderEditorPage({
     <Page>
       <PageHeader>
         <div className="space-y-2">
-          <div className="text-xs uppercase tracking-widest text-gray-500">Templates / Miniapps / Builder</div>
+          <div className="text-xs uppercase tracking-widest text-gray-500">Templates / MiniApps / Builder</div>
           <div className="space-y-1">
             <div className="flex flex-wrap items-center gap-3">
-              <PageTitle>Editor de Miniapp</PageTitle>
+              <PageTitle>Editor de MiniApp</PageTitle>
               {flow ? (
                 <span className={`inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold ${statusClass}`}>
                   {statusLabel}
@@ -253,7 +253,7 @@ export default function FlowBuilderEditorPage({
               ) : null}
             </div>
             <PageDescription>
-              Miniapp é um formulário. Crie perguntas no modo Formulário e envie para a Meta quando estiver pronto.
+              MiniApp é um formulário. Crie perguntas no modo Formulário e envie para a Meta quando estiver pronto.
             </PageDescription>
           </div>
         </div>
@@ -292,7 +292,7 @@ export default function FlowBuilderEditorPage({
           </div>
         </div>
       ) : !flow ? (
-        <div className={`${panelClass} p-8 text-gray-300`}>Miniapp não encontrada.</div>
+        <div className={`${panelClass} p-8 text-gray-300`}>MiniApp não encontrada.</div>
       ) : (
         <>
           <div className="mt-4 grid xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] gap-6 items-start">

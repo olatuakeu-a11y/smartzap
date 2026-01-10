@@ -1593,7 +1593,7 @@ export function ManualTemplateBuilder({
                       disabled={!canAddButtonType('FLOW').ok}
                       className="cursor-pointer hover:bg-white/5 focus:bg-white/5"
                     >
-                      Flow
+                      MiniApp
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       onClick={() => addButton('OTP')}
@@ -1815,7 +1815,7 @@ export function ManualTemplateBuilder({
                                       <SelectItem value="URL" disabled={!allowedButtonTypes.has('URL')}>Acessar o site</SelectItem>
                                       <SelectItem value="PHONE_NUMBER" disabled={!allowedButtonTypes.has('PHONE_NUMBER')}>Ligar</SelectItem>
                                       <SelectItem value="COPY_CODE" disabled={!allowedButtonTypes.has('COPY_CODE')}>Copiar código da oferta</SelectItem>
-                                      <SelectItem value="FLOW" disabled={!allowedButtonTypes.has('FLOW')}>Concluir flow</SelectItem>
+                                      <SelectItem value="FLOW" disabled={!allowedButtonTypes.has('FLOW')}>Concluir MiniApp</SelectItem>
                                       <SelectItem value="VOICE_CALL" disabled={!allowedButtonTypes.has('VOICE_CALL')}>Ligar no WhatsApp</SelectItem>
                                       <SelectItem value="CATALOG" disabled={!allowedButtonTypes.has('CATALOG')}>Catálogo</SelectItem>
                                       <SelectItem value="MPM" disabled={!allowedButtonTypes.has('MPM')}>MPM</SelectItem>
@@ -2005,7 +2005,7 @@ export function ManualTemplateBuilder({
                             return (
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-end">
                                 <div className="space-y-1">
-                                  <div className="text-xs font-medium text-gray-300">Escolher Flow publicado</div>
+                                  <div className="text-xs font-medium text-gray-300">Escolher MiniApp publicado</div>
                                   <Select
                                     value={selectValue}
                                     onValueChange={(v) => {
@@ -2020,7 +2020,7 @@ export function ManualTemplateBuilder({
                                         placeholder={
                                           flowsQuery.isLoading
                                             ? 'Carregando…'
-                                            : (publishedFlows.length === 0 ? 'Nenhum Flow publicado' : 'Selecionar')
+                                            : (publishedFlows.length === 0 ? 'Nenhum MiniApp publicado' : 'Selecionar')
                                         }
                                       />
                                     </SelectTrigger>
@@ -2052,11 +2052,11 @@ export function ManualTemplateBuilder({
 
                                   {!hasMatch && currentFlowId ? (
                                     <div className="mt-3 text-[11px] text-amber-300">
-                                      O Flow atual não está publicado. Selecione um da lista.
+                                      O MiniApp atual não está publicado. Selecione um da lista.
                                     </div>
                                   ) : null}
                                   <div className="mt-3 text-[11px] text-gray-500">
-                                    Dica: publique o Flow no Builder para aparecer na lista.
+                                    Dica: publique o MiniApp no Builder para aparecer na lista.
                                   </div>
                                 </div>
                                 <div className="space-y-1">

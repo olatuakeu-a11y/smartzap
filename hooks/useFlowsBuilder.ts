@@ -17,18 +17,18 @@ export const useFlowsBuilderController = () => {
     mutationFn: flowsService.create,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['flows'] })
-      toast.success('Flow criado')
+      toast.success('MiniApp criado')
     },
-    onError: (e: Error) => toast.error(e.message || 'Erro ao criar flow'),
+    onError: (e: Error) => toast.error(e.message || 'Erro ao criar MiniApp'),
   })
 
   const createFromTemplateMutation = useMutation({
     mutationFn: flowsService.createFromTemplate,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['flows'] })
-      toast.success('Flow criado a partir do template')
+      toast.success('MiniApp criado a partir do template')
     },
-    onError: (e: Error) => toast.error(e.message || 'Erro ao criar flow'),
+    onError: (e: Error) => toast.error(e.message || 'Erro ao criar MiniApp'),
   })
 
   const createWithAIMutation = useMutation({
@@ -45,7 +45,7 @@ export const useFlowsBuilderController = () => {
 
       const data = await res.json().catch(() => null)
       if (!res.ok) {
-        const msg = (data?.error && String(data.error)) || 'Falha ao gerar Flow com IA'
+        const msg = (data?.error && String(data.error)) || 'Falha ao gerar MiniApp com IA'
         const details = data?.details ? `: ${String(data.details)}` : ''
         throw new Error(`${msg}${details}`)
       }
@@ -71,18 +71,18 @@ export const useFlowsBuilderController = () => {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['flows'] })
-      toast.success('Flow criado com IA')
+      toast.success('MiniApp criado com IA')
     },
-    onError: (e: Error) => toast.error(e.message || 'Erro ao criar flow com IA'),
+    onError: (e: Error) => toast.error(e.message || 'Erro ao criar MiniApp com IA'),
   })
 
   const deleteMutation = useMutation({
     mutationFn: flowsService.remove,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['flows'] })
-      toast.success('Flow excluído')
+      toast.success('MiniApp excluído')
     },
-    onError: (e: Error) => toast.error(e.message || 'Erro ao excluir flow'),
+    onError: (e: Error) => toast.error(e.message || 'Erro ao excluir MiniApp'),
   })
 
   const flows = useMemo(() => {

@@ -135,7 +135,7 @@ export function FlowPublishPanel({
         categories: ['OTHER'],
         updateIfExists: true,
       })
-      toast.success('Flow enviado para a Meta')
+      toast.success('MiniApp enviado para a Meta')
       queryClient.invalidateQueries({ queryKey: ['flows'] })
       onRefresh()
     } catch (e) {
@@ -149,11 +149,11 @@ export function FlowPublishPanel({
     try {
       setDeletingId(flow.id)
       await flowsService.remove(flow.id)
-      toast.success('Flow excluido')
+      toast.success('MiniApp excluído')
       queryClient.invalidateQueries({ queryKey: ['flows'] })
       onRefresh()
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Erro ao excluir flow')
+      toast.error(e instanceof Error ? e.message : 'Erro ao excluir MiniApp')
     } finally {
       setDeletingId(null)
       setConfirmFlow(null)
@@ -175,10 +175,10 @@ export function FlowPublishPanel({
         }
       }
       if (deleted > 0) {
-        toast.success(`${deleted} flow(s) excluído(s)`)
+        toast.success(`${deleted} MiniApp(s) excluído(s)`)
       }
       if (failed > 0) {
-        toast.error(`${failed} flow(s) não puderam ser excluído(s)`)
+        toast.error(`${failed} MiniApp(s) não puderam ser excluído(s)`)
       }
       setSelectedIds(new Set())
       queryClient.invalidateQueries({ queryKey: ['flows'] })
@@ -193,8 +193,8 @@ export function FlowPublishPanel({
     <div className="rounded-2xl border border-white/10 bg-zinc-900/60 p-6 shadow-[0_12px_30px_rgba(0,0,0,0.35)] space-y-4">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <div className="text-base font-semibold text-white">Flows do Builder</div>
-          <div className="text-xs text-gray-400 mt-1">Edite, envie para a Meta e teste seus flows.</div>
+          <div className="text-base font-semibold text-white">MiniApps do Builder</div>
+          <div className="text-xs text-gray-400 mt-1">Edite, envie para a Meta e teste seus MiniApps.</div>
         </div>
         <Button
           type="button"
@@ -241,14 +241,14 @@ export function FlowPublishPanel({
           </button>
         ))}
         <div className="text-xs text-gray-500">
-          {isLoading ? 'Carregando…' : `${sortedFlows.length} flow(s)`}
+          {isLoading ? 'Carregando…' : `${sortedFlows.length} MiniApp(s)`}
           {isFetching && !isLoading ? ' (atualizando…)': ''}
         </div>
       </div>
 
       {sortedFlows.length === 0 ? (
         <div className="rounded-xl border border-white/10 bg-zinc-950/40 p-4 text-sm text-gray-400">
-          Nenhum flow ainda. Crie no builder para começar.
+          Nenhum MiniApp ainda. Crie no builder para começar.
         </div>
       ) : (
         <div className="overflow-x-auto">
@@ -272,7 +272,7 @@ export function FlowPublishPanel({
                   </th>
                   <th className="px-4 py-3 font-semibold">Nome</th>
                   <th className="px-4 py-3 font-semibold">Status</th>
-                  <th className="px-4 py-3 font-semibold">Flow ID da Meta</th>
+                  <th className="px-4 py-3 font-semibold">ID da MiniApp (Meta)</th>
                   <th className="px-4 py-3 font-semibold">Atualizado</th>
                   <th className="px-4 py-3 font-semibold text-right">Ações</th>
                 </tr>
@@ -281,7 +281,7 @@ export function FlowPublishPanel({
                 {visibleFlows.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="px-4 py-10 text-center text-gray-500">
-                      Nenhum flow nesse filtro.
+                      Nenhuma MiniApp nesse filtro.
                     </td>
                   </tr>
                 ) : (
@@ -383,10 +383,10 @@ export function FlowPublishPanel({
       <Dialog open={!!confirmFlow} onOpenChange={(open) => !open && setConfirmFlow(null)}>
         <DialogContent className="sm:max-w-md bg-zinc-900/80 border border-amber-500/20 text-white">
           <DialogHeader>
-            <DialogTitle>Excluir flow</DialogTitle>
+            <DialogTitle>Excluir MiniApp</DialogTitle>
           </DialogHeader>
           <div className="text-sm text-gray-300">
-            Flow: <span className="font-semibold">{confirmFlow?.name}</span>
+            MiniApp: <span className="font-semibold">{confirmFlow?.name}</span>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setConfirmFlow(null)} className="border-white/10 bg-zinc-950/40 text-gray-200 hover:text-white hover:bg-white/5">
@@ -420,9 +420,9 @@ export function FlowPublishPanel({
       <Dialog open={confirmBulkDelete} onOpenChange={(open) => !open && setConfirmBulkDelete(false)}>
         <DialogContent className="sm:max-w-md bg-zinc-900/80 border border-amber-500/20 text-white">
           <DialogHeader>
-            <DialogTitle>Excluir flows selecionados</DialogTitle>
+            <DialogTitle>Excluir MiniApps selecionados</DialogTitle>
             <DialogDescription className="text-gray-400">
-              {selectedCount} flow(s) serão excluído(s) permanentemente.
+              {selectedCount} MiniApp(s) serão excluído(s) permanentemente.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

@@ -348,7 +348,7 @@ export const TemplatePreviewCard: React.FC<TemplatePreviewCardProps> = ({
           ) : headerFormat === 'VIDEO' || headerFormat === 'GIF' ? (
             <video
               src={headerMediaPreviewUrl || undefined}
-              className="h-40 w-full object-cover"
+              className="w-full h-auto"
               muted
               controls
               playsInline
@@ -357,7 +357,7 @@ export const TemplatePreviewCard: React.FC<TemplatePreviewCardProps> = ({
             <img
               src={headerMediaPreviewUrl || undefined}
               alt="Prévia da mídia do cabeçalho"
-              className="h-40 w-full object-cover"
+              className="w-full h-auto"
               loading="lazy"
             />
           )}

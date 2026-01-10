@@ -6,15 +6,110 @@ import {
   Coins,
   Database,
   ExternalLink,
+  FileText,
+  FormInput,
   KeyRound,
+  MessageSquareText,
   Play,
   ShieldCheck,
   Sliders,
   Sparkles,
   ToggleRight,
+  Wand2,
   Zap,
 } from 'lucide-react'
 import { Page, PageActions, PageDescription, PageHeader, PageTitle } from '@/components/ui/page'
+
+type PromptItem = {
+  id: string
+  title: string
+  description: string
+  path: string
+  variables: string[]
+  rows?: number
+  value: string
+  Icon: typeof FileText
+}
+
+const PROMPTS: PromptItem[] = [
+  {
+    id: 'template-short',
+    title: 'Mensagem curta (WhatsApp)',
+    description: 'Usado para gerar textos rápidos de campanha.',
+    path: '/api/ai/generate-template',
+    variables: ['{{prompt}}', '{{1}}'],
+    rows: 7,
+    value: `Crie uma mensagem de WhatsApp curta, profissional e persuasiva baseada neste pedido: "{{prompt}}".
+Regras:
+1. Use a variável {{1}} para o nome do cliente.
+2. Use emojis com moderação.
+3. Seja direto (max 300 caracteres).
+4. Retorne APENAS o texto da mensagem, sem explicações.`,
+    Icon: MessageSquareText,
+  },
+  {
+    id: 'utility-templates',
+    title: 'Templates UTILITY (geração)',
+    description: 'Gera templates aprováveis pela Meta usando variáveis.',
+    path: '/api/ai/generate-utility-templates',
+    variables: ['{{prompt}}', '{{quantity}}', '{{language}}', '{{primaryUrl}}'],
+    rows: 9,
+    value: `Você é especialista em templates WhatsApp Business API categoria UTILITY.
+Objetivo: gerar {{quantity}} templates aprováveis pela Meta.
+Regras principais:
+- Use variáveis {{1}}, {{2}}, {{3}} para datas, horários, quantidades e termos promocionais.
+- Evite linguagem de urgência, escassez ou promoção hardcoded.
+- Não inicie nem termine frases com variável.
+Idioma: {{language}}.
+Pedido do usuário: "{{prompt}}".
+URL obrigatória (se houver): {{primaryUrl}}.
+Formato: JSON array com name, content, header, footer e buttons.`,
+    Icon: Wand2,
+  },
+  {
+    id: 'ai-judge',
+    title: 'AI Judge (classificação)',
+    description: 'Analisa se o template é UTILITY ou MARKETING e sugere correções.',
+    path: '/lib/ai/services/ai-judge.ts',
+    variables: ['{{header}}', '{{body}}'],
+    rows: 8,
+    value: `Você é um juiz especializado em aprovação de templates WhatsApp Business API.
+Analise o header e body e retorne JSON com:
+- approved (true/false)
+- predictedCategory ("UTILITY" | "MARKETING")
+- confidence (0..1)
+- issues (lista de palavras problemáticas)
+- fixedBody / fixedHeader (com variáveis substituindo termos proibidos).`,
+    Icon: ShieldCheck,
+  },
+  {
+    id: 'flow-form',
+    title: 'MiniApp Form (JSON)',
+    description: 'Gera o formulário para MiniApps (WhatsApp Flow) em JSON estrito.',
+    path: '/api/ai/generate-flow-form',
+    variables: ['{{prompt}}', '{{titleHint}}', '{{maxQuestions}}'],
+    rows: 9,
+    value: `Você é especialista em criar MiniApps (WhatsApp Flows) no formato de formulário.
+Gere entre 3 e {{maxQuestions}} campos, com tipos adequados.
+Retorne APENAS JSON válido (strict JSON, sem markdown).
+Título e intro em pt-BR.
+Se houver, use o título sugerido: "{{titleHint}}".
+Pedido do usuário: "{{prompt}}".`,
+    Icon: FormInput,
+  },
+  {
+    id: 'template-agent',
+    title: 'Template Agent (sistema)',
+    description: 'Prompt base usado pelo agente de templates com estratégias.',
+    path: '/lib/ai/services/template-agent.ts',
+    variables: ['{{strategy}}', '{{examples}}', '{{rules}}'],
+    rows: 7,
+    value: `Use o prompt do agente para guiar a geração por estratégia (utility/marketing/bypass).
+Inclua exemplos oficiais, palavras proibidas e o tom aprovado.
+Saída em JSON com name, body e buttons conforme a estratégia.`,
+    Icon: FileText,
+  },
+]
 
 function StatusPill({
   label,
@@ -43,9 +138,7 @@ function MockSwitch({ on }: { on?: boolean }) {
   return (
     <span
       className={`relative inline-flex h-6 w-11 items-center rounded-full border transition ${
-        on
-          ? 'border-emerald-500/40 bg-emerald-500/20'
-          : 'border-white/10 bg-white/5'
+        on ? 'border-emerald-500/40 bg-emerald-500/20' : 'border-white/10 bg-white/5'
       }`}
       aria-hidden="true"
     >
@@ -76,6 +169,54 @@ function Metric({
   )
 }
 
+function PromptCard({ item }: { item: PromptItem }) {
+  const Icon = item.Icon
+  return (
+    <div className="rounded-2xl border border-white/10 bg-zinc-900/60 p-5">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="flex items-start gap-3">
+          <div className="rounded-xl border border-white/10 bg-white/5 p-2 text-white">
+            <Icon className="size-4" />
+          </div>
+          <div>
+            <div className="text-sm font-semibold text-white">{item.title}</div>
+            <div className="mt-1 text-xs text-gray-400">{item.description}</div>
+            <div className="mt-2 inline-flex rounded-full border border-white/10 bg-black/40 px-3 py-1 text-xs text-gray-400">
+              {item.path}
+            </div>
+          </div>
+        </div>
+        <button
+          type="button"
+          className="h-9 rounded-lg border border-white/10 bg-white/5 px-3 text-xs font-medium text-white transition hover:bg-white/10"
+        >
+          Testar prompt
+        </button>
+      </div>
+
+      <div className="mt-4">
+        <textarea
+          className="min-h-[160px] w-full rounded-xl border border-white/10 bg-black/50 px-4 py-3 text-sm text-gray-200 outline-none transition focus:border-emerald-500/40 focus:ring-2 focus:ring-emerald-500/10"
+          rows={item.rows ?? 6}
+          defaultValue={item.value}
+        />
+      </div>
+
+      <div className="mt-3 flex flex-wrap gap-2 text-xs text-gray-400">
+        <span className="font-medium text-gray-300">Variáveis:</span>
+        {item.variables.map((v) => (
+          <span
+            key={v}
+            className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5"
+          >
+            {v}
+          </span>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export default function AICenterPage() {
   return (
     <Page>
@@ -85,10 +226,9 @@ export default function AICenterPage() {
             <Sparkles className="size-4" />
             Central de IA
           </div>
-          <PageTitle>Configuração Inteligente, em um só lugar</PageTitle>
+          <PageTitle>Central de IA</PageTitle>
           <PageDescription>
-            Ajuste provedores, modelos, chaves, segurança, custos e observabilidade. Esta é uma
-            prévia visual de como a central de IA do SmartZap poderia ficar.
+            Provedores, rotas, governança e prompts em uma única tela.
           </PageDescription>
         </div>
         <PageActions>
@@ -96,13 +236,13 @@ export default function AICenterPage() {
             type="button"
             className="h-10 rounded-xl border border-white/10 bg-white/5 px-4 text-sm font-medium text-white transition hover:bg-white/10"
           >
-            Salvar rascunho
+            Restaurar padrão
           </button>
           <button
             type="button"
             className="h-10 rounded-xl bg-white px-4 text-sm font-semibold text-zinc-900 transition hover:bg-gray-100"
           >
-            Publicar configuração
+            Salvar tudo
           </button>
         </PageActions>
       </PageHeader>
@@ -182,7 +322,11 @@ export default function AICenterPage() {
                 >
                   <div className="flex items-center justify-between">
                     <div className="text-sm font-semibold text-white">{item.name}</div>
-                    {item.active ? <StatusPill label="Padrão" tone="emerald" /> : <StatusPill label="Disponível" tone="zinc" />}
+                    {item.active ? (
+                      <StatusPill label="Padrão" tone="emerald" />
+                    ) : (
+                      <StatusPill label="Disponível" tone="zinc" />
+                    )}
                   </div>
                   <div className="mt-2 text-xs text-gray-400">Modelo: {item.model}</div>
                   <button
@@ -279,7 +423,7 @@ export default function AICenterPage() {
               {[
                 { title: 'Templates rápidos', detail: '/api/ai/generate-template', on: true },
                 { title: 'Templates utility + Judge', detail: '/api/ai/generate-utility-templates', on: true },
-                { title: 'Flow Form Builder', detail: '/api/ai/generate-flow-form', on: true },
+                { title: 'MiniApp Form Builder', detail: '/api/ai/generate-flow-form', on: true },
                 { title: 'Workflow Builder', detail: '/api/builder/ai/generate', on: false },
               ].map((item) => (
                 <div key={item.title} className="rounded-xl border border-white/10 bg-zinc-900/60 p-4">
@@ -320,6 +464,29 @@ export default function AICenterPage() {
                   </div>
                   <MockSwitch on={item.on} />
                 </div>
+              ))}
+            </div>
+          </section>
+
+          <section className="glass-panel rounded-2xl p-6">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 text-sm font-semibold text-white">
+                  <Wand2 className="size-4 text-emerald-300" />
+                  Prompts do sistema
+                </div>
+                <p className="text-sm text-gray-400">
+                  Ajuste o texto dos prompts para cada fluxo de IA sem sair desta tela.
+                </p>
+              </div>
+              <div className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs text-emerald-300">
+                5 prompts configuráveis
+              </div>
+            </div>
+
+            <div className="mt-5 space-y-4">
+              {PROMPTS.map((item) => (
+                <PromptCard key={item.id} item={item} />
               ))}
             </div>
           </section>

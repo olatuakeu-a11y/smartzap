@@ -32,7 +32,7 @@ async function sendFlow(payload: SendFlowPayload) {
 
   const data = await res.json().catch(() => null)
   if (!res.ok) {
-    const msg = data?.error || 'Falha ao enviar Flow'
+    const msg = data?.error || 'Falha ao enviar MiniApp'
     throw new Error(msg)
   }
   return data
@@ -97,7 +97,7 @@ export function FlowTestPanel({
       <div className="flex items-center justify-between gap-3">
         <div>
           <div className="text-base font-semibold text-white">3. Testar</div>
-          <div className="text-xs text-gray-400 mt-1">Envie um Flow real para validar a experiência.</div>
+          <div className="text-xs text-gray-400 mt-1">Envie um MiniApp real para validar a experiência.</div>
         </div>
         {onRefreshFlows && (
           <Button
@@ -114,7 +114,7 @@ export function FlowTestPanel({
       </div>
 
       <div className="space-y-2">
-        <label className="text-xs font-medium text-gray-300">Flow do Builder (opcional)</label>
+        <label className="text-xs font-medium text-gray-300">MiniApp do Builder (opcional)</label>
         <Select
           value={selectedDraftId}
           onValueChange={(v) => {
@@ -124,12 +124,12 @@ export function FlowTestPanel({
           }}
         >
           <SelectTrigger className="w-full bg-zinc-950/40 border-white/10 text-white">
-                  <SelectValue placeholder={isLoadingFlows ? 'Carregando…' : 'Escolha um flow do Builder'} />
+            <SelectValue placeholder={isLoadingFlows ? 'Carregando…' : 'Escolha um MiniApp do Builder'} />
           </SelectTrigger>
           <SelectContent>
             {flowsWithMetaId.length === 0 ? (
               <SelectItem value="__none__" disabled>
-                    Nenhum flow com Flow ID da Meta
+                Nenhum MiniApp com ID da Meta
               </SelectItem>
             ) : (
               flowsWithMetaId.map((f) => (
@@ -140,7 +140,7 @@ export function FlowTestPanel({
             )}
           </SelectContent>
         </Select>
-        <div className="text-[11px] text-gray-500">Selecionar um flow preenche automaticamente o Flow ID.</div>
+        <div className="text-[11px] text-gray-500">Selecionar um MiniApp preenche automaticamente o ID da MiniApp.</div>
       </div>
 
       <div className="grid grid-cols-1 gap-3">
@@ -156,7 +156,7 @@ export function FlowTestPanel({
         </div>
 
         <div className="space-y-2">
-          <label className="text-xs font-medium text-gray-300">Flow ID da Meta</label>
+          <label className="text-xs font-medium text-gray-300">ID da MiniApp (Meta)</label>
           <Input
             value={flowId}
             onChange={(e) => setFlowId(e.target.value)}
@@ -166,14 +166,14 @@ export function FlowTestPanel({
         </div>
 
         <div className="space-y-2">
-          <label className="text-xs font-medium text-gray-300">Flow Token</label>
+          <label className="text-xs font-medium text-gray-300">Token da MiniApp</label>
           <Input
             value={flowToken}
             onChange={(e) => setFlowToken(e.target.value)}
-            placeholder="Cole o token do Flow"
+            placeholder="Cole o token da MiniApp"
             className="bg-zinc-950/40 border-white/10 text-white"
           />
-          <div className="text-[11px] text-gray-500">Esse token vem da configuração do Flow na Meta.</div>
+          <div className="text-[11px] text-gray-500">Esse token vem da configuração da MiniApp na Meta.</div>
         </div>
       </div>
 
@@ -233,9 +233,9 @@ export function FlowTestPanel({
                 footer: footer.trim() || undefined,
                 flowMessageVersion: '3',
               })
-              toast.success('Flow enviado')
+              toast.success('MiniApp enviado')
             } catch (e) {
-              toast.error(e instanceof Error ? e.message : 'Falha ao enviar Flow')
+              toast.error(e instanceof Error ? e.message : 'Falha ao enviar MiniApp')
             } finally {
               setIsSending(false)
             }

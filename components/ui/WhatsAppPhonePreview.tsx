@@ -418,7 +418,7 @@ const MessageHeader: React.FC<MessageHeaderProps> = ({
             <img
               src={headerMediaPreviewUrl}
               alt="Prévia da mídia do cabeçalho"
-              className="h-32 w-full object-cover"
+              className="w-full h-auto"
               loading="lazy"
             />
           ) : (
@@ -435,7 +435,7 @@ const MessageHeader: React.FC<MessageHeaderProps> = ({
           {headerMediaPreviewUrl ? (
             <video
               src={headerMediaPreviewUrl}
-              className="h-32 w-full object-cover"
+              className="w-full h-auto"
               muted
               controls
               playsInline

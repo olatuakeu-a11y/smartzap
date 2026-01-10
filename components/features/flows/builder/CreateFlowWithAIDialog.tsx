@@ -37,9 +37,9 @@ export function CreateFlowWithAIDialog(props: {
 
       <DialogContent className="max-w-xl bg-zinc-950 border-white/10 text-white">
         <DialogHeader>
-          <DialogTitle>Criar Flow com IA</DialogTitle>
+          <DialogTitle>Criar MiniApp com IA</DialogTitle>
           <DialogDescription className="text-zinc-400">
-            Descreva o que você quer coletar. A IA sugere as perguntas e a gente já cria o Flow no modo “Formulário”.
+            Descreva o que você quer coletar. A IA sugere as perguntas e a gente já cria o MiniApp no modo “Formulário”.
           </DialogDescription>
         </DialogHeader>
 

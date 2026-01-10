@@ -109,7 +109,7 @@ export default function TemplatesPage() {
       const created = await flowsService.create({ name })
       router.push(`/flows/builder/${encodeURIComponent(created.id)}`)
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Erro ao criar flow')
+      toast.error(e instanceof Error ? e.message : 'Erro ao criar MiniApp')
     } finally {
       setIsCreatingFlow(false)
     }
@@ -158,7 +158,7 @@ export default function TemplatesPage() {
           <PageTitle>Templates</PageTitle>
           <PageDescription>
             {activeTab === 'flows'
-              ? 'Crie e monitore WhatsApp Flows, e mapeie respostas para campos do SmartZap.'
+              ? 'Crie e monitore MiniApps do WhatsApp, e mapeie respostas para campos do SmartZap.'
               : activeTab === 'forms'
                 ? 'Crie formulários públicos para captar contatos e tags automaticamente.'
               : 'Gerencie templates e rascunhos.'}
@@ -241,7 +241,7 @@ export default function TemplatesPage() {
             }`}
         >
           <Workflow className="w-4 h-4" />
-          Flows
+          MiniApps
           <span className="rounded-full bg-emerald-500/20 px-1 py-px text-[8px] font-semibold uppercase tracking-wider text-emerald-200 border border-emerald-500/30">
             beta
           </span>
@@ -285,9 +285,9 @@ export default function TemplatesPage() {
           <div className="space-y-4">
             <div className="rounded-2xl border border-white/10 bg-zinc-900/60 p-6 shadow-[0_12px_30px_rgba(0,0,0,0.35)] flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <div className="text-sm font-semibold text-white">Criar Flow</div>
+                <div className="text-sm font-semibold text-white">Criar MiniApp</div>
                 <div className="text-xs text-gray-400">
-                  Crie um flow e abra direto o builder para editar.
+                  Crie um MiniApp e abra direto o builder para editar.
                 </div>
               </div>
               <div className="flex items-center gap-2">
@@ -296,7 +296,7 @@ export default function TemplatesPage() {
                   disabled={isCreatingFlow}
                   className="bg-white text-black hover:bg-gray-200"
                 >
-                  {isCreatingFlow ? 'Criando…' : 'Criar flow'}
+                  {isCreatingFlow ? 'Criando…' : 'Criar MiniApp'}
                 </Button>
               </div>
             </div>

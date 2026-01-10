@@ -43,7 +43,7 @@ export function CreateFlowFromTemplateDialog(props: {
 
       <DialogContent className="max-w-xl">
         <DialogHeader>
-          <DialogTitle>Criar Flow por template</DialogTitle>
+          <DialogTitle>Criar MiniApp por template</DialogTitle>
           <DialogDescription>
             Comece a partir de um template (Lead/Cadastro, Agendamento, NPS). Você poderá editar o JSON depois.
           </DialogDescription>
@@ -90,7 +90,7 @@ export function CreateFlowFromTemplateDialog(props: {
 
             {selected ? (
               <div className="text-xs text-gray-500">
-                Este template cria um Flow “sem endpoint” para testar rápido.
+                Este template cria um MiniApp “sem endpoint” para testar rápido.
               </div>
             ) : null}
           </div>

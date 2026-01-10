@@ -35,7 +35,7 @@ async function sendFlow(payload: SendFlowPayload) {
 
   const data = await res.json().catch(() => null)
   if (!res.ok) {
-    const msg = data?.error || 'Falha ao enviar Flow'
+    const msg = data?.error || 'Falha ao enviar MiniApp'
     throw new Error(msg)
   }
   return data
@@ -111,16 +111,16 @@ export function SendFlowDialog(props: {
         <DialogTrigger asChild>
           <Button variant="secondary">
             <Send className="h-4 w-4" />
-            {props.triggerLabel || 'Enviar Flow'}
+            {props.triggerLabel || 'Enviar MiniApp'}
           </Button>
         </DialogTrigger>
       )}
 
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Enviar Flow (teste)</DialogTitle>
+          <DialogTitle>Enviar MiniApp (teste)</DialogTitle>
           <DialogDescription>
-            Envia uma mensagem do tipo <span className="font-mono">interactive.flow</span> para um contato.
+            Envia uma mensagem do tipo <span className="font-mono">interactive.flow</span> (MiniApp) para um contato.
             Você precisa do <span className="font-mono">flow_id</span> e do <span className="font-mono">flow_token</span> gerados/configurados na Meta.
           </DialogDescription>
         </DialogHeader>
@@ -151,12 +151,12 @@ export function SendFlowDialog(props: {
               }}
             >
               <SelectTrigger className="w-full">
-                <SelectValue placeholder={props.isLoadingFlows ? 'Carregando…' : 'Escolha um rascunho do Builder'} />
+                <SelectValue placeholder={props.isLoadingFlows ? 'Carregando…' : 'Escolha um MiniApp do Builder'} />
               </SelectTrigger>
               <SelectContent>
                 {flowsWithMetaId.length === 0 ? (
                   <SelectItem value="__none__" disabled>
-                    Nenhum rascunho com Flow ID da Meta
+                    Nenhum rascunho com ID da MiniApp (Meta)
                   </SelectItem>
                 ) : (
                   flowsWithMetaId.map((f) => (
@@ -187,7 +187,7 @@ export function SendFlowDialog(props: {
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="send_flow_id">Flow ID da Meta (flowId)</Label>
+              <Label htmlFor="send_flow_id">ID da MiniApp (Meta) (flowId)</Label>
               <Input
                 id="send_flow_id"
                 value={flowId}
@@ -199,14 +199,14 @@ export function SendFlowDialog(props: {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="grid gap-2">
-              <Label htmlFor="send_flow_token">Flow Token (flowToken)</Label>
+              <Label htmlFor="send_flow_token">Token da MiniApp (flowToken)</Label>
               <Input
                 id="send_flow_token"
                 value={flowToken}
                 onChange={(e) => setFlowToken(e.target.value)}
-                placeholder="Cole o token do Flow"
+                placeholder="Cole o token da MiniApp"
               />
-              <div className="text-[11px] text-gray-500">Esse token vem da configuração do Flow na Meta.</div>
+              <div className="text-[11px] text-gray-500">Esse token vem da configuração da MiniApp na Meta.</div>
             </div>
             <div className="grid gap-2">
               <Label htmlFor="send_cta">Texto do botão (ctaText)</Label>
@@ -246,10 +246,10 @@ export function SendFlowDialog(props: {
                   footer: footer.trim() || undefined,
                   flowMessageVersion: '3',
                 })
-                toast.success('Flow enviado')
+                toast.success('MiniApp enviado')
                 setOpenState(false)
               } catch (e) {
-                toast.error(e instanceof Error ? e.message : 'Falha ao enviar Flow')
+                toast.error(e instanceof Error ? e.message : 'Falha ao enviar MiniApp')
               } finally {
                 setIsSending(false)
               }

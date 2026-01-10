@@ -300,7 +300,7 @@ export function MetaFlowPreview(props: {
   const children = parsed.screen?.layout?.children || []
   const footer = getFooter(children)
 
-  const title = (parsed.screen?.title || 'Flow').trim() || 'Flow'
+  const title = (parsed.screen?.title || 'MiniApp').trim() || 'MiniApp'
 
   return (
     <div className={`relative mx-auto w-[320px] h-160 rounded-[2.2rem] bg-zinc-950 border-8 border-zinc-900 shadow-2xl overflow-hidden ${props.className || ''}`}>
@@ -313,7 +313,7 @@ export function MetaFlowPreview(props: {
         <div className="h-14 px-4 flex items-center justify-between border-b border-white/10">
           <button
             type="button"
-            aria-label="Fechar preview do flow"
+            aria-label="Fechar preview da MiniApp"
             title="Fechar"
             className="h-9 w-9 rounded-full hover:bg-white/5 flex items-center justify-center text-zinc-200"
           >

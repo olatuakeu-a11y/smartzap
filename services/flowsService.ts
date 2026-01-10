@@ -63,7 +63,7 @@ export const flowsService = {
   async list(): Promise<FlowRow[]> {
     const res = await fetch('/api/flows', { method: 'GET', credentials: 'include' })
     if (!res.ok) {
-      throw new Error(await readErrorMessage(res, 'Falha ao listar flows'))
+      throw new Error(await readErrorMessage(res, 'Falha ao listar MiniApps'))
     }
     const data = await res.json()
     return parseList(data)
@@ -77,11 +77,11 @@ export const flowsService = {
       body: JSON.stringify(input),
     })
     if (!res.ok) {
-      throw new Error(await readErrorMessage(res, 'Falha ao criar flow'))
+      throw new Error(await readErrorMessage(res, 'Falha ao criar MiniApp'))
     }
     const data = await res.json()
     const parsed = FlowRowSchema.safeParse(data)
-    if (!parsed.success) throw new Error('Resposta inválida ao criar flow')
+    if (!parsed.success) throw new Error('Resposta inválida ao criar MiniApp')
     return parsed.data as any
   },
 
@@ -93,22 +93,22 @@ export const flowsService = {
       body: JSON.stringify(input),
     })
     if (!res.ok) {
-      throw new Error(await readErrorMessage(res, 'Falha ao criar flow'))
+      throw new Error(await readErrorMessage(res, 'Falha ao criar MiniApp'))
     }
     const data = await res.json()
     const parsed = FlowRowSchema.safeParse(data)
-    if (!parsed.success) throw new Error('Resposta inválida ao criar flow')
+    if (!parsed.success) throw new Error('Resposta inválida ao criar MiniApp')
     return parsed.data as any
   },
 
   async get(id: string): Promise<FlowRow> {
     const res = await fetch(`/api/flows/${encodeURIComponent(id)}`, { method: 'GET', credentials: 'include' })
     if (!res.ok) {
-      throw new Error(await readErrorMessage(res, 'Falha ao buscar flow'))
+      throw new Error(await readErrorMessage(res, 'Falha ao buscar MiniApp'))
     }
     const data = await res.json()
     const parsed = FlowRowSchema.safeParse(data)
-    if (!parsed.success) throw new Error('Resposta inválida ao buscar flow')
+    if (!parsed.success) throw new Error('Resposta inválida ao buscar MiniApp')
     return parsed.data as any
   },
 
@@ -131,18 +131,18 @@ export const flowsService = {
       body: JSON.stringify(patch),
     })
     if (!res.ok) {
-      throw new Error(await readErrorMessage(res, 'Falha ao atualizar flow'))
+      throw new Error(await readErrorMessage(res, 'Falha ao atualizar MiniApp'))
     }
     const data = await res.json()
     const parsed = FlowRowSchema.safeParse(data)
-    if (!parsed.success) throw new Error('Resposta inválida ao atualizar flow')
+    if (!parsed.success) throw new Error('Resposta inválida ao atualizar MiniApp')
     return parsed.data as any
   },
 
   async remove(id: string): Promise<void> {
     const res = await fetch(`/api/flows/${encodeURIComponent(id)}`, { method: 'DELETE', credentials: 'include' })
     if (!res.ok) {
-      throw new Error(await readErrorMessage(res, 'Falha ao excluir flow'))
+      throw new Error(await readErrorMessage(res, 'Falha ao excluir MiniApp'))
     }
   },
 
@@ -163,14 +163,14 @@ export const flowsService = {
 
     const data = await res.json().catch(() => null)
     if (!res.ok) {
-      const msg = (data?.error && String(data.error)) || 'Falha ao publicar Flow na Meta'
+      const msg = (data?.error && String(data.error)) || 'Falha ao publicar MiniApp na Meta'
       const details = data?.issues ? `: ${Array.isArray(data.issues) ? data.issues.join(', ') : String(data.issues)}` : ''
       throw new Error(`${msg}${details}`)
     }
 
     const row = data?.row
     const parsed = FlowRowSchema.safeParse(row)
-    if (!parsed.success) throw new Error('Resposta inválida ao publicar Flow na Meta')
+    if (!parsed.success) throw new Error('Resposta inválida ao publicar MiniApp na Meta')
     return parsed.data as any
   },
 }

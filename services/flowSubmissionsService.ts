@@ -37,7 +37,7 @@ export const flowSubmissionsService = {
 
     if (!res.ok) {
       const data = await res.json().catch(() => null)
-      const base = (data?.error && String(data.error)) || 'Falha ao buscar submissions de Flow'
+      const base = (data?.error && String(data.error)) || 'Falha ao buscar submissões de MiniApp'
       const details = data?.details ? String(data.details) : ''
       throw new Error(details ? `${base}: ${details}` : base)
     }

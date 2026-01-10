@@ -114,7 +114,7 @@ export function FlowSubmissionsView(props: {
               </div>
 
               <div>
-                <label className="block text-xs text-gray-400 mb-1">Flow (Builder)</label>
+                <label className="block text-xs text-gray-400 mb-1">MiniApp (Builder)</label>
                 <Select
                   value={props.flowIdFilter?.trim() ? props.flowIdFilter : '__all__'}
                   onValueChange={(v) => props.onFlowIdFilterChange(v === '__all__' ? '' : v)}
@@ -134,7 +134,7 @@ export function FlowSubmissionsView(props: {
               </div>
 
               <div>
-                <label className="block text-xs text-gray-400 mb-1">Filtrar por Flow ID da Meta</label>
+                <label className="block text-xs text-gray-400 mb-1">Filtrar por ID da MiniApp (Meta)</label>
                 <Input
                   value={props.flowIdFilter}
                   onChange={(e) => props.onFlowIdFilterChange(e.target.value)}
@@ -162,7 +162,7 @@ export function FlowSubmissionsView(props: {
             <tr className="text-gray-400">
               <th className="px-4 py-3 font-semibold">Data</th>
               <th className="px-4 py-3 font-semibold">Telefone</th>
-              <th className="px-4 py-3 font-semibold">Flow</th>
+              <th className="px-4 py-3 font-semibold">MiniApp</th>
               <th className="px-4 py-3 font-semibold">Token</th>
               <th className="px-4 py-3 font-semibold text-right">Ações</th>
             </tr>

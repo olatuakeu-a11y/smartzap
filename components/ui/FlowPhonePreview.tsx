@@ -198,7 +198,7 @@ export function FlowPhonePreview(props: {
       ? { height: 'h-[420px]', width: 'w-[240px]', border: 'border-[6px]', notch: 'w-24 h-5' }
       : { height: 'h-[560px]', width: 'w-[320px]', border: 'border-[8px]', notch: 'w-32 h-6' }
 
-  const title = parsed.screen?.title || 'Prévia do Flow'
+  const title = parsed.screen?.title || 'Prévia da MiniApp'
   const children = parsed.screen?.layout?.children || []
   const footer = getFooter(children)
 
@@ -218,7 +218,7 @@ export function FlowPhonePreview(props: {
         </div>
         <div className="min-w-0 flex-1">
           <div className="text-[12px] font-semibold text-white leading-none truncate">{businessName}</div>
-          <div className="text-[10px] text-white/60 leading-none mt-0.5 truncate">Flow</div>
+          <div className="text-[10px] text-white/60 leading-none mt-0.5 truncate">MiniApp</div>
         </div>
         <div className="h-8 w-8 rounded-full bg-white/10 flex items-center justify-center text-white/80">
           <X className="h-4 w-4" />

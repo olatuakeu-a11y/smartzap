@@ -21,7 +21,7 @@ export function useFlowEditorController(flowId: string) {
     onSuccess: (row) => {
       qc.setQueryData(['flows', flowId], row)
       qc.invalidateQueries({ queryKey: ['flows'] })
-      toast.success('Flow salvo')
+      toast.success('MiniApp salva')
     },
     onError: (e: Error) => toast.error(e.message || 'Erro ao salvar'),
   })
@@ -31,7 +31,7 @@ export function useFlowEditorController(flowId: string) {
     onSuccess: (row) => {
       qc.setQueryData(['flows', flowId], row)
       qc.invalidateQueries({ queryKey: ['flows'] })
-      toast.success('Flow publicado na Meta')
+      toast.success('MiniApp publicada na Meta')
     },
     onError: (e: Error) => toast.error(e.message || 'Erro ao publicar na Meta'),
   })

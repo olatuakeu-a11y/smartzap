@@ -285,7 +285,7 @@ export function FlowFormBuilder(props: {
 
   const save = () => {
     const baseSpec = (props.currentSpec && typeof props.currentSpec === 'object') ? (props.currentSpec as any) : {}
-    const nextForm = { ...form, title: (props.flowName || form.title || 'Flow').trim() || 'Flow' }
+    const nextForm = { ...form, title: (props.flowName || form.title || 'MiniApp').trim() || 'MiniApp' }
     const nextSpec = { ...baseSpec, form: nextForm }
 
     props.onSave({
@@ -634,7 +634,7 @@ export function FlowFormBuilder(props: {
       <Dialog open={aiOpen} onOpenChange={setAiOpen}>
         <DialogContent className="bg-zinc-950 border-white/10 text-white sm:max-w-xl">
           <DialogHeader>
-            <DialogTitle>Gerar Flow com IA</DialogTitle>
+            <DialogTitle>Gerar MiniApp com IA</DialogTitle>
             <DialogDescription className="text-zinc-400">
               Escreva em linguagem natural o que você quer coletar. A IA vai sugerir as perguntas e você pode editar antes de salvar.
             </DialogDescription>
@@ -719,7 +719,7 @@ export function FlowFormBuilder(props: {
               onClick={() => {
                 const tpl = FLOW_TEMPLATES.find((t) => t.key === selectedTemplateKey)
                 if (!tpl) return
-                const next = flowJsonToFormSpec(tpl.flowJson, props.flowName || 'Flow')
+                const next = flowJsonToFormSpec(tpl.flowJson, props.flowName || 'MiniApp')
                 setForm(next)
                 setDirty(true)
                 setTemplateOpen(false)

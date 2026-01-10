@@ -48,11 +48,11 @@ export function FlowBuilderListView(props: {
               <Input
                 value={props.search}
                 onChange={(e) => props.onSearchChange(e.target.value)}
-                placeholder="Nome ou Flow ID da Meta"
+                placeholder="Nome ou ID da MiniApp (Meta)"
               />
             </div>
             <div>
-              <label className="block text-xs uppercase tracking-widest text-gray-500 mb-2">Criar novo Flow</label>
+              <label className="block text-xs uppercase tracking-widest text-gray-500 mb-2">Criar nova MiniApp</label>
               <div className="flex gap-2">
                 <Input
                   value={newName}
@@ -117,7 +117,7 @@ export function FlowBuilderListView(props: {
         </div>
 
         <div className="mt-3 text-xs text-gray-500">
-          {props.isLoading ? 'Carregando…' : `Mostrando ${props.flows.length} flow(s)`}
+          {props.isLoading ? 'Carregando…' : `Mostrando ${props.flows.length} MiniApp(s)`}
           {props.isFetching && !props.isLoading ? ' (atualizando…)': ''}
         </div>
       </div>
@@ -128,7 +128,7 @@ export function FlowBuilderListView(props: {
             <tr className="text-gray-300">
               <th className="px-4 py-3 font-semibold">Nome</th>
               <th className="px-4 py-3 font-semibold">Status</th>
-              <th className="px-4 py-3 font-semibold">Flow ID da Meta</th>
+              <th className="px-4 py-3 font-semibold">ID da MiniApp (Meta)</th>
               <th className="px-4 py-3 font-semibold">Criado</th>
               <th className="px-4 py-3 font-semibold text-right">Ações</th>
             </tr>
@@ -137,7 +137,7 @@ export function FlowBuilderListView(props: {
             {props.flows.length === 0 ? (
               <tr>
                 <td colSpan={5} className="px-4 py-10 text-center text-gray-500">
-                  Nenhum flow ainda. Crie um para abrir o editor visual.
+                  Nenhum MiniApp ainda. Crie um para abrir o editor visual.
                 </td>
               </tr>
             ) : (
