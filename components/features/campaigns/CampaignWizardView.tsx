@@ -9,7 +9,8 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { useCampaignWizardUI, AudienceDraft } from '../../../hooks/campaigns/useCampaignWizardUI';
 import { useRouter } from 'next/navigation';
 import {
   DropdownMenu,
@@ -522,46 +523,89 @@ export const CampaignWizardView: React.FC<CampaignWizardViewProps> = ({
 }) => {
   const router = useRouter();
 
-  type QuickEditTarget =
-    | { type: 'name' }
-    | { type: 'email' }
-    | { type: 'custom_field'; key: string };
+  // Hook que encapsula estados locais de UI
+  const { state: uiState, actions: uiActions, refs: uiRefs } = useCampaignWizardUI({
+    status: audienceCriteria?.status ?? 'OPT_IN',
+    includeTag: audienceCriteria?.includeTag ?? null,
+    createdWithinDays: audienceCriteria?.createdWithinDays ?? null,
+    excludeOptOut: audienceCriteria?.excludeOptOut ?? true,
+    noTags: audienceCriteria?.noTags ?? false,
+    uf: audienceCriteria?.uf ?? null,
+    ddi: audienceCriteria?.ddi ?? null,
+    customFieldKey: audienceCriteria?.customFieldKey ?? null,
+    customFieldMode: audienceCriteria?.customFieldMode ?? null,
+    customFieldValue: audienceCriteria?.customFieldValue ?? null,
+  });
 
-  type QuickEditFocus =
-    | QuickEditTarget
-    | { type: 'multi'; targets: QuickEditTarget[] }
-    | null;
+  // Destructure state for easier access
+  const {
+    showUpgradeModal,
+    scheduleMode,
+    scheduledDate,
+    scheduledTime,
+    testContacts,
+    customFields,
+    isFieldsSheetOpen,
+    quickEditContactId,
+    quickEditFocus,
+    batchFixQueue,
+    batchFixIndex,
+    templateSearch,
+    hoveredTemplateId,
+    templateCategoryFilter,
+    isAudienceRefineOpen,
+    isSegmentsSheetOpen,
+    segmentTagDraft,
+    segmentDdiDraft,
+    segmentCustomFieldKeyDraft,
+    segmentCustomFieldModeDraft,
+    segmentCustomFieldValueDraft,
+    segmentOneContactDraft,
+    audienceDraft,
+    fixedValueDialogOpen,
+    fixedValueDialogSlot,
+    fixedValueDialogTitle,
+    fixedValueDialogValue,
+  } = uiState;
 
-  // State for upgrade modal
-  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  // Destructure actions for easier access
+  const {
+    setShowUpgradeModal,
+    setScheduleMode,
+    setScheduledDate,
+    setScheduledTime,
+    setTestContacts,
+    setCustomFields,
+    setIsFieldsSheetOpen,
+    setQuickEditContactId,
+    setQuickEditFocus: setQuickEditFocusSafe,
+    setBatchFixQueue,
+    setBatchFixIndex,
+    resetBatchFix,
+    setTemplateSearch,
+    setHoveredTemplateId,
+    setTemplateCategoryFilter,
+    setIsAudienceRefineOpen,
+    setIsSegmentsSheetOpen,
+    setSegmentTagDraft,
+    setSegmentDdiDraft,
+    setSegmentCustomFieldKeyDraft,
+    setSegmentCustomFieldModeDraft,
+    setSegmentCustomFieldValueDraft,
+    setSegmentOneContactDraft,
+    setAudienceDraft,
+    resetSegmentDrafts,
+    openFixedValueDialog,
+    closeFixedValueDialog,
+    setFixedValueDialogValue,
+  } = uiActions;
 
-  // State for scheduling
-  const [scheduleMode, setScheduleMode] = useState<'now' | 'scheduled'>('now');
-  const [scheduledDate, setScheduledDate] = useState('');
-  const [scheduledTime, setScheduledTime] = useState('');
+  // Destructure refs
+  const { quickEditFocusRef, batchCloseReasonRef, batchNextRef } = uiRefs;
 
-  // State for template search and hover preview
-  const [testContacts, setTestContacts] = useState<TestContact[]>([]);
-  const [customFields, setCustomFields] = useState<CustomFieldDefinition[]>([]);
-  const [isFieldsSheetOpen, setIsFieldsSheetOpen] = useState(false);
-
-  const [quickEditContactId, setQuickEditContactId] = useState<string | null>(null);
-  const [quickEditFocus, setQuickEditFocus] = useState<QuickEditFocus>(null);
-  const quickEditFocusRef = useRef<QuickEditFocus>(null);
-  const setQuickEditFocusSafe = (focus: QuickEditFocus) => {
-    quickEditFocusRef.current = focus;
-    setQuickEditFocus(focus);
-  };
-
-  // Assistente de correção em lote (contatos ignorados)
-  const [batchFixQueue, setBatchFixQueue] = useState<Array<{ contactId: string; focus: QuickEditFocus }>>([]);
-  const [batchFixIndex, setBatchFixIndex] = useState(0);
-  const batchCloseReasonRef = useRef<'advance' | 'finish' | null>(null);
-  const batchNextRef = useRef<{ contactId: string; focus: QuickEditFocus } | null>(null);
-
-  const [templateSearch, setTemplateSearch] = useState('');
-  const [hoveredTemplateId, setHoveredTemplateId] = useState<string | null>(null);
-  const [templateCategoryFilter, setTemplateCategoryFilter] = useState<'ALL' | 'MARKETING' | 'UTILIDADE' | 'AUTENTICACAO'>('ALL');
+  // Type alias for backward compatibility (re-exported from hook)
+  type QuickEditTarget = { type: 'name' } | { type: 'email' } | { type: 'custom_field'; key: string };
+  type QuickEditFocus = QuickEditTarget | { type: 'multi'; targets: QuickEditTarget[] } | null;
 
   const isJobsAudienceMode =
     typeof selectAudiencePreset === 'function' &&
@@ -579,39 +623,6 @@ export const CampaignWizardView: React.FC<CampaignWizardViewProps> = ({
     return (allContacts || []).filter((c) => c.status !== ContactStatus.OPT_OUT).length;
   }, [allContacts, audienceStats]);
 
-  type AudienceDraft = {
-    status: 'OPT_IN' | 'OPT_OUT' | 'UNKNOWN' | 'ALL';
-    includeTag?: string | null;
-    createdWithinDays?: number | null;
-    excludeOptOut?: boolean;
-    noTags?: boolean;
-    uf?: string | null;
-    ddi?: string | null;
-    customFieldKey?: string | null;
-    customFieldMode?: 'exists' | 'equals' | null;
-    customFieldValue?: string | null;
-  };
-
-  const [isAudienceRefineOpen, setIsAudienceRefineOpen] = useState(false);
-  const [isSegmentsSheetOpen, setIsSegmentsSheetOpen] = useState(false);
-  const [segmentTagDraft, setSegmentTagDraft] = useState('');
-  const [segmentDdiDraft, setSegmentDdiDraft] = useState('');
-  const [segmentCustomFieldKeyDraft, setSegmentCustomFieldKeyDraft] = useState<string>('');
-  const [segmentCustomFieldModeDraft, setSegmentCustomFieldModeDraft] = useState<'exists' | 'equals'>('exists');
-  const [segmentCustomFieldValueDraft, setSegmentCustomFieldValueDraft] = useState('');
-  const [segmentOneContactDraft, setSegmentOneContactDraft] = useState('');
-  const [audienceDraft, setAudienceDraft] = useState<AudienceDraft>(() => ({
-    status: audienceCriteria?.status ?? 'OPT_IN',
-    includeTag: audienceCriteria?.includeTag ?? null,
-    createdWithinDays: audienceCriteria?.createdWithinDays ?? null,
-    excludeOptOut: audienceCriteria?.excludeOptOut ?? true,
-    noTags: audienceCriteria?.noTags ?? false,
-    uf: audienceCriteria?.uf ?? null,
-    ddi: audienceCriteria?.ddi ?? null,
-    customFieldKey: audienceCriteria?.customFieldKey ?? null,
-    customFieldMode: audienceCriteria?.customFieldMode ?? null,
-    customFieldValue: audienceCriteria?.customFieldValue ?? null,
-  }));
 
   useEffect(() => {
     if (!isAudienceRefineOpen) return;
@@ -956,12 +967,8 @@ export const CampaignWizardView: React.FC<CampaignWizardViewProps> = ({
     setQuickEditFocusSafe(batchFixCandidates[0].focus);
   };
 
-  const [fixedValueDialogOpen, setFixedValueDialogOpen] = useState(false);
-  const [fixedValueDialogSlot, setFixedValueDialogSlot] = useState<{ where: 'header' | 'body' | 'button'; key: string; buttonIndex?: number } | null>(null);
-  const [fixedValueDialogTitle, setFixedValueDialogTitle] = useState<string>('');
-  const [fixedValueDialogValue, setFixedValueDialogValue] = useState<string>('');
-
-  const openFixedValueDialog = (slot: { where: 'header' | 'body' | 'button'; key: string; buttonIndex?: number }) => {
+  // Wrapper local que adiciona lógica de sugestão de valor
+  const openFixedValueDialogWithSuggestion = (slot: { where: 'header' | 'body' | 'button'; key: string; buttonIndex?: number }) => {
     const k = String(slot.key || '').toLowerCase();
     const suggested = k.includes('email')
       ? 'teste@exemplo.com'
@@ -969,10 +976,7 @@ export const CampaignWizardView: React.FC<CampaignWizardViewProps> = ({
         ? 'Empresa Teste'
         : '';
 
-    setFixedValueDialogSlot(slot);
-    setFixedValueDialogTitle(`Valor fixo (teste) • ${formatVarKeyForHumans(String(slot.key))}`);
-    setFixedValueDialogValue(suggested);
-    setFixedValueDialogOpen(true);
+    openFixedValueDialog(slot, `Valor fixo (teste) • ${formatVarKeyForHumans(String(slot.key))}`, suggested);
   };
 
   const applyQuickFill = (slot: { where: 'header' | 'body' | 'button'; key: string; buttonIndex?: number }, value: string) => {
@@ -2834,7 +2838,7 @@ export const CampaignWizardView: React.FC<CampaignWizardViewProps> = ({
                                         <DropdownMenuItem
                                           className="text-sm cursor-pointer hover:bg-zinc-800 focus:bg-zinc-800 px-2 py-1.5 rounded-sm flex items-center gap-2 outline-none"
                                           onClick={() => {
-                                            openFixedValueDialog({ where: m.where, key: m.key, buttonIndex: m.buttonIndex });
+                                            openFixedValueDialogWithSuggestion({ where: m.where, key: m.key, buttonIndex: m.buttonIndex });
                                           }}
                                         >
                                           <div className="text-gray-300 font-mono text-[10px] w-3.5 text-center">T</div>
@@ -3007,11 +3011,8 @@ export const CampaignWizardView: React.FC<CampaignWizardViewProps> = ({
                 <Dialog
                   open={fixedValueDialogOpen}
                   onOpenChange={(open) => {
-                    setFixedValueDialogOpen(open);
                     if (!open) {
-                      setFixedValueDialogSlot(null);
-                      setFixedValueDialogTitle('');
-                      setFixedValueDialogValue('');
+                      closeFixedValueDialog();
                     }
                   }}
                 >
@@ -3036,7 +3037,7 @@ export const CampaignWizardView: React.FC<CampaignWizardViewProps> = ({
                             const v = fixedValueDialogValue.trim();
                             if (!v || !fixedValueDialogSlot) return;
                             applyQuickFill(fixedValueDialogSlot, v);
-                            setFixedValueDialogOpen(false);
+                            closeFixedValueDialog();
                           }
                         }}
                       />
@@ -3046,7 +3047,7 @@ export const CampaignWizardView: React.FC<CampaignWizardViewProps> = ({
                       <Button
                         type="button"
                         variant="secondary"
-                        onClick={() => setFixedValueDialogOpen(false)}
+                        onClick={() => closeFixedValueDialog()}
                         className="bg-zinc-800 text-white hover:bg-zinc-700"
                       >
                         Cancelar
@@ -3057,7 +3058,7 @@ export const CampaignWizardView: React.FC<CampaignWizardViewProps> = ({
                           const v = fixedValueDialogValue.trim();
                           if (!v || !fixedValueDialogSlot) return;
                           applyQuickFill(fixedValueDialogSlot, v);
-                          setFixedValueDialogOpen(false);
+                          closeFixedValueDialog();
                         }}
                         className="bg-white text-black hover:bg-gray-200 font-bold"
                         disabled={!fixedValueDialogValue.trim() || !fixedValueDialogSlot}
