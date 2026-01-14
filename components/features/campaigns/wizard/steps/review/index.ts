@@ -8,7 +8,6 @@ export * from './utils';
 export { SummaryCards } from './SummaryCards';
 export { CampaignDetails } from './CampaignDetails';
 export { FinalCheckWarning } from './FinalCheckWarning';
-export { LimitWarning } from './LimitWarning';
 export { SchedulingOptions } from './SchedulingOptions';
 export { FixedValueDialog } from './FixedValueDialog';
 export { QuickFillDropdown } from './QuickFillDropdown';

@@ -8,7 +8,6 @@ export { AudienceCardSegments } from './AudienceCardSegments';
 export { SegmentsSheet } from './SegmentsSheet';
 export { RefineSheet } from './RefineSheet';
 export { ContactSelectionList } from './ContactSelectionList';
-export { LimitWarning } from './LimitWarning';
 export { LegacyAudienceMode } from './LegacyAudienceMode';
 
 // Hooks
