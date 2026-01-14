@@ -35,7 +35,12 @@ export async function GET(request: NextRequest) {
 
     await ensureCalendarChannel(config.calendarId)
 
-    const response = NextResponse.redirect(returnTo)
+    // NextResponse.redirect requer URL absoluta
+    const absoluteReturnUrl = returnTo.startsWith('http')
+      ? returnTo
+      : `${url.origin}${returnTo}`
+
+    const response = NextResponse.redirect(absoluteReturnUrl)
     response.cookies.delete(STATE_COOKIE)
     response.cookies.delete(RETURN_COOKIE)
     return response
