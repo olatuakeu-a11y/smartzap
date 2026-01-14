@@ -19,13 +19,6 @@ interface UsageData {
     percentage: number
     status: 'ok' | 'warning' | 'critical'
   }
-  redis: {
-    commandsToday: number
-    limit: number
-    percentage: number
-    cost?: number
-    status: 'ok' | 'warning' | 'critical'
-  }
   database: {
     storageMB: number
     limitMB: number

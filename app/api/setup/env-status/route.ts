@@ -17,15 +17,17 @@ export async function GET() {
 
         // Supabase
         supabaseUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
-        supabaseAnonKey: !!process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || !!process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY,
-        supabaseServiceKey: !!process.env.SUPABASE_SECRET_KEY,
+        supabaseAnonKey: !!process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || !!process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY || !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+        supabaseServiceKey: !!process.env.SUPABASE_SECRET_KEY || !!process.env.SUPABASE_SERVICE_ROLE_KEY,
 
         // QStash (required)
         qstashToken: !!process.env.QSTASH_TOKEN,
+        qstashSigningKey: !!process.env.QSTASH_CURRENT_SIGNING_KEY,
 
-        // Upstash Redis (optional / legacy)
-        redisUrl: !!process.env.UPSTASH_REDIS_REST_URL,
-        redisToken: !!process.env.UPSTASH_REDIS_REST_TOKEN,
+        // Redis (recommended)
+        upstashRedisRestUrl: !!process.env.UPSTASH_REDIS_REST_URL,
+        upstashRedisRestToken: !!process.env.UPSTASH_REDIS_REST_TOKEN,
+        whatsappStatusDedupeTtlSeconds: !!process.env.WHATSAPP_STATUS_DEDUPE_TTL_SECONDS,
 
         // WhatsApp
         whatsappToken: !!process.env.WHATSAPP_TOKEN,
@@ -37,17 +39,14 @@ export async function GET() {
     const steps = {
         password: status.masterPassword,
         database: status.supabaseUrl && status.supabaseAnonKey && status.supabaseServiceKey,
-        // Backward-compat key name used by the wizard's step routing.
-        // Step 3 is QStash-only now (Redis is optional).
-        redis: status.qstashToken,
-        // New explicit name (optional for clients)
-        qstash: status.qstashToken,
+        qstash: status.qstashToken && status.qstashSigningKey,
         whatsapp: status.whatsappToken && status.whatsappPhoneId && status.whatsappBusinessId,
+        redis: status.upstashRedisRestUrl && status.upstashRedisRestToken,
     }
 
     // WhatsApp é opcional no onboarding.
     // O mínimo para considerar a infra pronta é: senha + Supabase + QStash.
-    const allConfigured = steps.password && steps.database && steps.redis
+    const allConfigured = steps.password && steps.database && steps.qstash
 
     // Check if we can use server-side Vercel token for resume operations
     const hasVercelToken = !!process.env.VERCEL_TOKEN
@@ -62,6 +61,6 @@ export async function GET() {
         nextStep: allConfigured ? 5 :
             !steps.password ? 1 :
                 !steps.database ? 2 :
-                    !steps.redis ? 3 : 5
+                    !steps.qstash ? 3 : 5
     })
 }

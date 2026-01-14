@@ -3,11 +3,108 @@ import { Client } from 'pg'
 import { promises as fs } from 'fs'
 import path from 'path'
 
+export const runtime = 'nodejs' // Force Node.js runtime to access filesystem
+
+const isProd = process.env.NODE_ENV === 'production'
+const log = (...args: any[]) => {
+    if (!isProd) console.log(...args)
+}
+
+const SUPABASE_MIGRATIONS_DIR = path.join(process.cwd(), 'supabase', 'migrations')
+const LEGACY_MIGRATIONS_DIR = path.join(process.cwd(), 'lib', 'migrations')
+
+async function resolveMigrationsDir(): Promise<{ dir: string; files: string[] }> {
+    // Fonte única de verdade: supabase/migrations
+    // O diretório `lib/migrations` pode existir apenas como legado/mirror; não é caminho oficial.
+    const readSqlFiles = async (dir: string) => {
+        const entries = await fs.readdir(dir, { withFileTypes: true })
+        const files = entries
+            .filter((entry) => entry.isFile() && entry.name.toLowerCase().endsWith('.sql'))
+            .map((entry) => entry.name)
+            .sort((a, b) => a.localeCompare(b))
+        return { dir, files }
+    }
+
+    try {
+        return await readSqlFiles(SUPABASE_MIGRATIONS_DIR)
+    } catch (e) {
+        // Se ainda existir legado, damos uma mensagem clara para migração de pasta.
+        let legacyHasFiles = false
+        try {
+            const legacy = await readSqlFiles(LEGACY_MIGRATIONS_DIR)
+            legacyHasFiles = legacy.files.length > 0
+        } catch {
+            // ignore
+        }
+        if (legacyHasFiles) {
+            throw new Error(
+                `Migrations canônicas não encontradas em ${SUPABASE_MIGRATIONS_DIR}. ` +
+                `Foi encontrado legado em ${LEGACY_MIGRATIONS_DIR}, mas este caminho não é mais oficial. ` +
+                `Mova as migrations para supabase/migrations.`
+            )
+        }
+        throw e
+    }
+}
+
+function getNumericPrefix(fileName: string): string | null {
+    const m = /^\d{4}/.exec(fileName)
+    return m ? m[0] : null
+}
+
+function validateMigrationFilenames(files: string[]): { ok: true } | { ok: false; error: string } {
+    const prefixToFiles = new Map<string, string[]>()
+    const invalid: string[] = []
+
+    for (const f of files) {
+        const prefix = getNumericPrefix(f)
+        if (!prefix) {
+            invalid.push(f)
+            continue
+        }
+        const arr = prefixToFiles.get(prefix) ?? []
+        arr.push(f)
+        prefixToFiles.set(prefix, arr)
+    }
+
+    const duplicates = Array.from(prefixToFiles.entries()).filter(([, arr]) => arr.length > 1)
+    if (invalid.length || duplicates.length) {
+        const parts: string[] = []
+        if (invalid.length) {
+            parts.push(`Arquivos sem prefixo numérico de 4 dígitos: ${invalid.join(', ')}`)
+        }
+        if (duplicates.length) {
+            parts.push(
+                'Prefixos duplicados encontrados:\n' +
+                duplicates.map(([p, arr]) => `- ${p}: ${arr.join(', ')}`).join('\n')
+            )
+        }
+        return {
+            ok: false,
+            error:
+                'Ambiguidade de ordem/versão em migrations. ' +
+                'Renomeie para prefixos únicos (ex.: 0001_, 0002_, ...).\n' +
+                parts.join('\n')
+        }
+    }
+
+    return { ok: true }
+}
+
 export async function POST(request: NextRequest) {
     let client: Client | null = null
     let fullSql = ''
 
     try {
+        // Security: this endpoint accepts a database connection string and can run destructive actions.
+        // Only allow during initial installation; after setup is complete, it must be blocked.
+        if (process.env.SETUP_COMPLETE === 'true') {
+            return NextResponse.json(
+                { error: 'Setup já concluído. Endpoint de migração está desativado.' },
+                { status: 403 }
+            )
+        }
+
         const { connectionString, action } = await request.json()
 
         if (!connectionString) {
@@ -27,7 +124,7 @@ export async function POST(request: NextRequest) {
 
         // Handle Nuclear Reset if requested
         if (action === 'reset') {
-            console.log('☢️ NUCLEAR RESET TRIGGERED ☢️')
+            log('☢️ NUCLEAR RESET TRIGGERED ☢️')
             await client.query(`
                 DROP SCHEMA public CASCADE;
                 CREATE SCHEMA public;
@@ -51,16 +148,46 @@ export async function POST(request: NextRequest) {
             })
         }
 
-        // Read SQL files (default 'migrate' action)
-        const migrationsDir = path.join(process.cwd(), 'lib/migrations')
-        const files = [
-            '0001_initial_schema.sql'
-        ]
+        // Guard-rail: nunca aplicar migrations em DB não-vazio (a menos que seja reset)
+        // Isso evita "não fazer merda" em staging/prod por engano.
+        if (action !== 'reset') {
+            const res = await client.query(`
+                SELECT count(*) FROM information_schema.tables
+                WHERE table_schema = 'public'
+                AND table_type = 'BASE TABLE'
+            `)
+            const count = parseInt(res.rows[0].count)
+            if (count > 0) {
+                return NextResponse.json(
+                    {
+                        error:
+                            'Banco já possui tabelas no schema public. ' +
+                            'Por segurança, o bootstrap de migrations só roda em banco vazio.',
+                        hint: 'Use action="check" para inspecionar ou crie um banco novo.'
+                    },
+                    { status: 409 }
+                )
+            }
+        }
 
-        for (const file of files) {
-            const filePath = path.join(migrationsDir, file)
+        // Read SQL files (default 'migrate' action)
+        const resolved = await resolveMigrationsDir()
+        if (!resolved.files.length) {
+            return NextResponse.json(
+                { error: `Nenhuma migration .sql encontrada em ${resolved.dir}` },
+                { status: 500 }
+            )
+        }
+
+        const validation = validateMigrationFilenames(resolved.files)
+        if (!validation.ok) {
+            return NextResponse.json({ error: validation.error }, { status: 400 })
+        }
+
+        for (const file of resolved.files) {
+            const filePath = path.join(SUPABASE_MIGRATIONS_DIR, file)
             const content = await fs.readFile(filePath, 'utf-8')
-            fullSql += content + '\n\n'
+            fullSql += `\n\n-- === MIGRATION: ${file} ===\n\n` + content + '\n'
         }
 
         // Split statements simply by semicolon to execute individually or as big block?

@@ -17,6 +17,7 @@ interface Params {
  * - limit: number of messages per page (default: 50, max: 100)
  * - offset: pagination offset (default: 0)
  * - status: filter by status (optional)
+ * - includeRead: quando status=DELIVERED, inclui status=read (optional)
  */
 export async function GET(request: Request, { params }: Params) {
   try {
@@ -27,6 +28,8 @@ export async function GET(request: Request, { params }: Params) {
     const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 100)
     const offset = parseInt(searchParams.get('offset') || '0')
     const statusFilter = searchParams.get('status')
+    const includeReadRaw = searchParams.get('includeRead')
+    const includeRead = includeReadRaw === '1' || includeReadRaw === 'true'
 
     // 1. Get aggregated stats (parallel queries)
     const [
@@ -70,8 +73,11 @@ export async function GET(request: Request, { params }: Params) {
         // "Enviado" = efetivamente disparado (exclui pending e skipped)
         query = query.in('status', ['sent', 'delivered', 'read', 'failed'])
       } else if (statusFilter === MessageStatus.DELIVERED) {
-        // Delivered matches Delivered + Read
-        query = query.in('status', ['delivered', 'read'])
+        // "Entregues" (status atual) = delivered (não inclui read) por padrão.
+        // Quando includeRead=true, vira uma visão cumulativa (delivered + read).
+        query = includeRead
+          ? query.in('status', ['delivered', 'read'])
+          : query.eq('status', 'delivered')
       } else if (statusFilter === MessageStatus.READ) {
         query = query.eq('status', 'read')
       } else if (statusFilter === MessageStatus.SKIPPED) {
@@ -112,6 +118,12 @@ export async function GET(request: Request, { params }: Params) {
         sentAt: row.sent_at ? new Date(row.sent_at as string).toLocaleString('pt-BR') : '-',
         deliveredAt: row.delivered_at ? new Date(row.delivered_at as string).toLocaleString('pt-BR') : undefined,
         readAt: row.read_at ? new Date(row.read_at as string).toLocaleString('pt-BR') : undefined,
+        failureCode: (row.failure_code as number | null) || undefined,
+        failureTitle: (row.failure_title as string | null) || undefined,
+        failureDetails: (row.failure_details as string | null) || undefined,
+        failureFbtraceId: (row.failure_fbtrace_id as string | null) || undefined,
+        failureSubcode: (row.failure_subcode as number | null) || undefined,
+        failureHref: (row.failure_href as string | null) || undefined,
         error: (
           // Para skipped, o motivo vem do nosso pré-check/guard-rail
           (status === MessageStatus.SKIPPED ? (row.skip_reason || row.skip_code) : undefined) ||

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getWhatsAppCredentials } from '@/lib/whatsapp-credentials'
+import { fetchWithTimeout, safeJson } from '@/lib/server-http'
+import { ensureHeaderMediaPreviewUrl } from '@/lib/whatsapp/template-media-preview'
 
 // GET /api/templates/[name] - Buscar template específico
 export async function GET(
@@ -7,6 +9,9 @@ export async function GET(
   { params }: { params: Promise<{ name: string }> }
 ) {
   try {
+    const url = new URL(request.url)
+    const forcePreview =
+      url.searchParams.get('refresh_preview') === '1' || url.searchParams.get('force_preview') === '1'
     const { name } = await params
     const credentials = await getWhatsAppCredentials()
     
@@ -18,22 +23,23 @@ export async function GET(
     }
 
     // Buscar template específico pelo nome
-    const response = await fetch(
-      `https://graph.facebook.com/v24.0/${credentials.businessAccountId}/message_templates?name=${name}&fields=name,status,language,category,parameter_format,components,last_updated_time,quality_score,rejected_reason`,
+    const response = await fetchWithTimeout(
+      `https://graph.facebook.com/v24.0/${credentials.businessAccountId}/message_templates?name=${encodeURIComponent(name)}&fields=id,name,status,language,category,parameter_format,components,last_updated_time,quality_score,rejected_reason`,
       {
-        headers: { 'Authorization': `Bearer ${credentials.accessToken}` }
+        headers: { 'Authorization': `Bearer ${credentials.accessToken}` },
+        timeoutMs: 8000,
       }
     )
 
     if (!response.ok) {
-      const error = await response.json()
+      const error = await safeJson<any>(response)
       return NextResponse.json(
-        { error: error.error?.message || 'Template não encontrado' },
+        { error: error?.error?.message || 'Template não encontrado' },
         { status: response.status }
       )
     }
 
-    const data = await response.json()
+    const data = await safeJson<any>(response)
     
     if (!data.data || data.data.length === 0) {
       return NextResponse.json(
@@ -48,8 +54,17 @@ export async function GET(
     const footerComponent = template.components?.find((c: { type: string }) => c.type === 'FOOTER')
     const buttonsComponent = template.components?.find((c: { type: string }) => c.type === 'BUTTONS')
 
+    const previewResult = await ensureHeaderMediaPreviewUrl({
+      templateName: template.name,
+      components: template.components || [],
+      accessToken: credentials.accessToken,
+      force: forcePreview,
+      logger: (message, meta) => console.warn(message, meta || ''),
+    })
+
     return NextResponse.json({
       id: template.name,
+      metaTemplateId: template.id || null,
       name: template.name,
       category: template.category,
       language: template.language,
@@ -59,6 +74,8 @@ export async function GET(
       footer: footerComponent?.text || null,
       buttons: buttonsComponent?.buttons || [],
       components: template.components,
+      headerMediaPreviewUrl: previewResult?.url || null,
+      headerMediaPreviewExpiresAt: previewResult?.expiresAt || null,
       qualityScore: template.quality_score?.score || null,
       rejectedReason: template.rejected_reason || null,
       lastUpdated: template.last_updated_time
@@ -91,30 +108,31 @@ export async function DELETE(
 
     // Deletar template via Meta API
     // A Meta exige que especifiquemos o nome do template
-    const response = await fetch(
+    const response = await fetchWithTimeout(
       `https://graph.facebook.com/v24.0/${credentials.businessAccountId}/message_templates?name=${name}`,
       {
         method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${credentials.accessToken}` }
+        headers: { 'Authorization': `Bearer ${credentials.accessToken}` },
+        timeoutMs: 8000,
       }
     )
 
-    const result = await response.json()
+    const result = await safeJson<any>(response)
 
     if (!response.ok) {
       console.error('Meta Delete Error:', result)
       
-      let errorMessage = result.error?.message || 'Erro ao deletar template'
+      let errorMessage = result?.error?.message || 'Erro ao deletar template'
       
       // Traduzir erros comuns
-      if (result.error?.code === 100) {
+      if (result?.error?.code === 100) {
         errorMessage = 'Template não encontrado ou já foi deletado.'
-      } else if (result.error?.code === 190) {
+      } else if (result?.error?.code === 190) {
         errorMessage = 'Token de acesso inválido ou expirado.'
       }
       
       return NextResponse.json(
-        { error: errorMessage, metaError: result.error },
+        { error: errorMessage, metaError: result?.error },
         { status: response.status }
       )
     }

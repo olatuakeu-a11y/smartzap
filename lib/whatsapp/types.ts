@@ -1,10 +1,27 @@
 export type MetaComponentType = 'HEADER' | 'BODY' | 'FOOTER' | 'BUTTONS' | 'CAROUSEL' | 'LIMITED_TIME_OFFER';
-export type MetaHeaderFormat = 'TEXT' | 'IMAGE' | 'VIDEO' | 'DOCUMENT' | 'LOCATION';
-export type MetaButtonType = 'QUICK_REPLY' | 'URL' | 'PHONE_NUMBER' | 'OTP' | 'COPY_CODE' | 'FLOW' | 'CATALOG' | 'MPM' | 'VOICE_CALL';
+export type MetaHeaderFormat = 'TEXT' | 'IMAGE' | 'VIDEO' | 'GIF' | 'DOCUMENT' | 'LOCATION';
+export type MetaButtonType =
+  | 'QUICK_REPLY'
+  | 'URL'
+  | 'PHONE_NUMBER'
+  | 'OTP'
+  | 'COPY_CODE'
+  | 'FLOW'
+  | 'CATALOG'
+  | 'MPM'
+  | 'VOICE_CALL'
+  | 'EXTENSION'
+  | 'ORDER_DETAILS'
+  | 'POSTBACK'
+  | 'REMINDER'
+  | 'SEND_LOCATION'
+  | 'SPM';
 
 export interface MetaExample {
   header_text?: string[];
   body_text?: string[][];
+  header_text_named_params?: Array<{ param_name: string; example: string }>;
+  body_text_named_params?: Array<{ param_name: string; example: string }>;
   header_handle?: string[];
 }
 
@@ -14,6 +31,7 @@ export interface MetaHeaderComponent {
   text?: string;
   example?: {
     header_text?: string[];
+    header_text_named_params?: Array<{ param_name: string; example: string }>;
     header_handle?: string[];
   };
 }
@@ -22,7 +40,8 @@ export interface MetaBodyComponent {
   type: 'BODY';
   text: string;
   example?: {
-    body_text: string[][];
+    body_text?: string[][];
+    body_text_named_params?: Array<{ param_name: string; example: string }>;
   };
   add_security_recommendation?: boolean;
 }
@@ -46,6 +65,8 @@ export interface MetaButton {
   flow_id?: string;
   flow_action?: string;
   navigate_screen?: string;
+  action?: Record<string, unknown>;
+  payload?: string | Record<string, unknown>;
 }
 
 export interface MetaButtonsComponent {
@@ -66,7 +87,7 @@ export interface MetaLimitedTimeOfferComponent {
   type: 'LIMITED_TIME_OFFER';
   limited_time_offer: {
     text: string;
-    has_expiration: boolean;
+    has_expiration?: boolean;
   };
 }
 
@@ -83,6 +104,7 @@ export interface MetaTemplatePayload {
   language: string;
   category: 'UTILITY' | 'MARKETING' | 'AUTHENTICATION';
   components: MetaComponent[];
+  parameter_format?: 'NAMED' | 'POSITIONAL';
   message_send_ttl_seconds?: number;
 }
 
@@ -208,26 +230,53 @@ export interface CreateTemplateInput {
   language: string;
   category: 'UTILITY' | 'MARKETING' | 'AUTHENTICATION';
 
+  // Meta template parameter format
+  parameter_format?: 'positional' | 'named';
+
   // Content
   content?: string;
   body?: {
     text: string;
-    example?: { body_text?: string[][] };
+    example?: {
+      body_text?: string[][];
+      body_text_named_params?: Array<{ param_name: string; example: string }>;
+    };
   };
 
   // Components (accept null for Zod compatibility)
   header?: {
-    format: 'TEXT' | 'IMAGE' | 'VIDEO' | 'DOCUMENT' | 'LOCATION';
+    format: 'TEXT' | 'IMAGE' | 'VIDEO' | 'GIF' | 'DOCUMENT' | 'LOCATION';
     text?: string;
-    example?: { header_text?: string[]; header_handle?: string[] } | null;
+    example?: {
+      header_text?: string[];
+      header_text_named_params?: Array<{ param_name: string; example: string }>;
+      header_handle?: string[];
+    } | null;
   } | null;
   footer?: { text: string } | null;
   buttons?: Array<{
-    type: 'QUICK_REPLY' | 'URL' | 'PHONE_NUMBER' | 'COPY_CODE' | 'OTP' | 'FLOW' | 'CATALOG' | 'MPM' | 'VOICE_CALL';
+    type:
+      | 'QUICK_REPLY'
+      | 'URL'
+      | 'PHONE_NUMBER'
+      | 'COPY_CODE'
+      | 'OTP'
+      | 'FLOW'
+      | 'CATALOG'
+      | 'MPM'
+      | 'VOICE_CALL'
+      | 'EXTENSION'
+      | 'ORDER_DETAILS'
+      | 'POSTBACK'
+      | 'REMINDER'
+      | 'SEND_LOCATION'
+      | 'SPM';
     text?: string;
     url?: string;
     phone_number?: string;
     example?: string | string[];
+    action?: Record<string, unknown>;
+    payload?: string | Record<string, unknown>;
     [key: string]: unknown;
   }> | null;
 
@@ -235,7 +284,7 @@ export interface CreateTemplateInput {
   carousel?: { cards: unknown[] } | null;
 
   // LTO
-  limited_time_offer?: { text: string; has_expiration: boolean } | null;
+  limited_time_offer?: { text: string; has_expiration?: boolean } | null;
 
   // Helpers
   exampleVariables?: string[];

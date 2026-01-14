@@ -1,4 +1,5 @@
 import { Template, TemplateStatus } from '../types';
+import { canonicalTemplateCategory } from '@/lib/template-category';
 
 export class TemplateServiceError extends Error {
   constructor(message: string, public code: 'NOT_CONFIGURED' | 'FETCH_FAILED') {
@@ -82,8 +83,8 @@ export interface GenerateUtilityResponse {
 
 export const templateService = {
   getAll: async (): Promise<Template[]> => {
-    // Call API directly - server will get credentials from Redis
-    const response = await fetch('/api/templates', {
+    // Local-first: lê do Supabase e evita chamada à Meta no caminho crítico
+    const response = await fetch('/api/templates?source=local', {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' }
     });
@@ -96,15 +97,36 @@ export const templateService = {
       );
     }
 
-    return response.json();
+    const data = await response.json().catch(() => [])
+    if (!Array.isArray(data)) return []
+
+    // Normaliza categoria para o padrão do app (ex.: UTILITY -> UTILIDADE)
+    return (data as any[]).map((t) => ({
+      ...t,
+      category: canonicalTemplateCategory(t?.category),
+    })) as Template[]
   },
 
   sync: async (): Promise<number> => {
-    // Since getAll now fetches from Meta, sync is just a re-fetch
-    // But to return the count of *new* templates, we'd need comparison logic.
-    // For now, let's just return the total count.
-    const templates = await templateService.getAll();
-    return templates.length;
+    // Sincroniza com Meta (manual) e retorna total obtido
+    const response = await fetch('/api/templates?sync=1', {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' }
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new TemplateServiceError(
+        errorData.error || 'Falha ao sincronizar templates da Meta',
+        response.status === 401 ? 'NOT_CONFIGURED' : 'FETCH_FAILED'
+      );
+    }
+
+    const payload = await response.json();
+    if (Array.isArray(payload)) return payload.length;
+    if (typeof payload?.count === 'number') return payload.count;
+    if (typeof payload?.total === 'number') return payload.total;
+    return 0;
   },
 
   // Note: Templates are created in Meta Business Manager and synced via getAll()
@@ -218,14 +240,20 @@ export const templateService = {
   },
 
   // Buscar detalhes de um template específico
-  getByName: async (name: string): Promise<Template & {
+  getByName: async (
+    name: string,
+    options?: { refreshPreview?: boolean }
+  ): Promise<Template & {
     header?: string | null;
     footer?: string | null;
     buttons?: Array<{ type: string; text: string; url?: string }>;
+    headerMediaPreviewUrl?: string | null;
+    headerMediaPreviewExpiresAt?: string | null;
     qualityScore?: string | null;
     rejectedReason?: string | null;
   }> => {
-    const response = await fetch(`/api/templates/${encodeURIComponent(name)}`, {
+    const query = options?.refreshPreview ? '?refresh_preview=1' : '';
+    const response = await fetch(`/api/templates/${encodeURIComponent(name)}${query}`, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' }
     });

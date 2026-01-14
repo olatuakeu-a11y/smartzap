@@ -18,6 +18,7 @@ import { createAnthropic } from '@ai-sdk/anthropic';
 
 import { supabase } from '@/lib/supabase';
 import { type AIProvider, getDefaultModel } from './providers';
+import { getAiFallbackConfig } from './ai-center-config';
 
 // =============================================================================
 // TYPES
@@ -27,6 +28,7 @@ export interface AISettings {
     provider: AIProvider;
     model: string;
     apiKey: string;
+    providerKeys?: Partial<Record<AIProvider, string>>;
 }
 
 export interface ChatMessage {
@@ -64,6 +66,16 @@ export interface GenerateTextResult {
     model: string;
 }
 
+export class MissingAIKeyError extends Error {
+    provider: AIProvider;
+
+    constructor(provider: AIProvider) {
+        super(`API key not configured for provider: ${provider}`);
+        this.name = 'MissingAIKeyError';
+        this.provider = provider;
+    }
+}
+
 // =============================================================================
 // SETTINGS CACHE
 // =============================================================================
@@ -85,6 +97,11 @@ async function getAISettings(): Promise<AISettings> {
         provider: 'google',
         model: 'gemini-2.5-flash',
         apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GEMINI_API_KEY || '',
+        providerKeys: {
+            google: process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GEMINI_API_KEY || '',
+            openai: process.env.OPENAI_API_KEY || '',
+            anthropic: process.env.ANTHROPIC_API_KEY || '',
+        },
     };
 
     try {
@@ -106,21 +123,15 @@ async function getAISettings(): Promise<AISettings> {
             const provider = (settingsMap.get('ai_provider') as AIProvider) || defaultSettings.provider;
             const model = settingsMap.get('ai_model') || getDefaultModel(provider)?.id || '';
 
-            // Get the right API key for the provider
-            let apiKey = '';
-            switch (provider) {
-                case 'google':
-                    apiKey = settingsMap.get('gemini_api_key') || process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GEMINI_API_KEY || '';
-                    break;
-                case 'openai':
-                    apiKey = settingsMap.get('openai_api_key') || process.env.OPENAI_API_KEY || '';
-                    break;
-                case 'anthropic':
-                    apiKey = settingsMap.get('anthropic_api_key') || process.env.ANTHROPIC_API_KEY || '';
-                    break;
-            }
+            const providerKeys: AISettings['providerKeys'] = {
+                google: settingsMap.get('gemini_api_key') || process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GEMINI_API_KEY || '',
+                openai: settingsMap.get('openai_api_key') || process.env.OPENAI_API_KEY || '',
+                anthropic: settingsMap.get('anthropic_api_key') || process.env.ANTHROPIC_API_KEY || '',
+            };
 
-            settingsCache = { provider, model, apiKey };
+            const apiKey = providerKeys[provider] || '';
+
+            settingsCache = { provider, model, apiKey, providerKeys };
         } else {
             settingsCache = defaultSettings;
         }
@@ -152,7 +163,7 @@ export function clearSettingsCache() {
 
 function getLanguageModel(providerId: AIProvider, modelId: string, apiKey: string) {
     if (!apiKey) {
-        throw new Error(`API key not configured for provider: ${providerId}`);
+        throw new MissingAIKeyError(providerId);
     }
 
     switch (providerId) {
@@ -192,27 +203,65 @@ export async function generateText(options: GenerateTextOptions): Promise<Genera
     const providerId = options.provider || settings.provider;
     const modelId = options.model || settings.model;
 
-    const model = getLanguageModel(providerId, modelId, settings.apiKey);
+    const runGeneration = async (provider: AIProvider, modelIdOverride: string, apiKey: string) => {
+        const model = getLanguageModel(provider, modelIdOverride, apiKey);
 
-    console.log(`[AI Service] Generating with ${providerId}/${modelId}`);
+        console.log(`[AI Service] Generating with ${provider}/${modelIdOverride}`);
 
-    // Build call options based on prompt vs messages
-    const baseOptions = {
-        model,
-        system: options.system,
-        temperature: options.temperature ?? 0.7,
-        ...(options.maxOutputTokens && { maxOutputTokens: options.maxOutputTokens }),
+        const baseOptions = {
+            model,
+            system: options.system,
+            temperature: options.temperature ?? 0.7,
+            ...(options.maxOutputTokens && { maxOutputTokens: options.maxOutputTokens }),
+        };
+
+        return options.messages
+            ? vercelGenerateText({ ...baseOptions, messages: options.messages })
+            : vercelGenerateText({ ...baseOptions, prompt: options.prompt || '' });
     };
 
-    const result = options.messages
-        ? await vercelGenerateText({ ...baseOptions, messages: options.messages })
-        : await vercelGenerateText({ ...baseOptions, prompt: options.prompt || '' });
+    try {
+        const result = await runGeneration(providerId, modelId, settings.apiKey);
+        return {
+            text: result.text,
+            provider: providerId,
+            model: modelId,
+        };
+    } catch (error) {
+        const fallback = await getAiFallbackConfig();
+        if (!fallback.enabled) {
+            throw error;
+        }
 
-    return {
-        text: result.text,
-        provider: providerId,
-        model: modelId,
-    };
+        const fallbackOrder = (fallback.order || []).filter((provider) => provider !== providerId);
+        let lastError: unknown = error;
+
+        for (const provider of fallbackOrder) {
+            const fallbackKey = settings.providerKeys?.[provider] || '';
+            if (!fallbackKey) {
+                continue;
+            }
+
+            const fallbackModel = fallback.models?.[provider] || getDefaultModel(provider)?.id || '';
+            if (!fallbackModel) {
+                continue;
+            }
+
+            try {
+                console.warn(`[AI Service] Primary failed, falling back to ${provider}/${fallbackModel}`);
+                const fallbackResult = await runGeneration(provider, fallbackModel, fallbackKey);
+                return {
+                    text: fallbackResult.text,
+                    provider,
+                    model: fallbackModel,
+                };
+            } catch (fallbackError) {
+                lastError = fallbackError;
+            }
+        }
+
+        throw lastError;
+    }
 }
 
 /**
@@ -286,11 +335,79 @@ export async function generateJSON<T = unknown>(options: GenerateTextOptions): P
             .replace(/```\n?/g, '')
             .trim();
 
-        return JSON.parse(cleanText) as T;
+        // 1) tentativa direta
+        try {
+            return JSON.parse(cleanText) as T;
+        } catch {
+            // 2) fallback: às vezes o modelo insiste em adicionar texto antes/depois.
+            const extracted = extractFirstJsonValue(cleanText);
+            if (extracted) {
+                return JSON.parse(extracted) as T;
+            }
+            throw new Error('AI response was not valid JSON');
+        }
     } catch {
         console.error('[AI Service] Failed to parse JSON response:', result.text);
         throw new Error('AI response was not valid JSON');
     }
+}
+
+// =============================================================================
+// JSON EXTRACTION (fallback)
+// =============================================================================
+
+/**
+ * Extrai o primeiro valor JSON (objeto/array) encontrado dentro de um texto.
+ * Útil quando o modelo retorna algo como: "Aqui está o JSON: {...}".
+ */
+function extractFirstJsonValue(text: string): string | null {
+    const start = Math.min(
+        ...['{', '[']
+            .map((c) => text.indexOf(c))
+            .filter((i) => i >= 0)
+    );
+
+    if (!Number.isFinite(start) || start < 0) return null;
+
+    const open = text[start];
+    const close = open === '{' ? '}' : ']';
+
+    let depth = 0;
+    let inString = false;
+    let escaped = false;
+
+    for (let i = start; i < text.length; i += 1) {
+        const ch = text[i];
+
+        if (inString) {
+            if (escaped) {
+                escaped = false;
+                continue;
+            }
+            if (ch === '\\') {
+                escaped = true;
+                continue;
+            }
+            if (ch === '"') {
+                inString = false;
+            }
+            continue;
+        }
+
+        if (ch === '"') {
+            inString = true;
+            continue;
+        }
+
+        if (ch === open) depth += 1;
+        if (ch === close) depth -= 1;
+
+        if (depth === 0) {
+            return text.slice(start, i + 1).trim();
+        }
+    }
+
+    return null;
 }
 
 // =============================================================================

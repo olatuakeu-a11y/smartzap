@@ -1,8 +1,10 @@
-import { useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { templateService, UtilityCategory, GeneratedTemplate, GenerateUtilityParams } from '../services/templateService';
+import { manualDraftsService } from '../services/manualDraftsService';
 import { Template } from '../types';
+import { CreateTemplateSchema } from '@/lib/whatsapp/validators/template.schema';
 
 // Informações das categorias de utility para o UI
 export const UTILITY_CATEGORIES: Record<UtilityCategory, { name: string; icon: string }> = {
@@ -27,6 +29,7 @@ export const useTemplatesController = () => {
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('ALL');
+  const [statusFilter, setStatusFilter] = useState<'DRAFT' | 'APPROVED' | 'PENDING' | 'REJECTED' | 'ALL'>('APPROVED');
 
   // AI Modal State (single template)
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
@@ -41,10 +44,13 @@ export const useTemplatesController = () => {
     header?: string | null;
     footer?: string | null;
     buttons?: Array<{ type: string; text: string; url?: string }>;
+    headerMediaPreviewUrl?: string | null;
+    headerMediaPreviewExpiresAt?: string | null;
     qualityScore?: string | null;
     rejectedReason?: string | null;
   } | null>(null);
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
+  const [refreshingPreviewNames, setRefreshingPreviewNames] = useState<Set<string>>(new Set());
 
   // Delete confirmation state
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -53,6 +59,12 @@ export const useTemplatesController = () => {
   // Multi-select state for bulk operations
   const [selectedMetaTemplates, setSelectedMetaTemplates] = useState<Set<string>>(new Set());
   const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = useState(false);
+
+  // Multi-select específico para rascunhos manuais (local)
+  const [selectedManualDraftIds, setSelectedManualDraftIds] = useState<Set<string>>(new Set())
+
+  // Bulk delete (rascunhos manuais)
+  const [isBulkDeleteDraftsModalOpen, setIsBulkDeleteDraftsModalOpen] = useState(false)
 
   // Bulk Utility Generator State
   const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
@@ -77,6 +89,91 @@ export const useTemplatesController = () => {
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
   });
+
+  // Rascunhos manuais: usados para identificar quais itens DRAFT são editáveis/enviáveis via wizard.
+  const manualDraftsQuery = useQuery({
+    queryKey: ['templates', 'drafts', 'manual'],
+    queryFn: manualDraftsService.list,
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
+  });
+
+  const normalizeManualTemplateName = (input: string): string => {
+    return input
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, '_')
+      .replace(/[^a-z0-9_]/g, '_')
+      .replace(/_+/g, '_')
+      .replace(/^_+|_+$/g, '')
+  }
+
+  const manualDraftIds = useMemo(() => {
+    const ids = new Set<string>()
+    for (const d of manualDraftsQuery.data || []) ids.add(d.id)
+    return ids
+  }, [manualDraftsQuery.data])
+
+  type ManualDraftSendState = {
+    canSend: boolean
+    reason?: string
+  }
+
+  const manualDraftSendStateById = useMemo<Record<string, ManualDraftSendState>>(() => {
+    const map: Record<string, ManualDraftSendState> = {}
+
+    const drafts = manualDraftsQuery.data || []
+    for (const d of drafts) {
+      // Regra: para enviar para a Meta, precisamos de um spec válido.
+      // (Templates antigos/bugados podem não ter spec; nesses casos, forçamos o usuário a abrir/salvar no editor.)
+      if (!d?.spec) {
+        map[d.id] = {
+          canSend: false,
+          reason: 'Rascunho incompleto: abra e salve no editor antes de enviar.',
+        }
+        continue
+      }
+
+      const parsed = CreateTemplateSchema.safeParse(d.spec)
+      if (parsed.success) {
+        map[d.id] = { canSend: true }
+        continue
+      }
+
+      const first = parsed.error.issues?.[0]
+      const baseMessage = first?.message || 'Template inválido.'
+      const hint = baseMessage.toLowerCase().includes('não pode começar')
+        ? `${baseMessage} (Meta: 2388299)`
+        : baseMessage
+
+      map[d.id] = {
+        canSend: false,
+        reason: hint,
+      }
+    }
+
+    return map
+  }, [manualDraftsQuery.data])
+
+  // Ao trocar abas/filtros, zera seleção para evitar ações em itens "de outra tela".
+  useEffect(() => {
+    setSelectedMetaTemplates(new Set())
+    setSelectedManualDraftIds(new Set())
+    setIsBulkDeleteModalOpen(false)
+    setIsBulkDeleteDraftsModalOpen(false)
+  }, [statusFilter, categoryFilter])
+
+  // Se um rascunho sumir do backend/cache, remove da seleção.
+  useEffect(() => {
+    setSelectedManualDraftIds((prev) => {
+      if (prev.size === 0) return prev
+      const next = new Set<string>()
+      for (const id of prev) {
+        if (manualDraftIds.has(id)) next.add(id)
+      }
+      return next
+    })
+  }, [manualDraftIds])
 
   // --- Mutations ---
   const syncMutation = useMutation({
@@ -154,15 +251,240 @@ export const useTemplatesController = () => {
     }
   });
 
+  const previewInFlightRef = useRef<Set<string>>(new Set())
+
+  const setPreviewRefreshing = (name: string, active: boolean) => {
+    setRefreshingPreviewNames((prev) => {
+      const next = new Set(prev)
+      if (active) next.add(name)
+      else next.delete(name)
+      return next
+    })
+  }
+
+  const updateTemplatePreviewCache = (
+    name: string,
+    url: string | null | undefined,
+    expiresAt: string | null | undefined
+  ) => {
+    if (!name || !url) return
+
+    queryClient.setQueryData(['templates'], (old: Template[] | undefined) => {
+      if (!Array.isArray(old)) return old
+      return old.map((t) =>
+        t.name === name
+          ? { ...t, headerMediaPreviewUrl: url, headerMediaPreviewExpiresAt: expiresAt ?? null }
+          : t
+      )
+    })
+
+    setSelectedTemplate((prev) => {
+      if (!prev || prev.name !== name) return prev
+      return { ...prev, headerMediaPreviewUrl: url, headerMediaPreviewExpiresAt: expiresAt ?? null }
+    })
+
+    setTemplateDetails((prev) => {
+      if (!prev) return prev
+      return { ...prev, headerMediaPreviewUrl: url, headerMediaPreviewExpiresAt: expiresAt ?? null }
+    })
+  }
+
+  const hasMediaHeader = (template: Template) => {
+    const header = template.components?.find((c) => c.type === 'HEADER')
+    const format = header?.format ? String(header.format).toUpperCase() : ''
+    return ['IMAGE', 'VIDEO', 'DOCUMENT', 'GIF'].includes(format)
+  }
+
+  const isPreviewExpired = (expiresAt?: string | null) => {
+    if (!expiresAt) return false
+    return new Date(expiresAt).getTime() <= Date.now()
+  }
+
+  const shouldFetchPreview = (template: Template) => {
+    if (!hasMediaHeader(template)) return false
+    if (!template.headerMediaPreviewUrl) return true
+    return isPreviewExpired(template.headerMediaPreviewExpiresAt)
+  }
+
+  const ensureTemplatePreview = async (
+    template: Template,
+    options?: { force?: boolean; silent?: boolean }
+  ) => {
+    if (!template?.name) return
+
+    const needsFetch = options?.force ? true : shouldFetchPreview(template)
+    if (!needsFetch) return
+
+    const inFlight = previewInFlightRef.current
+    if (inFlight.has(template.name)) return
+    inFlight.add(template.name)
+
+    if (options?.force) {
+      setPreviewRefreshing(template.name, true)
+    }
+
+    try {
+      const details = await templateService.getByName(template.name, {
+        refreshPreview: options?.force,
+      })
+      if (details?.headerMediaPreviewUrl) {
+        updateTemplatePreviewCache(
+          template.name,
+          details.headerMediaPreviewUrl,
+          details.headerMediaPreviewExpiresAt ?? null
+        )
+      }
+      if (options?.force && !options?.silent) {
+        toast.success('Preview atualizado.')
+      }
+    } catch (error) {
+      if (!options?.silent) {
+        toast.error(error instanceof Error ? error.message : 'Falha ao gerar preview')
+      }
+    } finally {
+      inFlight.delete(template.name)
+      if (options?.force) {
+        setPreviewRefreshing(template.name, false)
+      }
+    }
+  }
+
+  // --- Manual draft actions (create / submit / delete) ---
+  const [submittingManualDraftId, setSubmittingManualDraftId] = useState<string | null>(null)
+  const [deletingManualDraftId, setDeletingManualDraftId] = useState<string | null>(null)
+
+  const createManualDraftMutation = useMutation({
+    mutationFn: manualDraftsService.create,
+    onSuccess: (created) => {
+      queryClient.invalidateQueries({ queryKey: ['templates', 'drafts', 'manual'] });
+      queryClient.invalidateQueries({ queryKey: ['templates'] });
+      toast.success(`Rascunho "${created.name}" criado!`);
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || 'Erro ao criar rascunho');
+    },
+  })
+
+  const submitManualDraftMutation = useMutation({
+    mutationFn: async (id: string) => manualDraftsService.submit(id),
+    onMutate: (id) => {
+      setSubmittingManualDraftId(id)
+    },
+    onSuccess: (res) => {
+      queryClient.invalidateQueries({ queryKey: ['templates', 'drafts', 'manual'] });
+      queryClient.invalidateQueries({ queryKey: ['templates'] });
+      toast.success(`Enviado para a Meta (${res.status || 'PENDING'})`);
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || 'Erro ao enviar para a Meta');
+    },
+    onSettled: () => {
+      setSubmittingManualDraftId(null)
+    },
+  })
+
+  const submitManualDraft = (id: string) => {
+    const state = manualDraftSendStateById[id]
+    if (state && !state.canSend) {
+      toast.error(state.reason || 'Corrija o template antes de enviar para a Meta')
+      return
+    }
+
+    // Se não temos o estado (ex.: drafts ainda carregando), mantém o comportamento atual.
+    submitManualDraftMutation.mutate(id)
+  }
+
+  const deleteManualDraftMutation = useMutation({
+    mutationFn: async (id: string) => manualDraftsService.remove(id),
+    onMutate: (id) => {
+      setDeletingManualDraftId(id)
+    },
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: ['templates', 'drafts', 'manual'] });
+      queryClient.invalidateQueries({ queryKey: ['templates'] });
+      toast.success('Rascunho excluído');
+
+      setSelectedManualDraftIds((prev) => {
+        if (!prev.has(id)) return prev
+        const next = new Set(prev)
+        next.delete(id)
+        return next
+      })
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || 'Erro ao excluir rascunho');
+    },
+    onSettled: () => {
+      setDeletingManualDraftId(null)
+    },
+  })
+
+  const bulkDeleteManualDraftsMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      const errors: Array<{ id: string; error: string }> = []
+      let deleted = 0
+      for (const id of ids) {
+        try {
+          // Sequencial para evitar “rajadas” no backend.
+          await manualDraftsService.remove(id)
+          deleted += 1
+        } catch (e) {
+          errors.push({
+            id,
+            error: e instanceof Error ? e.message : 'Falha ao excluir rascunho',
+          })
+        }
+      }
+      return { deleted, failed: errors.length, errors }
+    },
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ['templates', 'drafts', 'manual'] })
+      queryClient.invalidateQueries({ queryKey: ['templates'] })
+
+      if (result.deleted > 0) {
+        toast.success(`${result.deleted} rascunho(s) excluído(s)`) 
+      }
+      if (result.failed > 0) {
+        // Mostra só as primeiras para não spammar.
+        for (const err of result.errors.slice(0, 3)) {
+          toast.error(`${err.id}: ${err.error}`)
+        }
+        if (result.errors.length > 3) {
+          toast.error(`+${result.errors.length - 3} erro(s) ao excluir rascunhos`) 
+        }
+      }
+
+      setIsBulkDeleteDraftsModalOpen(false)
+      setSelectedManualDraftIds(new Set())
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || 'Erro ao excluir rascunhos')
+    },
+  })
+
   // --- Logic ---
   const filteredTemplates = useMemo(() => {
     if (!templatesQuery.data) return [];
     return templatesQuery.data.filter(t => {
       const matchesSearch = t.name.toLowerCase().includes(searchTerm.toLowerCase()) || t.content.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesCategory = categoryFilter === 'ALL' || t.category === categoryFilter;
-      return matchesSearch && matchesCategory;
+      const matchesStatus = statusFilter === 'ALL' || t.status === statusFilter;
+      return matchesSearch && matchesCategory && matchesStatus;
     });
-  }, [templatesQuery.data, searchTerm, categoryFilter]);
+  }, [templatesQuery.data, searchTerm, categoryFilter, statusFilter]);
+
+  const visibleManualDraftTemplates = useMemo(() => {
+    return filteredTemplates.filter((t) => manualDraftIds.has(t.id))
+  }, [filteredTemplates, manualDraftIds])
+
+  const visibleManualDraftIdList = useMemo(() => {
+    return visibleManualDraftTemplates.map((t) => t.id)
+  }, [visibleManualDraftTemplates])
+
+  const metaSelectableTemplates = useMemo(() => {
+    // Rascunhos manuais não podem entrar em seleção/bulk delete (isso é operação da Meta).
+    return filteredTemplates.filter((t) => !manualDraftIds.has(t.id))
+  }, [filteredTemplates, manualDraftIds])
 
   const handleGenerateAI = () => {
     if (!aiPrompt) return;
@@ -301,10 +623,19 @@ export const useTemplatesController = () => {
 
     try {
       const details = await templateService.getByName(template.name);
+      if (details?.headerMediaPreviewUrl) {
+        updateTemplatePreviewCache(
+          template.name,
+          details.headerMediaPreviewUrl,
+          details.headerMediaPreviewExpiresAt ?? null
+        )
+      }
       setTemplateDetails({
         header: details.header,
         footer: details.footer,
         buttons: details.buttons,
+        headerMediaPreviewUrl: details.headerMediaPreviewUrl || null,
+        headerMediaPreviewExpiresAt: details.headerMediaPreviewExpiresAt || null,
         qualityScore: details.qualityScore,
         rejectedReason: details.rejectedReason
       });
@@ -353,10 +684,16 @@ export const useTemplatesController = () => {
   };
 
   const handleSelectAllMetaTemplates = () => {
-    if (selectedMetaTemplates.size === filteredTemplates.length) {
+    const eligible = metaSelectableTemplates
+    if (eligible.length === 0) {
+      setSelectedMetaTemplates(new Set())
+      return
+    }
+
+    if (selectedMetaTemplates.size === eligible.length) {
       setSelectedMetaTemplates(new Set());
     } else {
-      setSelectedMetaTemplates(new Set(filteredTemplates.map(t => t.name)));
+      setSelectedMetaTemplates(new Set(eligible.map(t => t.name)));
     }
   };
 
@@ -381,6 +718,34 @@ export const useTemplatesController = () => {
     setIsBulkDeleteModalOpen(false);
   };
 
+  // --- Multi-select Handlers for Manual Drafts (local) ---
+  const handleToggleManualDraft = (id: string) => {
+    setSelectedManualDraftIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const handleSelectAllManualDrafts = () => {
+    const eligible = visibleManualDraftIdList
+    if (eligible.length === 0) {
+      setSelectedManualDraftIds(new Set())
+      return
+    }
+
+    if (selectedManualDraftIds.size === eligible.length) {
+      setSelectedManualDraftIds(new Set())
+    } else {
+      setSelectedManualDraftIds(new Set(eligible))
+    }
+  }
+
+  const handleClearManualDraftSelection = () => {
+    setSelectedManualDraftIds(new Set())
+  }
+
   return {
     templates: filteredTemplates,
     isLoading: templatesQuery.isLoading,
@@ -389,7 +754,26 @@ export const useTemplatesController = () => {
     setSearchTerm,
     categoryFilter,
     setCategoryFilter,
+    statusFilter,
+    setStatusFilter,
     onSync: () => syncMutation.mutate(),
+
+    // Manual drafts (identificação + ações)
+    manualDraftIds,
+    isLoadingManualDraftIds: manualDraftsQuery.isLoading,
+    manualDraftSendStateById,
+    createManualDraft: async (input: { name: string; category?: string; language?: string; parameterFormat?: 'positional' | 'named' }) => {
+      const normalized = normalizeManualTemplateName(input.name)
+      return await createManualDraftMutation.mutateAsync({
+        ...input,
+        name: normalized,
+      })
+    },
+    isCreatingManualDraft: createManualDraftMutation.isPending,
+    submitManualDraft,
+    submittingManualDraftId,
+    deleteManualDraft: (id: string) => deleteManualDraftMutation.mutate(id),
+    deletingManualDraftId,
 
     // AI Modal Props
     isAiModalOpen,
@@ -438,6 +822,15 @@ export const useTemplatesController = () => {
     isLoadingDetails,
     onViewDetails: handleViewDetails,
     onCloseDetails: handleCloseDetails,
+    refreshingPreviewNames,
+    onPrefetchPreview: (template: Template) => {
+      if (!template) return
+      ensureTemplatePreview(template, { silent: true })
+    },
+    onRefreshPreview: (template: Template) => {
+      if (!template) return
+      ensureTemplatePreview(template, { force: true })
+    },
 
     // Delete Modal Props
     isDeleteModalOpen,
@@ -457,5 +850,23 @@ export const useTemplatesController = () => {
     onBulkDeleteClick: handleBulkDeleteClick,
     onConfirmBulkDelete: handleConfirmBulkDelete,
     onCancelBulkDelete: handleCancelBulkDelete,
+
+    // Multi-select de rascunhos manuais (local)
+    selectedManualDraftIds,
+    onToggleManualDraft: handleToggleManualDraft,
+    onSelectAllManualDrafts: handleSelectAllManualDrafts,
+    onClearManualDraftSelection: handleClearManualDraftSelection,
+
+    // Bulk delete de rascunhos manuais (local)
+    isBulkDeleteDraftsModalOpen,
+    setIsBulkDeleteDraftsModalOpen,
+    isBulkDeletingDrafts: bulkDeleteManualDraftsMutation.isPending,
+    onConfirmBulkDeleteDrafts: (ids: string[]) => {
+      if (!ids.length) {
+        toast.error('Nenhum rascunho para excluir')
+        return
+      }
+      bulkDeleteManualDraftsMutation.mutate(ids)
+    },
   };
 };

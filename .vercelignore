@@ -23,3 +23,9 @@ dist-server/
 
 # Testing
 coverage/
+
+# Artifacts / scratch (não devem ir para produção)
+tmp/
+test-results/
+logs_result.json
+metadata.json

@@ -1,5 +1,6 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { contactDb } from '@/lib/supabase-db'
+import { requireSessionOrApiKey } from '@/lib/request-auth'
 import {
   CreateContactSchema,
   DeleteContactsSchema,
@@ -14,8 +15,52 @@ export const revalidate = 0
  * GET /api/contacts
  * Lista todos os contatos do banco (Supabase)
  */
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const auth = await requireSessionOrApiKey(request as NextRequest)
+    if (auth) return auth
+
+    const url = new URL(request.url)
+    const limitParam = url.searchParams.get('limit')
+    const offsetParam = url.searchParams.get('offset')
+    const search = url.searchParams.get('search') || ''
+    const status = url.searchParams.get('status') || ''
+    const tag = url.searchParams.get('tag') || ''
+
+    const wantsPaged =
+      limitParam !== null ||
+      offsetParam !== null ||
+      search.length > 0 ||
+      status.length > 0 ||
+      tag.length > 0
+
+    if (wantsPaged) {
+      const limitRaw = Number(limitParam)
+      const offsetRaw = Number(offsetParam)
+      const limit = Math.max(1, Math.min(100, Number.isFinite(limitRaw) ? limitRaw : 10))
+      const offset = Math.max(0, Number.isFinite(offsetRaw) ? offsetRaw : 0)
+
+      const result = await contactDb.list({
+        limit,
+        offset,
+        search,
+        status,
+        tag,
+      })
+
+      return NextResponse.json(
+        { ...result, limit, offset },
+        {
+          headers: {
+            // Dados dinâmicos: cache compartilhado (CDN/edge) causa estado “fantasma” pós CRUD.
+            'Cache-Control': 'private, no-store, no-cache, must-revalidate, max-age=0',
+            Pragma: 'no-cache',
+            Expires: '0',
+          },
+        }
+      )
+    }
+
     const contacts = await contactDb.getAll()
     return NextResponse.json(contacts, {
       headers: {
@@ -40,6 +85,9 @@ export async function GET() {
  */
 export async function POST(request: Request) {
   try {
+    const auth = await requireSessionOrApiKey(request as NextRequest)
+    if (auth) return auth
+
     const body = await request.json()
 
     // Validate input
@@ -74,6 +122,9 @@ export async function POST(request: Request) {
  */
 export async function DELETE(request: Request) {
   try {
+    const auth = await requireSessionOrApiKey(request as NextRequest)
+    if (auth) return auth
+
     const body = await request.json()
 
     // Validate input

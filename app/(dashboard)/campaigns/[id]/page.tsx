@@ -12,6 +12,7 @@ export default function CampaignDetailsPage() {
       messages={controller.messages}
       messageStats={controller.messageStats}
       realStats={controller.realStats}
+      metrics={controller.metrics}
       isLoading={controller.isLoading}
       searchTerm={controller.searchTerm}
       setSearchTerm={controller.setSearchTerm}
@@ -19,20 +20,32 @@ export default function CampaignDetailsPage() {
       onPause={controller.onPause}
       onResume={controller.onResume}
       onStart={controller.onStart}
+      onCancelSchedule={controller.onCancelSchedule}
+      onCancelSend={controller.onCancelSend}
       onResendSkipped={controller.onResendSkipped}
       isResendingSkipped={controller.isResendingSkipped}
       isPausing={controller.isPausing}
       isResuming={controller.isResuming}
       isStarting={controller.isStarting}
+      isCancelingSchedule={controller.isCancelingSchedule}
+      isCancelingSend={controller.isCancelingSend}
       canPause={controller.canPause}
       canResume={controller.canResume}
       canStart={controller.canStart}
+      canCancelSchedule={controller.canCancelSchedule}
+      canCancelSend={controller.canCancelSend}
       isRealtimeConnected={controller.isRealtimeConnected}
       shouldShowRefreshButton={controller.shouldShowRefreshButton}
+      telemetry={controller.telemetry}
       isRefreshing={controller.isRefreshing}
       refetch={controller.refetch}
       filterStatus={controller.filterStatus}
       setFilterStatus={controller.setFilterStatus}
+      onLoadMore={controller.onLoadMore}
+      canLoadMore={controller.canLoadMore}
+      isLoadingMore={controller.isLoadingMore}
+      includeReadInDelivered={controller.includeReadInDelivered}
+      setIncludeReadInDelivered={controller.setIncludeReadInDelivered}
     />
   )
 }

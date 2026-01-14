@@ -1,0 +1,105 @@
+"use client"
+
+import * as React from "react"
+import { Clock } from "lucide-react"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { cn } from "@/lib/utils"
+
+type TimePickerProps = {
+  value?: string
+  onChange?: (value: string) => void
+  className?: string
+  disabled?: boolean
+}
+
+const hours = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0"))
+const minutes = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, "0"))
+
+export default function DateTimePicker({
+  value,
+  onChange,
+  className,
+  disabled,
+}: TimePickerProps) {
+  const [hour, setHour] = React.useState("12")
+  const [minute, setMinute] = React.useState("00")
+  const hourRef = React.useRef(hour)
+  const minuteRef = React.useRef(minute)
+
+  React.useEffect(() => {
+    if (!value) return
+    const [h, m] = value.split(":")
+    if (h && m) {
+      hourRef.current = h
+      minuteRef.current = m
+      setHour(h)
+      setMinute(m)
+    }
+  }, [value])
+
+  const display = `${hour}:${minute}`
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          disabled={disabled}
+          className={cn(
+            "w-full rounded-xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm text-white flex items-center justify-between gap-3",
+            disabled ? "opacity-50 cursor-not-allowed" : null,
+          )}
+        >
+          <span className="text-white">{display}</span>
+          <Clock className="h-4 w-4 text-emerald-400" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className={cn("w-52 border border-white/10 bg-black p-4", className)}>
+        <div className="flex items-center justify-center gap-2 text-sm text-white">
+          <Select
+            value={hour}
+            onValueChange={(next) => {
+              hourRef.current = next
+              setHour(next)
+              onChange?.(`${next}:${minuteRef.current}`)
+            }}
+          >
+            <SelectTrigger className="h-9 w-[64px] bg-zinc-950/60 text-white border-white/10">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="max-h-56">
+              {hours.map((h) => (
+                <SelectItem key={h} value={h}>
+                  {h}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <span className="text-gray-400">:</span>
+
+          <Select
+            value={minute}
+            onValueChange={(next) => {
+              minuteRef.current = next
+              setMinute(next)
+              onChange?.(`${hourRef.current}:${next}`)
+            }}
+          >
+            <SelectTrigger className="h-9 w-[64px] bg-zinc-950/60 text-white border-white/10">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="max-h-56">
+              {minutes.map((m) => (
+                <SelectItem key={m} value={m}>
+                  {m}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </PopoverContent>
+    </Popover>
+  )
+}

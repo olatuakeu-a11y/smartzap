@@ -6,6 +6,7 @@ import { SettingsView } from '@/components/features/settings/SettingsView'
 import { SetupWizardView } from '@/components/features/settings/SetupWizardView'
 import { UsagePanel } from '@/components/UsagePanel'
 import { useUsage } from '@/hooks/useUsage'
+import { Page, PageDescription, PageHeader, PageTitle } from '@/components/ui/page'
 
 export default function SettingsPage() {
   const controller = useSettingsController()
@@ -33,10 +34,13 @@ export default function SettingsPage() {
   }
 
   return (
-    <div>
-      {/* Header - fora do grid */}
-      <h1 className="text-3xl font-bold text-white tracking-tight mb-2">Configurações</h1>
-      <p className="text-gray-400 mb-10">Gerencie sua conexão com a WhatsApp Business API</p>
+    <Page>
+      <PageHeader>
+        <div>
+          <PageTitle>Configurações</PageTitle>
+          <PageDescription>Gerencie sua conexão com a WhatsApp Business API</PageDescription>
+        </div>
+      </PageHeader>
 
       {/* Grid responsivo: mobile=1col, xl=3col */}
       <div className="flex flex-col xl:flex-row gap-8">
@@ -50,6 +54,8 @@ export default function SettingsPage() {
             onSave={controller.onSave}
             onSaveSettings={controller.onSaveSettings}
             onDisconnect={controller.onDisconnect}
+            onTestConnection={controller.onTestConnection}
+            isTestingConnection={controller.isTestingConnection}
             accountLimits={controller.accountLimits}
             tierName={controller.tierName}
             limitsError={controller.limitsError}
@@ -59,6 +65,12 @@ export default function SettingsPage() {
             webhookUrl={controller.webhookUrl}
             webhookToken={controller.webhookToken}
             webhookStats={controller.webhookStats}
+            webhookSubscription={controller.webhookSubscription}
+            webhookSubscriptionLoading={controller.webhookSubscriptionLoading}
+            onRefreshWebhookSubscription={controller.refreshWebhookSubscription}
+            onSubscribeWebhookMessages={controller.subscribeWebhookMessages}
+            onUnsubscribeWebhookMessages={controller.unsubscribeWebhookMessages}
+            webhookSubscriptionMutating={controller.webhookSubscriptionMutating}
             phoneNumbers={controller.phoneNumbers}
             phoneNumbersLoading={controller.phoneNumbersLoading}
             onRefreshPhoneNumbers={controller.refreshPhoneNumbers}
@@ -73,11 +85,40 @@ export default function SettingsPage() {
             saveAIConfig={controller.saveAIConfig}
             removeAIKey={controller.removeAIKey}
             isSavingAI={controller.isSavingAI}
+
+            // Meta App (opcional)
+            metaApp={controller.metaApp}
+            metaAppLoading={controller.metaAppLoading}
+            refreshMetaApp={controller.refreshMetaApp}
             // Test Contact - Supabase
             testContact={controller.testContact}
             saveTestContact={controller.saveTestContact}
             removeTestContact={controller.removeTestContact}
             isSavingTestContact={controller.isSavingTestContact}
+
+            // WhatsApp Turbo
+            whatsappThrottle={controller.whatsappThrottle}
+            whatsappThrottleLoading={controller.whatsappThrottleLoading}
+            saveWhatsAppThrottle={controller.saveWhatsAppThrottle}
+            isSavingWhatsAppThrottle={controller.isSavingWhatsAppThrottle}
+
+            // Auto-supressão (Proteção de Qualidade)
+            autoSuppression={controller.autoSuppression}
+            autoSuppressionLoading={controller.autoSuppressionLoading}
+            saveAutoSuppression={controller.saveAutoSuppression}
+            isSavingAutoSuppression={controller.isSavingAutoSuppression}
+
+            // Agendamento (Google Calendar)
+            calendarBooking={controller.calendarBooking}
+            calendarBookingLoading={controller.calendarBookingLoading}
+            saveCalendarBooking={controller.saveCalendarBooking}
+            isSavingCalendarBooking={controller.isSavingCalendarBooking}
+
+            // Execução do workflow (global)
+            workflowExecution={controller.workflowExecution}
+            workflowExecutionLoading={controller.workflowExecutionLoading}
+            saveWorkflowExecution={controller.saveWorkflowExecution}
+            isSavingWorkflowExecution={controller.isSavingWorkflowExecution}
             hideHeader
           />
         </div>
@@ -91,6 +132,6 @@ export default function SettingsPage() {
           />
         </div>
       </div>
-    </div>
+    </Page>
   )
 }

@@ -1,22 +1,20 @@
-import { Redis } from '@upstash/redis'
-
 /**
- * Redis (Upstash) client
+ * Redis client (Upstash)
  *
- * - Usado para cache/filas/estatísticas em rotas server-side.
- * - Mantém compatibilidade com testes que importam `@/lib/redis`.
+ * Mantemos esse arquivo como ponto único de acesso ao Redis.
+ * - Em produção (serverless), usamos Upstash Redis via REST.
+ * - Se não estiver configurado, exportamos `redis = null` (fallback seguro).
  */
 
-const redisUrl = process.env.UPSTASH_REDIS_REST_URL
-const redisToken = process.env.UPSTASH_REDIS_REST_TOKEN
+import { Redis } from '@upstash/redis'
 
 export const isRedisConfigured = (): boolean => {
-  return Boolean(redisUrl && redisToken)
+	return !!(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN)
 }
 
-export const redis = isRedisConfigured()
-  ? new Redis({
-      url: redisUrl!,
-      token: redisToken!,
-    })
-  : null
+export const redis: Redis | null = isRedisConfigured()
+	? new Redis({
+			url: process.env.UPSTASH_REDIS_REST_URL as string,
+			token: process.env.UPSTASH_REDIS_REST_TOKEN as string,
+		})
+	: null

@@ -1,9 +1,13 @@
 import { Campaign } from '../types';
+import { campaignService } from './campaignService';
 
 export interface ChartDataPoint {
   name: string;
   sent: number;
   read: number;
+  delivered: number;
+  failed: number;
+  active: number;
 }
 
 export interface DashboardStats {
@@ -28,13 +32,18 @@ export const dashboardService = {
   /**
    * Buscar stats do dashboard direto da API otimizada.
    * A API faz uma única query SQL agregada no servidor.
-   * Cache: 15s no edge, stale-while-revalidate: 30s
+   * Observação: sem cache para manter o dashboard “ao vivo”.
    */
   getStats: async (): Promise<DashboardStats> => {
     // Fazer ambas chamadas em PARALELO
-    const [statsResponse, campaignsResponse] = await Promise.all([
-      fetch('/api/dashboard/stats'),
-      fetch('/api/campaigns')
+    const [statsResponse, campaignsResult] = await Promise.all([
+      fetch('/api/dashboard/stats', {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache',
+        },
+      }),
+      campaignService.getAll()
     ]);
     
     // Parse das respostas
@@ -42,16 +51,53 @@ export const dashboardService = {
       ? await statsResponse.json() 
       : { totalSent: 0, totalDelivered: 0, totalRead: 0, totalFailed: 0, activeCampaigns: 0, deliveryRate: 0 };
     
-    const campaigns: Campaign[] = campaignsResponse.ok 
-      ? await campaignsResponse.json() 
-      : [];
-    
-    // Chart data das campanhas recentes
-    const chartData = campaigns.slice(0, 7).map(c => ({
-      name: c.name?.substring(0, 3) || '?',
-      sent: c.recipients || 0,
-      read: c.read || 0
-    })).reverse();
+    const campaignsPayload =
+      campaignsResult as unknown as Campaign[] | { data?: Campaign[] };
+    const campaigns: Campaign[] = Array.isArray(campaignsPayload)
+      ? campaignsPayload
+      : campaignsPayload?.data || [];
+
+    const today = new Date();
+    const start = new Date(today);
+    start.setDate(start.getDate() - 29);
+    start.setHours(0, 0, 0, 0);
+
+    const bucket = new Map<string, { sent: number; read: number; delivered: number; failed: number; active: number }>();
+    for (let i = 0; i < 30; i += 1) {
+      const day = new Date(start);
+      day.setDate(start.getDate() + i);
+      const key = day.toISOString().slice(0, 10);
+      bucket.set(key, { sent: 0, read: 0, delivered: 0, failed: 0, active: 0 });
+    }
+
+    campaigns.forEach((campaign) => {
+      const rawDate = campaign.lastSentAt || campaign.startedAt || campaign.createdAt;
+      if (!rawDate) return;
+      const date = new Date(rawDate);
+      if (Number.isNaN(date.getTime())) return;
+      const key = date.toISOString().slice(0, 10);
+      const entry = bucket.get(key);
+      if (!entry) return;
+      entry.sent += campaign.sent || campaign.recipients || 0;
+      entry.read += campaign.read || 0;
+      entry.delivered += campaign.delivered || 0;
+      entry.failed += campaign.failed || 0;
+      if (campaign.status === 'Enviando' || campaign.status === 'Agendado') {
+        entry.active += 1;
+      }
+    });
+
+    const chartData = Array.from(bucket.entries()).map(([key, value]) => {
+      const [year, month, day] = key.split('-');
+      return {
+        name: `${day}/${month}`,
+        sent: value.sent,
+        read: value.read,
+        delivered: value.delivered,
+        failed: value.failed,
+        active: value.active,
+      };
+    });
     
     return {
       sent24h: stats.totalSent.toLocaleString(),
@@ -64,14 +110,12 @@ export const dashboardService = {
 
   /**
    * Buscar campanhas recentes (top 5).
-   * Usa o cache do /api/campaigns (10s edge cache)
+   * Sem cache para manter o dashboard “ao vivo”.
    */
   getRecentCampaigns: async (): Promise<Campaign[]> => {
     try {
-      const response = await fetch('/api/campaigns');
-      if (!response.ok) return [];
-      const campaigns: Campaign[] = await response.json();
-      return campaigns.slice(0, 5);
+      const result = await campaignService.list({ limit: 5, offset: 0, search: '', status: 'All' });
+      return result.data || [];
     } catch {
       return [];
     }

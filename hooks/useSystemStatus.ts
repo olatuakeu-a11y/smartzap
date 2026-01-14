@@ -21,7 +21,6 @@ interface HealthStatus {
   overall: 'healthy' | 'degraded' | 'unhealthy'
   services: {
     database: HealthService
-    redis: HealthService
     qstash: HealthService
     whatsapp: HealthService
   }
@@ -38,12 +37,6 @@ interface UsageData {
     buildMinutes: number
     buildLimit: number
     buildPercentage: number
-    percentage: number
-    status: 'ok' | 'warning' | 'critical'
-  }
-  redis: {
-    commandsToday: number
-    limit: number
     percentage: number
     status: 'ok' | 'warning' | 'critical'
   }

@@ -103,18 +103,18 @@ export const BulkGenerationModal: React.FC<BulkGenerationModalProps> = ({
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             {/* Backdrop with Blur */}
             <div
-                className="absolute inset-0 bg-black/60 backdrop-blur-md transition-opacity duration-300"
+                className="absolute inset-0 bg-black/70 backdrop-blur-sm transition-opacity duration-300"
                 onClick={onClose}
             />
 
             {/* Modal Content */}
-            <div className="relative bg-[#09090b] border border-white/10 rounded-2xl w-full max-w-4xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-200 ring-1 ring-white/5">
+            <div className="relative bg-zinc-900/80 border border-white/10 rounded-2xl w-full max-w-4xl shadow-[0_30px_80px_rgba(0,0,0,0.55)] flex flex-col max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-200">
 
                 {/* Header - Apple-esque: Clean, Centered or subtle */}
-                <div className="px-6 py-5 border-b border-white/5 flex items-center justify-between bg-zinc-900/50 backdrop-blur-xl z-10">
+                <div className="px-6 py-4 border-b border-white/10 flex items-center justify-between bg-zinc-950/40 backdrop-blur-xl z-10">
                     <div className="flex items-center gap-3">
-                        <div className={`p-2 rounded-xl bg-gradient-to-br ${hasTemplates ? 'from-emerald-500/20 to-teal-500/20' : 'from-indigo-500/20 to-purple-500/20'} border border-white/5 shadow-inner`}>
-                            {hasTemplates ? <Target className="w-5 h-5 text-emerald-400" /> : <Sparkles className="w-5 h-5 text-indigo-400" />}
+                        <div className="p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+                            {hasTemplates ? <Target className="w-5 h-5 text-emerald-300" /> : <Sparkles className="w-5 h-5 text-emerald-300" />}
                         </div>
                         <div>
                             <h2 className="text-lg font-semibold text-white tracking-tight">
@@ -130,7 +130,7 @@ export const BulkGenerationModal: React.FC<BulkGenerationModalProps> = ({
                     </div>
                     <button
                         onClick={onClose}
-                        className="p-2 text-zinc-500 hover:text-white hover:bg-white/5 rounded-full transition-all"
+                        className="p-2 text-zinc-400 hover:text-white hover:bg-white/5 rounded-full transition-all"
                     >
                         <X size={20} />
                     </button>
@@ -151,15 +151,15 @@ export const BulkGenerationModal: React.FC<BulkGenerationModalProps> = ({
                                         value={businessType}
                                         onChange={(e) => setBusinessType(e.target.value)}
                                         placeholder="Ex: Confirmação de agendamento para clínica odontológica, avisar sobre boleto vencido, envio de código de rastreio..."
-                                        className="w-full h-40 bg-zinc-900/50 border border-zinc-800 rounded-xl p-5 text-white placeholder-zinc-500 focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 outline-none resize-none transition-all text-base leading-relaxed shadow-inner"
+                                        className="w-full h-40 bg-zinc-950/40 border border-white/10 rounded-xl p-5 text-white placeholder:text-zinc-500 focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/30 outline-none resize-none transition-all text-base leading-relaxed"
                                     />
                                     <div className="absolute bottom-4 right-4 text-xs text-zinc-500 bg-zinc-900/80 px-2 py-1 rounded-md border border-white/5">
                                         {businessType.length} caracteres
                                     </div>
                                 </div>
-                                <div className="flex items-start gap-3 p-4 bg-indigo-500/5 border border-indigo-500/10 rounded-xl">
-                                    <Info className="w-5 h-5 text-indigo-400 shrink-0 mt-0.5" />
-                                    <p className="text-sm text-indigo-200/80 leading-relaxed">
+                                <div className="flex items-start gap-3 p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl">
+                                    <Info className="w-5 h-5 text-emerald-300 shrink-0 mt-0.5" />
+                                    <p className="text-sm text-emerald-100/80 leading-relaxed">
                                         Nossa IA gera variações otimizadas especificamente para a categoria <strong>UTILITY</strong>, maximizando suas chances de aprovação imediata na Meta.
                                     </p>
                                 </div>
@@ -173,7 +173,7 @@ export const BulkGenerationModal: React.FC<BulkGenerationModalProps> = ({
                                         <select
                                             value={quantity}
                                             onChange={(e) => setQuantity(Number(e.target.value))}
-                                            className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-white outline-none focus:border-indigo-500/50 appearance-none cursor-pointer hover:bg-zinc-800/50 transition-colors"
+                                            className="w-full bg-zinc-950/40 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-emerald-500/50 appearance-none cursor-pointer hover:bg-white/5 transition-colors"
                                         >
                                             {[3, 5, 10, 15, 20].map(n => (
                                                 <option key={n} value={n}>{n} variações</option>
@@ -190,7 +190,7 @@ export const BulkGenerationModal: React.FC<BulkGenerationModalProps> = ({
                                         <select
                                             value={language}
                                             onChange={(e) => setLanguage(e.target.value as any)}
-                                            className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-white outline-none focus:border-indigo-500/50 appearance-none cursor-pointer hover:bg-zinc-800/50 transition-colors"
+                                            className="w-full bg-zinc-950/40 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-emerald-500/50 appearance-none cursor-pointer hover:bg-white/5 transition-colors"
                                         >
                                             <option value="pt_BR">🇧🇷 Português (BR)</option>
                                             <option value="en_US">🇺🇸 English (US)</option>
@@ -214,8 +214,8 @@ export const BulkGenerationModal: React.FC<BulkGenerationModalProps> = ({
                                             key={template.id}
                                             onClick={() => onToggleTemplate(template.id)}
                                             className={`relative group cursor-pointer transition-all duration-300 border rounded-2xl p-5 hover:scale-[1.01] ${isSelected
-                                                ? 'bg-emerald-500/5 border-emerald-500/40 shadow-[0_0_20px_-10px_rgba(16,185,129,0.2)]'
-                                                : 'bg-zinc-900/30 border-white/5 hover:border-white/10 hover:bg-zinc-900/50'
+                                                ? 'bg-emerald-500/10 border-emerald-500/30 shadow-[0_0_20px_-10px_rgba(16,185,129,0.2)]'
+                                                : 'bg-zinc-950/40 border-white/10 hover:border-white/20 hover:bg-white/5'
                                                 }`}
                                         >
                                             {/* Header */}
@@ -284,7 +284,7 @@ export const BulkGenerationModal: React.FC<BulkGenerationModalProps> = ({
 
                             {/* CONFIGURATION PANEL - Shows when buttons need values */}
                             {(buttonAnalysis.hasUrlButtons || buttonAnalysis.hasPhoneButtons) && selectedTemplates.size > 0 && (
-                                <div className="mt-6 p-5 bg-amber-500/5 border border-amber-500/20 rounded-xl animate-in fade-in slide-in-from-bottom-2 duration-300">
+                                <div className="mt-6 p-5 bg-amber-500/10 border border-amber-500/20 rounded-xl animate-in fade-in slide-in-from-bottom-2 duration-300">
                                     <div className="flex items-start gap-3 mb-4">
                                         <div className="p-2 bg-amber-500/20 rounded-lg">
                                             <AlertCircle className="w-5 h-5 text-amber-400" />
@@ -310,11 +310,11 @@ export const BulkGenerationModal: React.FC<BulkGenerationModalProps> = ({
                                                     value={universalUrl}
                                                     onChange={(e) => setUniversalUrl(e.target.value)}
                                                     placeholder="https://exemplo.com/pagina"
-                                                    className={`w-full px-4 py-3 bg-zinc-900/50 border rounded-xl text-white placeholder-zinc-500 focus:ring-2 focus:ring-amber-500/50 outline-none transition-all ${universalUrl && !isUrlValid ? 'border-red-500' : 'border-zinc-800 focus:border-amber-500/50'
+                                                    className={`w-full px-4 py-3 bg-zinc-950/40 border rounded-xl text-white placeholder:text-zinc-500 focus:ring-2 focus:ring-amber-500/30 outline-none transition-all ${universalUrl && !isUrlValid ? 'border-amber-500/50' : 'border-white/10 focus:border-amber-500/40'
                                                         }`}
                                                 />
                                                 {universalUrl && !isUrlValid && (
-                                                    <p className="text-xs text-red-400">URL deve começar com http:// ou https://</p>
+                                                    <p className="text-xs text-amber-300">URL deve começar com http:// ou https://</p>
                                                 )}
                                                 <p className="text-xs text-zinc-500">
                                                     Este link será usado em TODOS os templates selecionados
@@ -334,11 +334,11 @@ export const BulkGenerationModal: React.FC<BulkGenerationModalProps> = ({
                                                     value={universalPhone}
                                                     onChange={(e) => setUniversalPhone(e.target.value)}
                                                     placeholder="+5511999999999"
-                                                    className={`w-full px-4 py-3 bg-zinc-900/50 border rounded-xl text-white placeholder-zinc-500 focus:ring-2 focus:ring-amber-500/50 outline-none transition-all ${universalPhone && !isPhoneValid ? 'border-red-500' : 'border-zinc-800 focus:border-amber-500/50'
+                                                    className={`w-full px-4 py-3 bg-zinc-950/40 border rounded-xl text-white placeholder:text-zinc-500 focus:ring-2 focus:ring-amber-500/30 outline-none transition-all ${universalPhone && !isPhoneValid ? 'border-amber-500/50' : 'border-white/10 focus:border-amber-500/40'
                                                         }`}
                                                 />
                                                 {universalPhone && !isPhoneValid && (
-                                                    <p className="text-xs text-red-400">Telefone deve ter pelo menos 10 dígitos</p>
+                                                    <p className="text-xs text-amber-300">Telefone deve ter pelo menos 10 dígitos</p>
                                                 )}
                                                 <p className="text-xs text-zinc-500">
                                                     Este número será usado em TODOS os templates selecionados
@@ -353,7 +353,7 @@ export const BulkGenerationModal: React.FC<BulkGenerationModalProps> = ({
                 </div>
 
                 {/* Footer */}
-                <div className="p-6 border-t border-white/5 bg-zinc-900/50 backdrop-blur-xl z-10 flex justify-between items-center gap-4">
+                <div className="p-6 border-t border-white/10 bg-zinc-950/40 backdrop-blur-xl z-10 flex justify-between items-center gap-4">
                     {!hasTemplates ? (
                         <>
                             <div className="text-xs text-zinc-500 italic hidden sm:block">
@@ -362,12 +362,12 @@ export const BulkGenerationModal: React.FC<BulkGenerationModalProps> = ({
                             <button
                                 onClick={onGenerate}
                                 disabled={isGenerating || !businessType || businessType.length < 10}
-                                className="flex items-center gap-2 px-8 py-3 bg-white text-black font-bold rounded-xl hover:bg-zinc-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_0_20px_-5px_rgba(255,255,255,0.3)] ml-auto"
+                                className="flex items-center gap-2 px-8 py-3 bg-white text-black font-semibold rounded-xl hover:bg-zinc-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed ml-auto"
                             >
                                 {isGenerating ? (
                                     <><Loader2 size={18} className="animate-spin" /> Gerando...</>
                                 ) : (
-                                    <><Sparkles size={18} className="text-purple-600" /> Gerar Templates</>
+                                    <><Sparkles size={18} className="text-emerald-600" /> Gerar Templates</>
                                 )}
                             </button>
                         </>
@@ -382,7 +382,7 @@ export const BulkGenerationModal: React.FC<BulkGenerationModalProps> = ({
                                 </button>
                                 <button
                                     onClick={onSelectAll}
-                                    className="px-4 py-2 text-zinc-400 hover:text-emerald-400 text-sm font-medium transition-colors"
+                                    className="px-4 py-2 text-zinc-400 hover:text-emerald-300 text-sm font-medium transition-colors"
                                 >
                                     {selectedTemplates.size === generatedTemplates.length ? 'Desmarcar Todos' : 'Selecionar Todos'}
                                 </button>
@@ -391,7 +391,7 @@ export const BulkGenerationModal: React.FC<BulkGenerationModalProps> = ({
                             <button
                                 onClick={onSubmit}
                                 disabled={isSubmitting || !canSubmit}
-                                className="flex items-center gap-2 px-8 py-3 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-emerald-900/20 transform hover:-translate-y-0.5"
+                                className="flex items-center gap-2 px-8 py-3 bg-emerald-500 text-black font-semibold rounded-xl hover:bg-emerald-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                                 title={!canSubmit && (buttonAnalysis.hasUrlButtons || buttonAnalysis.hasPhoneButtons) ? 'Preencha os campos de configuração acima' : ''}
                             >
                                 {isSubmitting ? (

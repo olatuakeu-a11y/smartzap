@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getWhatsAppCredentials } from '@/lib/whatsapp-credentials'
+import { fetchWithTimeout, safeText } from '@/lib/server-http'
 
 // Tier limits mapping
 const TIER_LIMITS: Record<string, number> = {
@@ -15,19 +16,21 @@ const TIER_LIMITS: Record<string, number> = {
 async function fetchLimitsFromMeta(phoneNumberId: string, accessToken: string) {
   // Parallel fetch for throughput/quality and messaging tier
   const [throughputResponse, tierResponse] = await Promise.all([
-    fetch(
-      `https://graph.facebook.com/v24.0/${phoneNumberId}?fields=throughput,quality_score`,
-      { headers: { 'Authorization': `Bearer ${accessToken}` } }
+    fetchWithTimeout(
+      // Observação: para WhatsAppBusinessPhoneNumber, o campo mais confiável para qualidade é `quality_rating`.
+      // Mantemos `quality_score` como fallback quando disponível.
+      `https://graph.facebook.com/v24.0/${phoneNumberId}?fields=throughput,quality_rating,quality_score`,
+      { headers: { 'Authorization': `Bearer ${accessToken}` }, timeoutMs: 3500 }
     ),
-    fetch(
+    fetchWithTimeout(
       `https://graph.facebook.com/v24.0/${phoneNumberId}?fields=whatsapp_business_manager_messaging_limit`,
-      { headers: { 'Authorization': `Bearer ${accessToken}` } }
+      { headers: { 'Authorization': `Bearer ${accessToken}` }, timeoutMs: 3500 }
     ),
   ])
 
   if (!throughputResponse.ok || !tierResponse.ok) {
-    const errorThroughput = !throughputResponse.ok ? await throughputResponse.text() : null
-    const errorTier = !tierResponse.ok ? await tierResponse.text() : null
+    const errorThroughput = !throughputResponse.ok ? await safeText(throughputResponse) : null
+    const errorTier = !tierResponse.ok ? await safeText(tierResponse) : null
     console.error('❌ Failed to fetch account limits from Meta:', { errorThroughput, errorTier })
     throw new Error('Failed to fetch limits from Meta API')
   }
@@ -41,8 +44,14 @@ async function fetchLimitsFromMeta(phoneNumberId: string, accessToken: string) {
   const throughputLevel = throughputData.throughput?.level === 'high' ? 'HIGH' : 'STANDARD'
   
   // Parse quality score
-  const rawQuality = throughputData.quality_score?.score?.toUpperCase()
-  const qualityScore = ['GREEN', 'YELLOW', 'RED'].includes(rawQuality) ? rawQuality : 'UNKNOWN'
+  // Prefer `quality_rating` (string), fallback to `quality_score.score` (quando existir).
+  const rawQuality = (
+    throughputData.quality_rating ||
+    throughputData.quality_score?.score ||
+    ''
+  )
+  const normalizedQuality = typeof rawQuality === 'string' ? rawQuality.toUpperCase() : String(rawQuality).toUpperCase()
+  const qualityScore = ['GREEN', 'YELLOW', 'RED'].includes(normalizedQuality) ? normalizedQuality : 'UNKNOWN'
   
   // Parse messaging tier
   let messagingTier = 'TIER_250'
@@ -67,7 +76,7 @@ async function fetchLimitsFromMeta(phoneNumberId: string, accessToken: string) {
   }
 }
 
-// GET /api/account/limits - Fetch limits using Redis credentials
+// GET /api/account/limits - Fetch limits usando credenciais salvas (Supabase/env)
 export async function GET() {
   const credentials = await getWhatsAppCredentials()
   
@@ -91,7 +100,7 @@ export async function GET() {
   }
 }
 
-// POST /api/account/limits - Fetch limits (with optional body credentials, fallback to Redis)
+// POST /api/account/limits - Fetch limits (body opcional; fallback para Supabase/env)
 export async function POST(request: NextRequest) {
   let phoneNumberId: string | undefined
   let accessToken: string | undefined
@@ -105,10 +114,10 @@ export async function POST(request: NextRequest) {
       accessToken = body.accessToken
     }
   } catch {
-    // No body provided, will fallback to Redis
+    // Sem body (ou body inválido): fallback para credenciais salvas
   }
 
-  // Fallback to Redis credentials if not provided
+  // Fallback para credenciais salvas (Supabase/env)
   if (!phoneNumberId || !accessToken) {
     const credentials = await getWhatsAppCredentials()
     if (credentials) {

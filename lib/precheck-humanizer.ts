@@ -1,6 +1,7 @@
 type CustomFieldLabelByKey = Record<string, string>;
 
 export type ContactFixTarget =
+  | { type: 'name' }
   | { type: 'email' }
   | { type: 'custom_field'; key: string };
 
@@ -16,14 +17,28 @@ export type HumanizedReason = {
 };
 
 const SYSTEM_TOKEN_LABELS: Record<string, { label: string; focus: ContactFixTarget | null }> = {
-  nome: { label: 'Nome', focus: null },
+  // Nome
+  nome: { label: 'Nome', focus: { type: 'name' } },
+  name: { label: 'Nome', focus: { type: 'name' } },
+  'contact.name': { label: 'Nome', focus: { type: 'name' } },
+  'contact_name': { label: 'Nome', focus: { type: 'name' } },
+
+  // Telefone (não “corrigível” via modal hoje — mantemos apenas informativo)
   telefone: { label: 'Telefone', focus: null },
+  phone: { label: 'Telefone', focus: null },
+  'contact.phone': { label: 'Telefone', focus: null },
+  'contact_phone': { label: 'Telefone', focus: null },
+
+  // Email
   email: { label: 'Email', focus: { type: 'email' } },
+  'contact.email': { label: 'Email', focus: { type: 'email' } },
+  'contact_email': { label: 'Email', focus: { type: 'email' } },
 };
 
 function extractSingleToken(raw: string): string | null {
   const s = (raw || '').trim();
-  const m = s.match(/^\{\{([\w\d_]+)\}\}$/);
+  // Suporta tokens internos do SmartZap com pontos (ex.: {{contact.name}})
+  const m = s.match(/^\{\{([\w\d_.]+)\}\}$/);
   return m ? m[1] : null;
 }
 
@@ -60,7 +75,12 @@ function dedupeTargets(targets: ContactFixTarget[]): ContactFixTarget[] {
   const seen = new Set<string>();
   const out: ContactFixTarget[] = [];
   for (const t of targets) {
-    const id = t.type === 'email' ? 'email' : `custom_field:${t.key}`;
+    const id =
+      t.type === 'email'
+        ? 'email'
+        : t.type === 'name'
+          ? 'name'
+          : `custom_field:${t.key}`;
     if (seen.has(id)) continue;
     seen.add(id);
     out.push(t);

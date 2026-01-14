@@ -61,8 +61,8 @@ export const WHATSAPP_ERRORS: Record<number, WhatsAppError> = {
     code: 130429,
     category: 'rate_limit',
     title: 'Rate limit hit',
-    userMessage: 'Limite de mensagens por segundo atingido.',
-    action: 'Aguarde alguns segundos e tente novamente.',
+    userMessage: 'Limite de taxa/throughput da Cloud API atingido (muitas mensagens em pouco tempo).',
+    action: 'Aplique backoff (exponencial) e reduza o throughput. Evite retentar em loop; use fila e reenvie mais tarde.',
     retryable: true,
   },
   131056: {
@@ -285,8 +285,8 @@ export const WHATSAPP_ERRORS: Record<number, WhatsAppError> = {
     code: 131049,
     category: 'rate_limit',
     title: 'Message not delivered for healthy ecosystem',
-    userMessage: 'Mensagem não entregue para manter a saúde do ecossistema.',
-    action: 'Reduza a frequência de envios. Aguarde algumas horas antes de reenviar.',
+    userMessage: 'Mensagem não entregue para manter um engajamento saudável do ecossistema (limites dinâmicos).',
+    action: 'Reduza volume e melhore relevância/segmentação. Para mensagens de marketing, aguarde 24h antes de retentar para o mesmo usuário.',
     retryable: true,
   },
   10: {
@@ -329,8 +329,8 @@ export const WHATSAPP_ERRORS: Record<number, WhatsAppError> = {
     code: 131026,
     category: 'system',
     title: 'Message undeliverable',
-    userMessage: 'Não foi possível entregar a mensagem.',
-    action: 'Tente novamente mais tarde.',
+    userMessage: 'Mensagem não pôde ser entregue (o WhatsApp pode não informar o motivo exato em alguns cenários).',
+    action: 'Peça ao contato para: (1) confirmar que consegue enviar mensagem para seu número; (2) verificar se não bloqueou; (3) aceitar os Termos mais recentes; (4) atualizar o WhatsApp para a versão mais recente.',
     retryable: true,
   },
   500: {
@@ -786,7 +786,7 @@ export const WHATSAPP_ERRORS: Record<number, WhatsAppError> = {
     category: 'recipient',
     title: 'User has not accepted privacy policy',
     userMessage: 'Usuário não aceitou a política de privacidade atualizada.',
-    action: 'Usuário precisa aceitar os novos termos no WhatsApp.',
+    action: 'Peça ao usuário para aceitar os Termos/Políticas no WhatsApp (link oficial: https://wa.me/tos/20210210).',
     retryable: false,
   },
   134100: {
@@ -826,6 +826,89 @@ export const WHATSAPP_ERRORS: Record<number, WhatsAppError> = {
 // ============================================
 // FUNÇÕES AUXILIARES
 // ============================================
+
+export interface WhatsAppMetaErrorContext {
+  code: number
+  title?: string
+  message?: string
+  details?: string
+}
+
+function normalizeMetaText(input: unknown): string {
+  return String(input || '')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function truncateText(input: string, maxLen: number): string {
+  if (input.length <= maxLen) return input
+  return `${input.slice(0, Math.max(0, maxLen - 1)).trimEnd()}…`
+}
+
+/**
+ * Normaliza e trunca textos vindos da Meta (title/message/details) para persistência.
+ * - Remove excesso de whitespace
+ * - Limita tamanho para evitar "encher" o banco com payloads inesperadamente grandes
+ */
+export function normalizeMetaErrorTextForStorage(input: unknown, maxLen = 500): string {
+  const t = normalizeMetaText(input)
+  return truncateText(t, Math.max(1, Math.floor(maxLen)))
+}
+
+/**
+ * Monta uma mensagem mais específica usando o payload oficial do erro da Meta
+ * (`title`, `message` e especialmente `error_data.details`) como contexto.
+ *
+ * A Meta recomenda tratar erros usando o `code` e `error_data.details`, e não
+ * depender de "títulos" embutidos em `message`.
+ */
+export function getUserFriendlyMessageForMetaError(input: WhatsAppMetaErrorContext): string {
+  const base = mapWhatsAppError(input.code)
+
+  const details = truncateText(normalizeMetaText(input.details), 240)
+  const message = truncateText(normalizeMetaText(input.message), 240)
+  const title = truncateText(normalizeMetaText(input.title), 160)
+
+  // Caso comum em templates com HEADER de mídia: a Meta aceita o envio, mas depois falha
+  // ao baixar do "weblink" (403). Alguns tenants recebem isso como 131052/131053/131054.
+  // Ajustamos a mensagem para evitar confusão com "upload".
+  const blob = `${title} ${message} ${details}`.toLowerCase()
+  const isWeblink403 =
+    blob.includes('weblink') &&
+    (blob.includes('http code 403') || blob.includes(' 403') || blob.includes('forbidden'))
+
+  const baseUserMessage = isWeblink403
+    ? 'Erro ao baixar mídia do link do template (403).'
+    : base.userMessage
+
+  // Preferimos details (mais específico) e evitamos repetir texto idêntico ao userMessage.
+  const shouldAppend = (value: string) =>
+    Boolean(value) && value.toLowerCase() !== baseUserMessage.toLowerCase()
+
+  if (shouldAppend(details)) return `${baseUserMessage} — Detalhe (Meta): ${details}`
+  if (shouldAppend(message) && message.toLowerCase() !== title.toLowerCase()) {
+    return `${baseUserMessage} — Detalhe (Meta): ${message}`
+  }
+  if (shouldAppend(title)) return `${baseUserMessage} — Detalhe (Meta): ${title}`
+
+  return baseUserMessage
+}
+
+/**
+ * Retorna ação recomendada, podendo incorporar contexto do erro.
+ * Hoje mantemos a ação do mapeamento como fonte primária para consistência.
+ */
+export function getRecommendedActionForMetaError(input: WhatsAppMetaErrorContext): string {
+  const base = mapWhatsAppError(input.code)
+  const details = normalizeMetaText(input.details)
+
+  // Exemplo útil: rate limit costuma vir com detalhes claros do motivo.
+  if (input.code === 130429 && details) {
+    return `${base.action} (Meta: ${truncateText(details, 200)})`
+  }
+
+  return base.action
+}
 
 /**
  * Mapeia um código de erro para informações detalhadas

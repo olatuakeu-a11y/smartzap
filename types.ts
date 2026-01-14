@@ -10,7 +10,8 @@ export enum CampaignStatus {
   SENDING = 'Enviando',
   COMPLETED = 'Concluído',
   PAUSED = 'Pausado',
-  FAILED = 'Falhou'
+  FAILED = 'Falhou',
+  CANCELLED = 'Cancelado'
 }
 
 export enum ContactStatus {
@@ -29,7 +30,7 @@ export enum MessageStatus {
 }
 
 export type TemplateCategory = 'MARKETING' | 'UTILIDADE' | 'AUTENTICACAO';
-export type TemplateStatus = 'APPROVED' | 'PENDING' | 'REJECTED';
+export type TemplateStatus = 'DRAFT' | 'APPROVED' | 'PENDING' | 'REJECTED';
 
 export interface Template {
   id: string;
@@ -43,25 +44,50 @@ export interface Template {
   parameterFormat?: 'positional' | 'named';
   specHash?: string | null;
   fetchedAt?: string | null;
+  headerMediaId?: string | null;
+  headerMediaHash?: string | null;
+  headerMediaPreviewUrl?: string | null;
+  headerMediaPreviewExpiresAt?: string | null;
   components?: TemplateComponent[]; // Full components from Meta API
 }
 
 export interface TemplateComponent {
-  type: 'HEADER' | 'BODY' | 'FOOTER' | 'BUTTONS';
-  format?: 'TEXT' | 'IMAGE' | 'VIDEO' | 'DOCUMENT';
+  type: 'HEADER' | 'BODY' | 'FOOTER' | 'BUTTONS' | 'LIMITED_TIME_OFFER';
+  format?: 'TEXT' | 'IMAGE' | 'VIDEO' | 'GIF' | 'DOCUMENT' | 'LOCATION';
   text?: string;
   buttons?: TemplateButton[];
   example?: any;
+  limited_time_offer?: {
+    text: string;
+    has_expiration?: boolean;
+  };
 }
 
 export interface TemplateButton {
-  type: 'QUICK_REPLY' | 'URL' | 'PHONE_NUMBER' | 'COPY_CODE' | 'OTP' | 'FLOW' | 'CATALOG' | 'MPM' | 'VOICE_CALL';
+  type:
+    | 'QUICK_REPLY'
+    | 'URL'
+    | 'PHONE_NUMBER'
+    | 'COPY_CODE'
+    | 'OTP'
+    | 'FLOW'
+    | 'CATALOG'
+    | 'MPM'
+    | 'VOICE_CALL'
+    | 'EXTENSION'
+    | 'ORDER_DETAILS'
+    | 'POSTBACK'
+    | 'REMINDER'
+    | 'SEND_LOCATION'
+    | 'SPM';
   text: string;
   url?: string;
   phone_number?: string;
-  example?: string[];
+  example?: string[] | string;
   otp_type?: 'COPY_CODE' | 'ONE_TAP' | 'ZERO_TAP';
   flow_id?: string;
+  action?: Record<string, unknown>;
+  payload?: string | Record<string, unknown>;
 }
 
 export interface Campaign {
@@ -84,8 +110,14 @@ export interface Campaign {
   templateFetchedAt?: string | null;
   // Scheduling
   scheduledAt?: string | null;  // ISO timestamp for scheduled campaigns
+  // QStash scheduling (one-shot)
+  qstashScheduleMessageId?: string | null;
+  qstashScheduleEnqueuedAt?: string | null;
   startedAt?: string | null;    // When campaign actually started sending
+  firstDispatchAt?: string | null; // When the first contact started dispatching (claim/sending) (dispatch-only)
+  lastSentAt?: string | null;   // When the last contact was marked as "sent" (dispatch-only)
   completedAt?: string | null;  // When campaign finished
+  cancelledAt?: string | null;  // When campaign was cancelled by user
   pausedAt?: string | null;     // When campaign was paused
   // Contacts (for resume functionality and optimistic UI)
   selectedContactIds?: string[];
@@ -103,7 +135,51 @@ export interface Contact {
   createdAt?: string;
   updatedAt?: string;
   custom_fields?: Record<string, any>;
+  suppressionReason?: string | null;
+  suppressionSource?: string | null;
+  suppressionExpiresAt?: string | null;
 }
+
+// =============================================================================
+// LEAD FORMS (Captação de contatos)
+// =============================================================================
+
+export interface LeadForm {
+  id: string;
+  name: string;
+  slug: string;
+  tag: string;
+  isActive: boolean;
+  collectEmail?: boolean; // quando false, o formulário público não mostra/coleta email
+  successMessage?: string | null;
+  webhookToken?: string | null;
+  fields?: LeadFormField[];
+  createdAt?: string;
+  updatedAt?: string | null;
+}
+
+export type LeadFormFieldType = 'text' | 'number' | 'date' | 'select'
+
+export interface LeadFormField {
+  key: string;            // ex: "curso" (vai para contact.custom_fields.curso)
+  label: string;          // ex: "Qual seu curso?"
+  type: LeadFormFieldType;
+  required?: boolean;
+  options?: string[];     // para select
+  order?: number;
+}
+
+export interface CreateLeadFormDTO {
+  name: string;
+  slug: string;
+  tag: string;
+  isActive?: boolean;
+  collectEmail?: boolean;
+  successMessage?: string | null;
+  fields?: LeadFormField[];
+}
+
+export interface UpdateLeadFormDTO extends Partial<CreateLeadFormDTO> {}
 
 export interface CustomFieldDefinition {
   id: string;
@@ -138,6 +214,28 @@ export interface AppSettings {
   qualityRating?: string;
   verifiedName?: string;
   testContact?: TestContact;
+}
+
+export type Weekday = 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun';
+
+export interface WorkingHoursDay {
+  day: Weekday;
+  enabled: boolean;
+  start: string;
+  end: string;
+}
+
+export interface CalendarBookingConfig {
+  timezone: string;
+  slotDurationMinutes: number;
+  slotBufferMinutes: number;
+  workingHours: WorkingHoursDay[];
+}
+
+export interface WorkflowExecutionConfig {
+  retryCount: number;
+  retryDelayMs: number;
+  timeoutMs: number;
 }
 
 export interface TestContact {
@@ -295,6 +393,77 @@ export interface RealtimeState {
   error?: string;
 }
 
+// =============================================================================
+// SUPABASE REALTIME BROADCAST (EPHEMERAL)
+// =============================================================================
+
+export type CampaignProgressBroadcastPhase =
+  | 'batch_start'
+  | 'batch_end'
+  | 'cancelled'
+  | 'complete'
+
+export interface CampaignProgressBroadcastDelta {
+  sent: number
+  failed: number
+  skipped: number
+}
+
+/**
+ * Evento efêmero (não persistido) para sensação de tempo real.
+ * - Nunca deve conter PII (telefone, nome, conteúdo de mensagem).
+ * - Não é fonte da verdade: UI deve reconciliar com DB periodicamente.
+ */
+export interface CampaignProgressBroadcastPayload {
+  campaignId: string
+  traceId: string
+  batchIndex: number
+  seq: number
+  ts: number
+  delta?: CampaignProgressBroadcastDelta
+  phase?: CampaignProgressBroadcastPhase
+}
+
+// =============================================================================
+// REALTIME LATENCY TELEMETRY (DEBUG)
+// =============================================================================
+
+export interface RealtimeLatencyTelemetryBroadcast {
+  traceId: string
+  seq: number
+  serverTs: number
+  receivedAt: number
+  paintedAt: number
+  serverToClientMs: number
+  handlerToPaintMs: number
+  serverToPaintMs: number
+}
+
+export interface RealtimeLatencyTelemetryDbChange {
+  table: string
+  eventType: string
+  commitTimestamp: string
+  commitTs: number
+  receivedAt: number
+  paintedAt: number
+  commitToClientMs: number
+  handlerToPaintMs: number
+  commitToPaintMs: number
+}
+
+export interface RealtimeLatencyTelemetryRefetch {
+  startedAt: number
+  finishedAt?: number
+  durationMs?: number
+  reason: 'debounced_refetch'
+}
+
+export interface RealtimeLatencyTelemetry {
+  broadcast?: RealtimeLatencyTelemetryBroadcast
+  dbChange?: RealtimeLatencyTelemetryDbChange
+  refetch?: RealtimeLatencyTelemetryRefetch
+}
+
 export type ProjectStatus = 'draft' | 'submitted' | 'completed';
 
 export interface TemplateProject {
@@ -302,6 +471,7 @@ export interface TemplateProject {
   title: string;
   prompt: string;
   status: ProjectStatus;
+  source?: 'ai' | 'manual' | string;
   template_count: number;
   approved_count: number;
   user_id?: string | null;

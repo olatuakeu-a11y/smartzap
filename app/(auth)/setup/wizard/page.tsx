@@ -36,9 +36,16 @@ interface WizardData {
 
   // Step 3: Upstash
   qstashToken: string
+  qstashCurrentSigningKey: string
+  qstashNextSigningKey: string
   // Optional stats fields
   upstashEmail: string
   upstashApiKey: string
+
+  // Upstash Redis (recommended)
+  upstashRedisRestUrl: string
+  upstashRedisRestToken: string
+  whatsappStatusDedupeTtlSeconds: string
 
   // Step 4: WhatsApp
   whatsappToken: string
@@ -59,8 +66,13 @@ const initialData: WizardData = {
   supabaseAnonKey: '',
   supabaseServiceKey: '',
   qstashToken: '',
+  qstashCurrentSigningKey: '',
+  qstashNextSigningKey: '',
   upstashEmail: '',
   upstashApiKey: '',
+  upstashRedisRestUrl: '',
+  upstashRedisRestToken: '',
+  whatsappStatusDedupeTtlSeconds: '',
   whatsappToken: '',
   whatsappPhoneId: '',
   whatsappBusinessId: '',
@@ -213,6 +225,13 @@ function WizardContent() {
           NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY: 'supabaseAnonKey',
           SUPABASE_SECRET_KEY: 'supabaseServiceKey',
           QSTASH_TOKEN: 'qstashToken',
+          QSTASH_CURRENT_SIGNING_KEY: 'qstashCurrentSigningKey',
+          QSTASH_NEXT_SIGNING_KEY: 'qstashNextSigningKey',
+          UPSTASH_EMAIL: 'upstashEmail',
+          UPSTASH_API_KEY: 'upstashApiKey',
+          UPSTASH_REDIS_REST_URL: 'upstashRedisRestUrl',
+          UPSTASH_REDIS_REST_TOKEN: 'upstashRedisRestToken',
+          WHATSAPP_STATUS_DEDUPE_TTL_SECONDS: 'whatsappStatusDedupeTtlSeconds',
           WHATSAPP_TOKEN: 'whatsappToken',
           WHATSAPP_PHONE_ID: 'whatsappPhoneId',
           WHATSAPP_BUSINESS_ACCOUNT_ID: 'whatsappBusinessId',
@@ -385,6 +404,14 @@ function WizardContent() {
       case 3:
         if (!data.qstashToken) {
           setError('Token do QStash é obrigatório')
+          return false
+        }
+        if (!data.qstashCurrentSigningKey) {
+          setError('Signing Key atual do QStash é obrigatória')
+          return false
+        }
+        if (data.qstashCurrentSigningKey.trim().length < 20) {
+          setError('Signing Key do QStash parece curta demais. Verifique se colou a chave correta.')
           return false
         }
         break
@@ -608,9 +635,24 @@ function WizardContent() {
             NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: data.supabaseAnonKey,
             SUPABASE_SECRET_KEY: data.supabaseServiceKey,
             QSTASH_TOKEN: data.qstashToken,
+            QSTASH_CURRENT_SIGNING_KEY: data.qstashCurrentSigningKey,
+            QSTASH_NEXT_SIGNING_KEY: data.qstashNextSigningKey,
             UPSTASH_EMAIL: data.upstashEmail,
             UPSTASH_API_KEY: data.upstashApiKey,
+            // Persistimos também o perfil da empresa no modo local para que,
+            // após reiniciar o dev server, o backend possa inicializar o banco
+            // automaticamente via /api/setup/init-company (sem re-digitar).
+            SETUP_COMPLETE: 'true',
+            SETUP_COMPANY_NAME: data.companyName,
+            SETUP_COMPANY_ADMIN: data.companyAdmin,
+            SETUP_COMPANY_EMAIL: data.email,
+            SETUP_COMPANY_PHONE: data.phone,
           }
+
+          // Redis (opcional, mas recomendado): só persistir se foi preenchido.
+          if (data.upstashRedisRestUrl) envVars.UPSTASH_REDIS_REST_URL = data.upstashRedisRestUrl
+          if (data.upstashRedisRestToken) envVars.UPSTASH_REDIS_REST_TOKEN = data.upstashRedisRestToken
+          if (data.whatsappStatusDedupeTtlSeconds) envVars.WHATSAPP_STATUS_DEDUPE_TTL_SECONDS = data.whatsappStatusDedupeTtlSeconds
 
           // WhatsApp é opcional: só persistir se foi preenchido.
           if (!isWhatsAppEmpty()) {
@@ -651,6 +693,8 @@ function WizardContent() {
         NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: data.supabaseAnonKey,
         SUPABASE_SECRET_KEY: data.supabaseServiceKey,
         QSTASH_TOKEN: data.qstashToken,
+        QSTASH_CURRENT_SIGNING_KEY: data.qstashCurrentSigningKey,
+        QSTASH_NEXT_SIGNING_KEY: data.qstashNextSigningKey,
         UPSTASH_EMAIL: data.upstashEmail,
         UPSTASH_API_KEY: data.upstashApiKey,
         // Setup metadata for future resume mode
@@ -662,6 +706,11 @@ function WizardContent() {
         SETUP_COMPANY_EMAIL: data.email,
         SETUP_COMPANY_PHONE: data.phone,
       }
+
+      // Redis (opcional, mas recomendado): só persistir se foi preenchido.
+      if (data.upstashRedisRestUrl) envVars.UPSTASH_REDIS_REST_URL = data.upstashRedisRestUrl
+      if (data.upstashRedisRestToken) envVars.UPSTASH_REDIS_REST_TOKEN = data.upstashRedisRestToken
+      if (data.whatsappStatusDedupeTtlSeconds) envVars.WHATSAPP_STATUS_DEDUPE_TTL_SECONDS = data.whatsappStatusDedupeTtlSeconds
 
       // WhatsApp é opcional: só persistir se foi preenchido.
       if (!isWhatsAppEmpty()) {
@@ -734,7 +783,10 @@ function WizardContent() {
             <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 text-left">
               <ol className="list-decimal pl-5 space-y-2 text-sm text-zinc-300">
                 <li>Pare o <code className="bg-zinc-800 px-1.5 py-0.5 rounded">npm run dev</code> e inicie novamente.</li>
-                <li>Reabra o wizard em modo resume para finalizar o cadastro da empresa.</li>
+                <li>
+                  Depois, vá em <code className="bg-zinc-800 px-1.5 py-0.5 rounded">/login</code>. O SmartZap vai tentar inicializar automaticamente
+                  o cadastro da empresa. Se algo faltar, você ainda pode finalizar pelo wizard.
+                </li>
               </ol>
 
               <div className="mt-4 flex flex-col gap-3">
@@ -845,6 +897,8 @@ function WizardContent() {
                     value={data.password}
                     onChange={(e) => updateField('password', e.target.value)}
                     placeholder="Senha"
+                    name="new-password"
+                    autoComplete="new-password"
                     className="w-full bg-zinc-800 border border-zinc-700 rounded-xl pl-11 pr-11 py-3 text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                     autoFocus
                   />
@@ -864,6 +918,8 @@ function WizardContent() {
                     value={data.confirmPassword}
                     onChange={(e) => updateField('confirmPassword', e.target.value)}
                     placeholder="Confirmar senha"
+                    name="confirm-new-password"
+                    autoComplete="new-password"
                     className="w-full bg-zinc-800 border border-zinc-700 rounded-xl pl-11 pr-4 py-3 text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                   />
                   {data.confirmPassword && data.password === data.confirmPassword && (
@@ -1079,6 +1135,87 @@ function WizardContent() {
                     autoFocus
                   />
                   <p className="text-xs text-zinc-500 mt-1">Encontre no QStash → <span className="font-medium">Quickstart</span> (variável <span className="font-mono">QSTASH_TOKEN</span>)</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm text-zinc-400 mb-1">QStash Signing Key (Current)</label>
+                  <input
+                    type="password"
+                    value={data.qstashCurrentSigningKey}
+                    onChange={(e) => updateField('qstashCurrentSigningKey', e.target.value)}
+                    placeholder="current-signing-key"
+                    className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent font-mono text-sm"
+                  />
+                  <p className="text-xs text-zinc-500 mt-1">Obrigatória para validar chamadas do QStash (variável <span className="font-mono">QSTASH_CURRENT_SIGNING_KEY</span>).</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm text-zinc-400 mb-1">QStash Signing Key (Next) — opcional</label>
+                  <input
+                    type="password"
+                    value={data.qstashNextSigningKey}
+                    onChange={(e) => updateField('qstashNextSigningKey', e.target.value)}
+                    placeholder="next-signing-key"
+                    className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent font-mono text-sm"
+                  />
+                  <p className="text-xs text-zinc-500 mt-1">Use apenas se estiver rotacionando chaves (variável <span className="font-mono">QSTASH_NEXT_SIGNING_KEY</span>).</p>
+                </div>
+
+                <div className="pt-4 mt-4 border-t border-zinc-800">
+                  <h3 className="text-sm font-medium text-zinc-300 mb-2">
+                    Redis (Recomendado)
+                  </h3>
+                  <p className="text-xs text-zinc-500 mb-4">
+                    Usamos o Upstash Redis <span className="font-medium">somente</span> para deduplicar webhooks de status (ex.: retry do Meta)
+                    e reduzir carga no Postgres. Se você não configurar, o sistema continua funcionando.
+                  </p>
+
+                  <a
+                    href="https://console.upstash.com/redis"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-emerald-500 text-xs hover:underline mb-4"
+                  >
+                    Abrir Upstash Redis <ExternalLink className="w-3 h-3" />
+                  </a>
+
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm text-zinc-400 mb-1">UPSTASH_REDIS_REST_URL</label>
+                      <input
+                        type="text"
+                        value={data.upstashRedisRestUrl}
+                        onChange={(e) => updateField('upstashRedisRestUrl', e.target.value)}
+                        placeholder="https://...-rest.upstash.io"
+                        className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent font-mono text-sm"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm text-zinc-400 mb-1">UPSTASH_REDIS_REST_TOKEN</label>
+                      <input
+                        type="password"
+                        value={data.upstashRedisRestToken}
+                        onChange={(e) => updateField('upstashRedisRestToken', e.target.value)}
+                        placeholder="***"
+                        className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent font-mono text-sm"
+                      />
+                      <p className="text-xs text-zinc-500 mt-1">Essas credenciais vêm do Redis Database → <span className="font-medium">REST API</span>.</p>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm text-zinc-400 mb-1">TTL de dedupe (segundos) (opcional)</label>
+                      <input
+                        type="number"
+                        inputMode="numeric"
+                        value={data.whatsappStatusDedupeTtlSeconds}
+                        onChange={(e) => updateField('whatsappStatusDedupeTtlSeconds', e.target.value)}
+                        placeholder="604800"
+                        className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent font-mono text-sm"
+                      />
+                      <p className="text-xs text-zinc-500 mt-1">Padrão interno: 7 dias. Limite: 60s até 30 dias.</p>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="pt-4 mt-4 border-t border-zinc-800">

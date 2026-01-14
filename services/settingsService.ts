@@ -1,5 +1,6 @@
+import type { AiFallbackConfig, AiPromptsConfig, AiRoutesConfig } from '../lib/ai/ai-center-defaults';
 import { storage } from '../lib/storage';
-import { AppSettings } from '../types';
+import { AppSettings, CalendarBookingConfig, WorkflowExecutionConfig } from '../types';
 
 export const settingsService = {
   /**
@@ -32,6 +33,90 @@ export const settingsService = {
     }
 
     return localSettings;
+  },
+
+  // =============================================================================
+  // WORKFLOW BUILDER DEFAULT
+  // =============================================================================
+
+  getWorkflowBuilderDefault: async (): Promise<{ defaultWorkflowId: string }> => {
+    const response = await fetch('/api/settings/workflow-builder')
+    if (!response.ok) throw new Error('Failed to fetch workflow builder default')
+    return response.json()
+  },
+
+  saveWorkflowBuilderDefault: async (defaultWorkflowId: string): Promise<void> => {
+    const response = await fetch('/api/settings/workflow-builder', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ defaultWorkflowId }),
+    })
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}))
+      throw new Error((error as any)?.error || 'Failed to save workflow builder default')
+    }
+  },
+
+  // =============================================================================
+  // WORKFLOW EXECUTION SETTINGS
+  // =============================================================================
+
+  getWorkflowExecutionConfig: async (): Promise<{
+    ok: boolean;
+    source: 'db' | 'env';
+    config: WorkflowExecutionConfig;
+  }> => {
+    const response = await fetch('/api/settings/workflow-execution', { cache: 'no-store' })
+    if (!response.ok) throw new Error('Failed to fetch workflow execution config')
+    return response.json()
+  },
+
+  saveWorkflowExecutionConfig: async (data: Partial<WorkflowExecutionConfig>): Promise<WorkflowExecutionConfig> => {
+    const response = await fetch('/api/settings/workflow-execution', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    })
+    const json = await response.json().catch(() => ({}))
+    if (!response.ok) {
+      throw new Error((json as any)?.error || 'Failed to save workflow execution config')
+    }
+    return (json as any)?.config as WorkflowExecutionConfig
+  },
+
+  // =============================================================================
+  // META APP (opcional) — debug_token e diagnóstico avançado
+  // =============================================================================
+
+  getMetaAppConfig: async (): Promise<{
+    source: 'db' | 'env' | 'none'
+    appId: string | null
+    hasAppSecret: boolean
+    isConfigured: boolean
+  }> => {
+    const response = await fetch('/api/settings/meta-app', { cache: 'no-store' })
+    if (!response.ok) throw new Error('Failed to fetch Meta App config')
+    return response.json()
+  },
+
+  saveMetaAppConfig: async (data: { appId: string; appSecret: string }): Promise<void> => {
+    const response = await fetch('/api/settings/meta-app', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    })
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}))
+      throw new Error((error as any)?.error || 'Failed to save Meta App config')
+    }
+  },
+
+  removeMetaAppConfig: async (): Promise<void> => {
+    const response = await fetch('/api/settings/meta-app', { method: 'DELETE' })
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}))
+      throw new Error((error as any)?.error || 'Failed to remove Meta App config')
+    }
   },
 
   /**
@@ -113,6 +198,50 @@ export const settingsService = {
     return response.json();
   },
 
+  // =============================================================================
+  // TEST CONNECTION (sem salvar)
+  // =============================================================================
+
+  /**
+   * Testa conexão com a Meta Graph API.
+   * - Se o token vier mascarado (ex: '***configured***'), o backend usa credenciais salvas.
+   * - Não persiste nada; apenas valida.
+   */
+  testConnection: async (data?: {
+    phoneNumberId?: string
+    businessAccountId?: string
+    accessToken?: string
+  }): Promise<{
+    ok: boolean
+    error?: string
+    code?: number
+    errorSubcode?: number
+    details?: any
+    phoneNumberId?: string
+    businessAccountId?: string | null
+    displayPhoneNumber?: string | null
+    verifiedName?: string | null
+    qualityRating?: string | null
+    wabaId?: string | null
+    usedStoredCredentials?: boolean
+  }> => {
+    const response = await fetch('/api/settings/test-connection', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data || {}),
+    })
+
+    const payload = await response.json().catch(() => ({}))
+    if (!response.ok) {
+      const msg = (payload as any)?.error || 'Falha ao testar conexão'
+      const err: any = new Error(msg)
+      err.details = payload
+      throw err
+    }
+
+    return payload
+  },
+
   /**
    * Get AI settings
    */
@@ -125,7 +254,15 @@ export const settingsService = {
   /**
    * Save AI settings
    */
-  saveAIConfig: async (data: { apiKey?: string; provider?: string; model?: string }) => {
+  saveAIConfig: async (data: {
+    apiKey?: string;
+    apiKeyProvider?: string;
+    provider?: string;
+    model?: string;
+    routes?: AiRoutesConfig;
+    prompts?: AiPromptsConfig;
+    fallback?: AiFallbackConfig;
+  }) => {
     const response = await fetch('/api/settings/ai', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -201,6 +338,94 @@ export const settingsService = {
     if (!response.ok) {
       const error = await response.json();
       throw new Error(error.error || 'Failed to remove test contact');
+    }
+  },
+
+  // =============================================================================
+  // WHATSAPP TURBO (Adaptive Throttle) - Persisted in Supabase settings
+  // =============================================================================
+
+  getWhatsAppThrottle: async (): Promise<any> => {
+    const response = await fetch('/api/settings/whatsapp-throttle')
+    if (!response.ok) throw new Error('Failed to fetch WhatsApp throttle config')
+    return response.json()
+  },
+
+  saveWhatsAppThrottle: async (data: {
+    enabled?: boolean
+    sendConcurrency?: number
+    batchSize?: number
+    startMps?: number
+    maxMps?: number
+    minMps?: number
+    cooldownSec?: number
+    minIncreaseGapSec?: number
+    sendFloorDelayMs?: number
+    resetState?: boolean
+  }): Promise<any> => {
+    const response = await fetch('/api/settings/whatsapp-throttle', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    })
+
+    const json = await response.json().catch(() => ({}))
+    if (!response.ok) {
+      throw new Error((json as any)?.error || 'Failed to save WhatsApp throttle config')
+    }
+
+    return json
+  },
+
+  // =============================================================================
+  // AUTO-SUPPRESSÃO (Proteção de Qualidade) - Persisted in Supabase settings
+  // =============================================================================
+
+  getAutoSuppression: async (): Promise<any> => {
+    const response = await fetch('/api/settings/auto-suppression')
+    if (!response.ok) throw new Error('Failed to fetch auto-suppression config')
+    return response.json()
+  },
+
+  saveAutoSuppression: async (data: any): Promise<any> => {
+    const response = await fetch('/api/settings/auto-suppression', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    })
+
+    const json = await response.json().catch(() => ({}))
+    if (!response.ok) {
+      throw new Error((json as any)?.error || 'Failed to save auto-suppression config')
+    }
+
+    return json
+  },
+
+  // =============================================================================
+  // CALENDAR BOOKING CONFIG (Google Calendar)
+  // =============================================================================
+
+  getCalendarBookingConfig: async (): Promise<{
+    ok: boolean;
+    source: 'db' | 'default';
+    config: CalendarBookingConfig;
+  }> => {
+    const response = await fetch('/api/settings/calendar-booking', { cache: 'no-store' })
+    if (!response.ok) throw new Error('Failed to fetch calendar booking config')
+    return response.json()
+  },
+
+  saveCalendarBookingConfig: async (data: Partial<CalendarBookingConfig>): Promise<void> => {
+    const response = await fetch('/api/settings/calendar-booking', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    })
+
+    const json = await response.json().catch(() => ({}))
+    if (!response.ok) {
+      throw new Error((json as any)?.error || 'Failed to save calendar booking config')
     }
   },
 };

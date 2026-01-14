@@ -11,8 +11,16 @@ function getSupabasePublishableKey(): string | undefined {
     // O Supabase pode gerar esse nome no snippet do dashboard.
     return (
         process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
-        process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY
+        process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY ||
+        // Compat: alguns projetos ainda usam ANON_KEY no .env
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
     )
+}
+
+function getSupabaseServiceRoleKey(): string | undefined {
+    // Canonical neste projeto: SUPABASE_SECRET_KEY
+    // Compat: muitos setups usam SUPABASE_SERVICE_ROLE_KEY
+    return process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY
 }
 
 // ============================================================================
@@ -38,11 +46,11 @@ let _supabaseAdmin: SupabaseClient | null = null
  */
 export function getSupabaseAdmin(): SupabaseClient | null {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-    const key = process.env.SUPABASE_SECRET_KEY
+    const key = getSupabaseServiceRoleKey()
 
     // Debugging environment variables availability
     if (!key) {
-        console.warn('[getSupabaseAdmin] SUPABASE_SECRET_KEY is missing');
+        console.warn('[getSupabaseAdmin] Supabase service role key is missing (SUPABASE_SECRET_KEY or SUPABASE_SERVICE_ROLE_KEY)')
         return null;
     }
     if (!url) {
@@ -232,6 +240,6 @@ export async function checkSupabaseConnection(): Promise<{
 export function isSupabaseConfigured(): boolean {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL
     const publishableKey = getSupabasePublishableKey()
-    const secretKey = process.env.SUPABASE_SECRET_KEY
+    const secretKey = getSupabaseServiceRoleKey()
     return !!(url && publishableKey && secretKey)
 }

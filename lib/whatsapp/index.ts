@@ -7,6 +7,7 @@
 
 export * from './text'
 export * from './interactive'
+export * from './flows'
 export * from './media'
 export * from './status'
 export * from './types'

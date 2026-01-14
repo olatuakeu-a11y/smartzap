@@ -233,7 +233,7 @@ export function handleApiError(error: unknown, context?: Record<string, unknown>
 }
 
 /**
- * Normaliza erros de armazenamento (localStorage/Redis/etc.) para {@link AppError}.
+ * Normaliza erros de armazenamento (localStorage/cache/etc.) para {@link AppError}.
  *
  * @param error Erro bruto capturado.
  * @param operation Descrição curta da operação (ex.: "save settings", "read cache").

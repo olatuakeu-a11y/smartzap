@@ -1,6 +1,7 @@
 'use client'
 
 import { AlertTriangle, CreditCard, ShieldAlert, X, XCircle } from 'lucide-react'
+import Link from 'next/link'
 import { useAccountAlerts } from '@/hooks/useAccountAlerts'
 
 const alertIcons: Record<string, typeof AlertTriangle> = {
@@ -67,6 +68,8 @@ export function AccountAlertBanner({ className = '' }: AccountAlertBannerProps) 
   const alertType = criticalAlert.type || 'default'
   const Icon = alertIcons[alertType] || AlertTriangle
   const colors = alertColors[alertType] || alertColors.default
+
+  const isPossibleMetaLock = alertType === 'auth' && criticalAlert.code === 131031
   
   // Parse details if JSON
   let actionText: string | null = null
@@ -78,6 +81,25 @@ export function AccountAlertBanner({ className = '' }: AccountAlertBannerProps) 
   } catch {
     // Not JSON, ignore
   }
+
+  const displayTitle = isPossibleMetaLock
+    ? 'Possível bloqueio na Meta (não confirmado)'
+    : (
+        alertType === 'payment' ? 'Problema de Pagamento'
+        : alertType === 'auth' ? 'Erro de Autenticação'
+        : alertType === 'rate_limit' ? 'Limite de Taxa Excedido'
+        : alertType === 'template' ? 'Problema com Template'
+        : alertType === 'system' ? 'Erro do Sistema'
+        : 'Alerta'
+      )
+
+  const displayMessage = isPossibleMetaLock
+    ? 'Detectamos um erro 131031 em tentativas recentes. Isso pode indicar bloqueio, mas também pode ser um sinal histórico/intermitente. Confirme o status atual no Diagnóstico da Meta.'
+    : criticalAlert.message
+
+  const displayActionText = isPossibleMetaLock
+    ? 'Abra “Diagnósticos da Meta” para checar o Health Status e seguir o passo a passo recomendado.'
+    : actionText
   
   return (
     <div
@@ -85,26 +107,30 @@ export function AccountAlertBanner({ className = '' }: AccountAlertBannerProps) 
       role="alert"
     >
       <div className="flex items-start gap-3">
-        <Icon className={`w-5 h-5 mt-0.5 flex-shrink-0 ${colors.icon}`} />
+        <Icon className={`w-5 h-5 mt-0.5 shrink-0 ${colors.icon}`} />
         
         <div className="flex-1 min-w-0">
-          <h4 className={`font-medium ${colors.text}`}>
-            {alertType === 'payment' && 'Problema de Pagamento'}
-            {alertType === 'auth' && 'Erro de Autenticação'}
-            {alertType === 'rate_limit' && 'Limite de Taxa Excedido'}
-            {alertType === 'template' && 'Problema com Template'}
-            {alertType === 'system' && 'Erro do Sistema'}
-            {!['payment', 'auth', 'rate_limit', 'template', 'system'].includes(alertType) && 'Alerta'}
-          </h4>
+          <h4 className={`font-medium ${colors.text}`}>{displayTitle}</h4>
           
           <p className={`text-sm mt-1 ${colors.text} opacity-90`}>
-            {criticalAlert.message}
+            {displayMessage}
           </p>
           
-          {actionText && (
+          {displayActionText && (
             <p className={`text-sm mt-2 ${colors.text} opacity-75`}>
-              💡 {actionText}
+              {displayActionText}
             </p>
+          )}
+
+          {isPossibleMetaLock && (
+            <div className="mt-2">
+              <Link
+                href="/settings/meta-diagnostics"
+                className={`text-sm underline ${colors.text} opacity-90 hover:opacity-100 transition-opacity`}
+              >
+                Abrir Diagnósticos da Meta
+              </Link>
+            </div>
           )}
           
           {criticalAlert.code && (

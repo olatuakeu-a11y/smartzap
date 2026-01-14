@@ -31,18 +31,43 @@ export const TemplateStatusSchema = z.enum(['APPROVED', 'PENDING', 'REJECTED']);
 
 /** Schema Zod para botões de template do WhatsApp (QUICK_REPLY/URL/PHONE_NUMBER). */
 export const TemplateButtonSchema = z.object({
-  type: z.enum(['QUICK_REPLY', 'URL', 'PHONE_NUMBER']),
-  text: z.string(),
+  type: z.enum([
+    'QUICK_REPLY',
+    'URL',
+    'PHONE_NUMBER',
+    'COPY_CODE',
+    'OTP',
+    'FLOW',
+    'CATALOG',
+    'MPM',
+    'VOICE_CALL',
+    'EXTENSION',
+    'ORDER_DETAILS',
+    'POSTBACK',
+    'REMINDER',
+    'SEND_LOCATION',
+    'SPM',
+  ]),
+  text: z.string().optional(),
   url: z.string().optional(),
   phone_number: z.string().optional(),
+  example: z.union([z.string(), z.array(z.string())]).optional(),
+  otp_type: z.enum(['COPY_CODE', 'ONE_TAP', 'ZERO_TAP']).optional(),
+  flow_id: z.string().optional(),
+  payload: z.union([z.string(), z.record(z.string(), z.unknown())]).optional(),
+  action: z.record(z.string(), z.unknown()).optional(),
 });
 
 /** Schema Zod para componentes de template (HEADER/BODY/FOOTER/BUTTONS). */
 export const TemplateComponentSchema = z.object({
-  type: z.enum(['HEADER', 'BODY', 'FOOTER', 'BUTTONS']),
-  format: z.enum(['TEXT', 'IMAGE', 'VIDEO', 'DOCUMENT']).optional(),
+  type: z.enum(['HEADER', 'BODY', 'FOOTER', 'BUTTONS', 'LIMITED_TIME_OFFER']),
+  format: z.enum(['TEXT', 'IMAGE', 'VIDEO', 'GIF', 'DOCUMENT', 'LOCATION']).optional(),
   text: z.string().optional(),
   buttons: z.array(TemplateButtonSchema).optional(),
+  limited_time_offer: z.object({
+    text: z.string(),
+    has_expiration: z.boolean().optional(),
+  }).optional(),
   example: z.unknown().optional(),
 });
 
@@ -56,6 +81,10 @@ export const TemplateSchema = z.object({
   content: z.string(),
   preview: z.string(),
   lastUpdated: z.string(),
+  headerMediaId: z.string().optional(),
+  headerMediaHash: z.string().optional(),
+  headerMediaPreviewUrl: z.string().optional(),
+  headerMediaPreviewExpiresAt: z.string().optional(),
   components: z.array(TemplateComponentSchema).optional(),
 });
 

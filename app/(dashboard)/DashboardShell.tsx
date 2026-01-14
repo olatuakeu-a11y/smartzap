@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useEffect, useState, useCallback } from 'react'
+import { cn } from '@/lib/utils'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -15,7 +16,10 @@ import {
     X,
     Bell,
     Zap,
+    ChevronLeft,
+    ChevronRight,
     FileText,
+    ClipboardList,
     AlertTriangle,
     CheckCircle2,
     RefreshCw,
@@ -23,11 +27,13 @@ import {
     MessageCircle,
     Sparkles,
     ExternalLink,
-    ChevronRight,
     Workflow
 } from 'lucide-react'
 import React from 'react'
 import { HealthStatus } from '@/lib/health-check'
+import { getPageWidthClass, PageLayoutProvider, usePageLayout } from '@/components/providers/PageLayoutProvider'
+import { campaignService, contactService, templateService, settingsService } from '@/services'
+import { dashboardService } from '@/services/dashboardService'
 
 // Setup step interface
 interface SetupStep {
@@ -130,7 +136,7 @@ const OnboardingOverlay = ({
             <div className="max-w-2xl w-full">
                 {/* Header */}
                 <div className="text-center mb-10">
-                    <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-primary-500 to-emerald-600 mb-6 shadow-lg shadow-primary-500/20">
+                    <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-linear-to-br from-primary-500 to-emerald-600 mb-6 shadow-lg shadow-primary-500/20">
                         <Sparkles size={40} className="text-white" />
                     </div>
                     <h1 className="text-4xl font-bold text-white tracking-tight mb-3">
@@ -165,7 +171,7 @@ const OnboardingOverlay = ({
                     </div>
                     <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
                         <div
-                            className="h-full bg-gradient-to-r from-primary-500 to-emerald-500 transition-all duration-500"
+                            className="h-full bg-linear-to-r from-primary-500 to-emerald-500 transition-all duration-500"
                             style={{ width: `${progressPercent}%` }}
                         />
                     </div>
@@ -401,54 +407,53 @@ const OnboardingOverlay = ({
 import { PrefetchLink } from '@/components/ui/PrefetchLink'
 import { AccountAlertBanner } from '@/components/ui/AccountAlertBanner'
 
-interface SidebarItemProps {
-    href: string
-    icon: React.ComponentType<{ size?: number }>
-    label: string
-    isActive: boolean
-    onClick?: () => void
-    onMouseEnter?: () => void
-}
-
-const SidebarItem = ({ href, icon: Icon, label, isActive, onClick, onMouseEnter }: SidebarItemProps) => (
-    <PrefetchLink
-        href={href}
-        onClick={onClick}
-        onMouseEnter={onMouseEnter}
-        className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 mb-1 ${isActive
-            ? 'bg-primary-500/10 text-primary-400 font-medium border border-primary-500/20 shadow-[0_0_15px_rgba(16,185,129,0.1)]'
-            : 'text-gray-400 hover:bg-white/5 hover:text-white'
-            }`}
-    >
-        <Icon size={20} />
-        <span>{label}</span>
-    </PrefetchLink>
-)
-
 export function DashboardShell({
     children,
     initialAuthStatus,
     initialHealthStatus
 }: {
     children: React.ReactNode
-    initialAuthStatus: any
-    initialHealthStatus: HealthStatus
+    initialAuthStatus?: any
+    initialHealthStatus?: HealthStatus | null
 }) {
     const pathname = usePathname()
     const router = useRouter()
     const queryClient = useQueryClient()
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
     const [isLoggingOut, setIsLoggingOut] = useState(false)
+    const [isSidebarExpanded, setIsSidebarExpanded] = useState(false)
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return
+        setIsSidebarExpanded(true)
+        window.localStorage.setItem('app-sidebar-collapsed', 'false')
+    }, [])
+
+    const updateSidebarExpanded = useCallback((value: boolean) => {
+        setIsSidebarExpanded(value)
+        if (typeof window === 'undefined') return
+        window.localStorage.setItem('app-sidebar-collapsed', value ? 'false' : 'true')
+    }, [])
 
     // Enable real-time toast notifications for global events
     // This shows toasts when campaigns complete, new contacts are added, etc.
     const { useRealtimeNotifications } = require('@/hooks/useRealtimeNotifications')
     useRealtimeNotifications({ enabled: true })
 
-    // Hydrate auth status in React Query if needed, or just use it directly
-    // For now we use the prop directly for immediate rendering
+    const { data: authStatus } = useQuery({
+        queryKey: ['authStatus'],
+        queryFn: async () => {
+            const response = await fetch('/api/auth/status')
+            if (!response.ok) throw new Error('Failed to fetch auth status')
+            return response.json()
+        },
+        initialData: initialAuthStatus ?? undefined,
+        staleTime: 5 * 60 * 1000,
+        refetchOnMount: false,
+        refetchOnWindowFocus: false,
+    })
 
-    const companyName = initialAuthStatus?.company?.name
+    const companyName = authStatus?.company?.name || initialAuthStatus?.company?.name
 
     // Logout handler
     const handleLogout = async () => {
@@ -469,19 +474,53 @@ export function DashboardShell({
         // console.log('Prefetching route:', path) // Debug
         switch (path) {
             case '/':
-                queryClient.prefetchQuery({ queryKey: ['dashboardStats'], staleTime: 15000 })
+                queryClient.prefetchQuery({
+                    queryKey: ['dashboardStats'],
+                    queryFn: dashboardService.getStats,
+                    staleTime: 15000,
+                })
+                queryClient.prefetchQuery({
+                    queryKey: ['recentCampaigns'],
+                    queryFn: dashboardService.getRecentCampaigns,
+                    staleTime: 15000,
+                })
                 break
             case '/campaigns':
-                queryClient.prefetchQuery({ queryKey: ['campaigns'], staleTime: 15000 })
+                queryClient.prefetchQuery({
+                    queryKey: ['campaigns', { page: 1, search: '', status: 'All' }],
+                    queryFn: () => campaignService.list({ limit: 20, offset: 0, search: '', status: 'All' }),
+                    staleTime: 15000,
+                })
                 break
             case '/templates':
-                queryClient.prefetchQuery({ queryKey: ['templates'], staleTime: Infinity })
+                queryClient.prefetchQuery({
+                    queryKey: ['templates'],
+                    queryFn: templateService.getAll,
+                    staleTime: Infinity,
+                })
                 break
             case '/contacts':
-                queryClient.prefetchQuery({ queryKey: ['contacts'], staleTime: 30000 })
+                queryClient.prefetchQuery({
+                    queryKey: ['contacts', { page: 1, search: '', status: 'ALL', tag: 'ALL' }],
+                    queryFn: () => contactService.list({ limit: 10, offset: 0, search: '', status: 'ALL', tag: 'ALL' }),
+                    staleTime: 30000,
+                })
                 break
             case '/settings':
-                queryClient.prefetchQuery({ queryKey: ['systemStatus'], staleTime: 60000 })
+                queryClient.prefetchQuery({
+                    queryKey: ['systemStatus'],
+                    queryFn: async () => {
+                        const response = await fetch('/api/system')
+                        if (!response.ok) throw new Error('Failed to fetch system status')
+                        return response.json()
+                    },
+                    staleTime: 60000,
+                })
+                queryClient.prefetchQuery({
+                    queryKey: ['settings'],
+                    queryFn: settingsService.get,
+                    staleTime: 60000,
+                })
                 break
         }
     }, [queryClient])
@@ -494,7 +533,7 @@ export function DashboardShell({
             if (!response.ok) throw new Error('Failed to fetch health')
             return response.json()
         },
-        initialData: initialHealthStatus,
+        initialData: initialHealthStatus ?? undefined,
         staleTime: 5 * 60 * 1000,
         gcTime: 10 * 60 * 1000,
         refetchInterval: (query) => {
@@ -506,17 +545,18 @@ export function DashboardShell({
         },
     })
 
-    const needsSetup = !healthStatus ||
-        healthStatus.services.database?.status !== 'ok' ||
-        healthStatus.services.qstash.status !== 'ok'
+    const needsSetup = !!healthStatus &&
+        (healthStatus.services.database?.status !== 'ok' ||
+            healthStatus.services.qstash.status !== 'ok')
 
     const navItems = [
         { path: '/', label: 'Dashboard', icon: LayoutDashboard },
         { path: '/campaigns', label: 'Campanhas', icon: MessageSquare },
-        { path: '/workflows', label: 'Workflows', icon: Workflow, hidden: true }, // TODO: In development
+        { path: '/workflows', label: 'Workflow', icon: Workflow, badge: 'beta' },
         { path: '/conversations', label: 'Conversas', icon: MessageCircle, hidden: true },
         { path: '/templates', label: 'Templates', icon: FileText },
         { path: '/contacts', label: 'Contatos', icon: Users },
+        { path: '/settings/ai', label: 'IA', icon: Sparkles },
         { path: '/settings', label: 'Configurações', icon: Settings },
     ].filter(item => !item.hidden)
 
@@ -528,8 +568,13 @@ export function DashboardShell({
         if (path === '/workflows') return 'Workflows'
         if (path === '/conversations') return 'Conversas'
         if (path.startsWith('/conversations/')) return 'Conversa'
+        if (path.startsWith('/builder')) return 'Workflow'
+        if (path === '/flows') return 'MiniApps'
+        if (path === '/flows/builder') return 'MiniApp Builder'
+        if (path.startsWith('/flows/builder/')) return 'Editor de MiniApp'
         if (path === '/templates') return 'Templates'
         if (path.startsWith('/contacts')) return 'Contatos'
+        if (path === '/settings/ai') return 'Central de IA'
         if (path.startsWith('/settings')) return 'Configurações'
         return 'App'
     }
@@ -545,144 +590,276 @@ export function DashboardShell({
         )
     }
 
+    const isBuilderRoute = pathname?.startsWith('/builder') ?? false
+
+    const CompactSidebar = (
+        <aside
+            className={`hidden lg:flex fixed lg:static inset-y-0 left-0 z-50 w-14 bg-zinc-950 border-r border-white/5 ${isSidebarExpanded ? 'lg:hidden' : ''}`}
+            aria-label="Menu de navegação compacto"
+        >
+            <div className="flex h-full w-14 flex-col items-center gap-3 py-3">
+                <button
+                    type="button"
+                    className="hidden lg:flex h-7 w-7 items-center justify-center rounded-md border border-white/10 text-gray-400 hover:text-white hover:bg-white/5 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2"
+                    onClick={() => updateSidebarExpanded(true)}
+                    title="Expandir menu"
+                    aria-label="Expandir menu de navegação"
+                >
+                    <ChevronRight size={14} aria-hidden="true" />
+                </button>
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-linear-to-br from-primary-600 to-primary-800 shadow-lg shadow-primary-900/20" role="img" aria-label="Logo SmartZap">
+                    <Zap className="text-white" size={18} fill="currentColor" aria-hidden="true" />
+                </div>
+                <nav className="flex flex-1 flex-col items-center gap-1.5 pt-1" aria-label="Menu principal">
+                    {navItems.map((item) => (
+                        <PrefetchLink
+                            key={item.path}
+                            href={item.path}
+                            className={`group relative flex h-9 w-9 items-center justify-center rounded-lg border border-transparent text-gray-400 transition-colors hover:border-white/10 hover:bg-white/5 hover:text-white focus-visible:ring-2 focus-visible:ring-primary-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950 ${pathname === item.path ? 'bg-white/5 text-white' : ''}`}
+                            onMouseEnter={() => prefetchRoute(item.path)}
+                            title={item.label}
+                            aria-label={item.label}
+                            aria-current={pathname === item.path ? 'page' : undefined}
+                        >
+                            <item.icon size={16} aria-hidden="true" />
+                            {item.badge && (
+                                <span className="absolute -right-1 -top-1 rounded-full bg-emerald-500/90 px-0.5 py-[1px] text-[7px] font-semibold uppercase tracking-wider text-black" aria-label={`${item.badge} - recurso em fase beta`}>
+                                    {item.badge}
+                                </span>
+                            )}
+                        </PrefetchLink>
+                    ))}
+                </nav>
+                <button
+                    onClick={handleLogout}
+                    disabled={isLoggingOut}
+                    className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 text-gray-400 transition-colors hover:bg-white/5 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-red-500 focus-visible:outline-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    title="Sair"
+                    aria-label="Sair da conta"
+                >
+                    {isLoggingOut ? (
+                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-500 border-t-white" role="status" aria-label="Saindo..." />
+                    ) : (
+                        <LogOut size={16} aria-hidden="true" />
+                    )}
+                </button>
+                <div className="text-[10px] text-gray-700 font-mono" aria-label={`Versão ${process.env.NEXT_PUBLIC_APP_VERSION}`}>
+                    v{process.env.NEXT_PUBLIC_APP_VERSION}
+                </div>
+            </div>
+        </aside>
+    )
+
+    const ExpandedSidebar = (
+        <aside
+            className={`fixed inset-y-0 left-0 z-50 w-56 bg-zinc-950 border-r border-white/5 transform transition-transform duration-200 ease-in-out ${isSidebarExpanded || isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
+                }`}
+            aria-label="Menu de navegação expandido"
+        >
+            <div className="flex h-full flex-col p-4">
+                <div className="h-16 flex items-center px-2 mb-6">
+                    <div className="w-10 h-10 bg-linear-to-br from-primary-600 to-primary-800 rounded-xl flex items-center justify-center mr-3 shadow-lg shadow-primary-900/20 border border-white/10" role="img" aria-label="Logo SmartZap">
+                        <Zap className="text-white" size={20} fill="currentColor" aria-hidden="true" />
+                    </div>
+                    <div>
+                        <span className="text-xl font-bold text-white tracking-tight block">SmartZap</span>
+                    </div>
+                    <button
+                        type="button"
+                        className="ml-auto h-7 w-7 items-center justify-center rounded-md border border-white/10 text-gray-400 hover:text-white hover:bg-white/5 transition-colors hidden lg:flex focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2"
+                        onClick={() => updateSidebarExpanded(false)}
+                        title="Recolher menu"
+                        aria-label="Recolher menu de navegação"
+                    >
+                        <ChevronLeft size={14} aria-hidden="true" />
+                    </button>
+                    <button
+                        className="ml-auto lg:hidden focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2 rounded-md p-1"
+                        onClick={() => setIsMobileMenuOpen(false)}
+                        aria-label="Fechar menu"
+                    >
+                        <X size={20} className="text-gray-400" aria-hidden="true" />
+                    </button>
+                </div>
+
+                <nav className="flex-1 space-y-6 overflow-y-auto no-scrollbar" aria-label="Menu principal">
+                    <div>
+                        <PrefetchLink
+                            href="/campaigns/new"
+                            className="group relative inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl font-medium transition-all shadow-lg shadow-primary-900/20 overflow-hidden focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
+                            aria-label="Criar nova campanha"
+                        >
+                            <div className="absolute inset-0 bg-primary-600 group-hover:bg-primary-500 transition-colors"></div>
+                            <div className="absolute inset-0 bg-linear-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700"></div>
+                            <Plus size={16} className="relative z-10 text-white" aria-hidden="true" />
+                            <span className="relative z-10 text-white">Nova Campanha</span>
+                        </PrefetchLink>
+                    </div>
+
+                    <div className="space-y-1 px-2">
+                        <p className="px-2 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Menu</p>
+                        {navItems.map((item) => (
+                            <PrefetchLink
+                                key={item.path}
+                                href={item.path}
+                                onClick={() => setIsMobileMenuOpen(false)}
+                                onMouseEnter={() => prefetchRoute(item.path)}
+                                className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 mb-1 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500 ${pathname === item.path
+                                    ? 'bg-primary-500/10 text-primary-400 font-medium border border-primary-500/20 shadow-[0_0_15px_rgba(16,185,129,0.1)]'
+                                    : 'text-gray-400 hover:bg-white/5 hover:text-white'
+                                    }`}
+                                aria-current={pathname === item.path ? 'page' : undefined}
+                            >
+                                <item.icon size={20} aria-hidden="true" />
+                                <span className="flex items-center gap-2">
+                                    {item.label}
+                                    {item.badge && (
+                                        <span className="rounded-full bg-emerald-500/20 px-1 py-[1px] text-[8px] font-semibold uppercase tracking-wider text-emerald-200 border border-emerald-500/30" aria-label={`${item.badge} - recurso em fase beta`}>
+                                            {item.badge}
+                                        </span>
+                                    )}
+                                </span>
+                            </PrefetchLink>
+                        ))}
+                    </div>
+                </nav>
+
+                <div className="pt-4 mt-4 border-t border-white/5">
+                    <button
+                        onClick={handleLogout}
+                        disabled={isLoggingOut}
+                        className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 cursor-pointer transition-colors border border-transparent hover:border-white/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-red-500 focus-visible:outline-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="Sair da conta"
+                        aria-label="Sair da conta"
+                    >
+                        <div className="w-9 h-9 rounded-full bg-zinc-800 border border-white/10 flex items-center justify-center overflow-hidden" aria-hidden="true">
+                            <span className="text-lg font-bold text-primary-400">
+                                {(companyName || 'SmartZap').charAt(0).toUpperCase()}
+                            </span>
+                        </div>
+                        <div className="flex-1 min-w-0 text-left">
+                            <p className="text-sm font-medium text-white truncate">{companyName || 'SmartZap'}</p>
+                            <p className="text-xs text-gray-500 truncate">Administrador</p>
+                        </div>
+                        {isLoggingOut ? (
+                            <div className="w-4 h-4 border-2 border-gray-500 border-t-white rounded-full animate-spin" role="status" aria-label="Saindo..." />
+                        ) : (
+                            <LogOut size={16} className="text-gray-500 hover:text-white transition-colors" aria-hidden="true" />
+                        )}
+                    </button>
+
+                    <div className="mt-2 text-[10px] text-gray-700 text-center font-mono" aria-label={`Versão ${process.env.NEXT_PUBLIC_APP_VERSION}`}>
+                        v{process.env.NEXT_PUBLIC_APP_VERSION}
+                    </div>
+                </div>
+            </div>
+        </aside>
+    )
+
+    if (isBuilderRoute) {
+        return (
+            <PageLayoutProvider>
+                <div
+                    className="min-h-screen bg-zinc-950 text-gray-100 flex font-sans selection:bg-primary-500/30"
+                    style={{
+                        "--builder-sidebar-width": "56px",
+                        "--background": "oklch(0 0 0)",
+                        "--sidebar": "oklch(0 0 0)",
+                        "--border": "oklch(0.27 0 0)",
+                    } as React.CSSProperties}
+                >
+                    {CompactSidebar}
+                    <div className="flex-1 min-w-0 lg:pl-14">
+                        {children}
+                    </div>
+                </div>
+            </PageLayoutProvider>
+        )
+    }
+
     return (
-        <div className="min-h-screen bg-grid-dots text-gray-100 flex font-sans selection:bg-primary-500/30">
+        <PageLayoutProvider>
+            <div className="min-h-screen text-gray-100 flex font-sans selection:bg-primary-500/30">
             {/* Mobile Overlay */}
             {isMobileMenuOpen && (
                 <div
                     className="fixed inset-0 bg-black/80 backdrop-blur-sm z-40 lg:hidden"
                     onClick={() => setIsMobileMenuOpen(false)}
+                    role="button"
+                    aria-label="Fechar menu"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                        if (e.key === 'Escape' || e.key === 'Enter') {
+                            setIsMobileMenuOpen(false)
+                        }
+                    }}
                 />
             )}
 
             {/* Sidebar */}
-            <aside
-                className={`fixed lg:static inset-y-0 left-0 z-50 w-72 bg-zinc-950 lg:bg-transparent border-r border-white/5 transform transition-transform duration-200 ease-in-out ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
-                    }`}
-            >
-                <div className="h-full flex flex-col p-4">
-                    {/* Logo */}
-                    <div className="h-16 flex items-center px-2 mb-6">
-                        <div className="w-10 h-10 bg-gradient-to-br from-primary-600 to-primary-800 rounded-xl flex items-center justify-center mr-3 shadow-lg shadow-primary-900/20 border border-white/10">
-                            <Zap className="text-white" size={20} fill="currentColor" />
-                        </div>
-                        <div>
-                            <span className="text-xl font-bold text-white tracking-tight block">SmartZap</span>
-                            <span className="text-[10px] text-gray-500 uppercase tracking-widest font-medium">Workspace</span>
-                        </div>
-                        <button
-                            className="ml-auto lg:hidden"
-                            onClick={() => setIsMobileMenuOpen(false)}
-                        >
-                            <X size={20} className="text-gray-400" />
-                        </button>
-                    </div>
-
-                    {/* Nav */}
-                    <nav className="flex-1 space-y-6 overflow-y-auto no-scrollbar">
-                        <div>
-                            <PrefetchLink
-                                href="/campaigns/new"
-                                className="w-full group relative flex items-center justify-center gap-2 py-3 rounded-xl font-medium transition-all shadow-lg shadow-primary-900/20 overflow-hidden"
-                            >
-                                <div className="absolute inset-0 bg-primary-600 group-hover:bg-primary-500 transition-colors"></div>
-                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
-                                <Plus size={18} className="relative z-10 text-white" />
-                                <span className="relative z-10 text-white">Nova Campanha</span>
-                            </PrefetchLink>
-                        </div>
-
-                        <div className="space-y-1">
-                            <p className="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Menu</p>
-                            {navItems.map((item) => (
-                                <SidebarItem
-                                    key={item.path}
-                                    href={item.path}
-                                    icon={item.icon}
-                                    label={item.label}
-                                    isActive={pathname === item.path}
-                                    onClick={() => setIsMobileMenuOpen(false)}
-                                    onMouseEnter={() => prefetchRoute(item.path)}
-                                />
-                            ))}
-                        </div>
-                    </nav>
-
-                    {/* User Profile */}
-                    <div className="pt-4 mt-4 border-t border-white/5">
-                        <button
-                            onClick={handleLogout}
-                            disabled={isLoggingOut}
-                            className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 cursor-pointer transition-colors border border-transparent hover:border-white/5"
-                        >
-                            <div className="w-9 h-9 rounded-full bg-zinc-800 border border-white/10 flex items-center justify-center overflow-hidden">
-                                <span className="text-lg font-bold text-primary-400">
-                                    {companyName?.charAt(0)?.toUpperCase() || 'S'}
-                                </span>
-                            </div>
-                            <div className="flex-1 min-w-0 text-left">
-                                <p className="text-sm font-medium text-white truncate">{companyName || 'SmartZap'}</p>
-                                <p className="text-xs text-gray-500 truncate">Administrador</p>
-                            </div>
-                            {isLoggingOut ? (
-                                <div className="w-4 h-4 border-2 border-gray-500 border-t-white rounded-full animate-spin" />
-                            ) : (
-                                <LogOut size={16} className="text-gray-500 hover:text-white transition-colors" />
-                            )}
-                        </button>
-
-                        <div className="mt-2 text-[10px] text-gray-700 text-center font-mono">
-                            v{process.env.NEXT_PUBLIC_APP_VERSION}
-                        </div>
-                    </div>
-                </div>
-            </aside >
+            {CompactSidebar}
+            {ExpandedSidebar}
 
             {/* Main Content */}
-            < div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden" >
+            <div
+                className={cn(
+                    "flex-1 flex flex-col min-w-0 h-screen overflow-hidden",
+                    isSidebarExpanded ? "lg:pl-56" : "lg:pl-14"
+                )}
+            >
                 {/* Header */}
-                < header className="h-20 flex items-center justify-between px-6 lg:px-10 flex-shrink-0" >
+                <header className="h-20 flex items-center justify-between px-6 lg:px-10 shrink-0">
                     <div className="flex items-center">
                         <button
-                            className="lg:hidden p-2 text-gray-400 mr-4"
-                            onClick={() => setIsMobileMenuOpen(true)}
+                            className="lg:hidden p-2 text-gray-400 mr-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2 rounded-md"
+                            onClick={() => {
+                                updateSidebarExpanded(true)
+                                setIsMobileMenuOpen(true)
+                            }}
+                            aria-label="Abrir menu de navegação"
                         >
-                            <Menu size={24} />
+                            <Menu size={24} aria-hidden="true" />
                         </button>
 
-                        <div className="hidden md:flex items-center text-sm text-gray-500">
+                        <nav className="hidden md:flex items-center text-sm text-gray-500" aria-label="Breadcrumb">
                             <span className="hover:text-white cursor-pointer transition-colors">App</span>
-                            <span className="mx-2 text-gray-700">/</span>
-                            <span className="text-gray-300">{getPageTitle(pathname || '/')}</span>
-                        </div>
+                            <span className="mx-2 text-gray-700" aria-hidden="true">/</span>
+                            <span className="text-gray-300" aria-current="page">{getPageTitle(pathname || '/')}</span>
+                        </nav>
                     </div>
 
                     <div className="flex items-center gap-6">
-                        <div className="relative group">
-                            <Bell size={20} className="text-gray-500 group-hover:text-white transition-colors cursor-pointer" />
-                            <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-primary-500 rounded-full border-2 border-zinc-950"></span>
-                        </div>
+                        <button className="relative group focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2 rounded-md p-1" aria-label="Notificações (1 nova)">
+                            <Bell size={20} className="text-gray-500 group-hover:text-white transition-colors cursor-pointer" aria-hidden="true" />
+                            <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-primary-500 rounded-full border-2 border-zinc-950" aria-label="1 notificação não lida"></span>
+                        </button>
                     </div>
-                </header >
+                </header>
 
                 {/* Page Content */}
-                < main className={`flex-1 ${pathname?.includes('/campaigns/new') || (pathname?.includes('/templates/') && pathname !== '/templates') || pathname?.startsWith('/contacts')
-                    ? 'overflow-hidden'
-                    : 'overflow-auto p-6 lg:p-10'
-                    }`
-                }>
-                    <div className={
-                        pathname?.includes('/campaigns/new') || (pathname?.includes('/templates/') && pathname !== '/templates') || pathname?.startsWith('/contacts')
-                            ? 'h-full'
-                            : 'max-w-7xl mx-auto'
-                    }>
-                        {/* Account alerts banner - hide in fullscreen mode */}
-                        {!pathname?.includes('/campaigns/new') && <AccountAlertBanner />}
+                <PageContentShell>
+                    {children}
+                </PageContentShell>
+            </div>
+        </div>
+        </PageLayoutProvider>
+    )
+}
 
-                        {children}
-                    </div>
-                </main >
-            </div >
-        </div >
+function PageContentShell({ children }: { children: React.ReactNode }) {
+    const layout = usePageLayout()
+
+    const mainOverflowClass = layout.overflow === 'hidden' ? 'overflow-hidden' : 'overflow-auto'
+    const mainPaddingClass = layout.padded ? 'p-6 lg:p-10' : ''
+    const wrapperWidthClass = getPageWidthClass(layout.width)
+    const wrapperHeightClass = layout.height === 'full' ? 'h-full' : ''
+
+    return (
+        <main className={`flex-1 ${mainOverflowClass} ${mainPaddingClass}`.trim()}>
+            <div className={`${wrapperWidthClass} ${wrapperHeightClass}`.trim()}>
+                {layout.showAccountAlerts && <AccountAlertBanner />}
+                {children}
+            </div>
+        </main>
     )
 }

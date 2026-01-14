@@ -13,12 +13,14 @@ export type SkipCode =
 
 export type TemplateVariablesPositional = {
   header?: string[]
+  headerMediaId?: string
   body: string[]
   buttons?: Record<string, string>
 }
 
 export type TemplateVariablesNamed = {
   header?: Record<string, string>
+  headerMediaId?: string
   body: Record<string, string>
   buttons?: Record<string, string>
 }
@@ -70,6 +72,7 @@ export interface ContactLike {
 
 export interface ResolvedTemplateValues {
   header?: Array<{ key: string; text: string }>
+  headerMediaId?: string
   body: Array<{ key: string; text: string }>
   buttons?: Array<{ index: number; params: Array<{ key: string; text: string }> }>
 }
@@ -101,7 +104,8 @@ function isBlank(value: unknown): boolean {
 
 function getParameterFormatFromTemplate(template: any): TemplateParameterFormat {
   const pf = (template?.parameter_format || template?.parameterFormat) as unknown
-  return pf === 'named' ? 'named' : 'positional'
+  const normalized = typeof pf === 'string' ? pf.toLowerCase() : ''
+  return normalized === 'named' ? 'named' : 'positional'
 }
 
 function extractPositionalKeys(text: string): string[] {
@@ -131,7 +135,7 @@ function extractNamedKeys(text: string): string[] {
   for (const m of matches) {
     const name = m.replace(/[{}]/g, '')
     // documented rule: lowercase, numbers, underscore
-    if (!/^[a-z0-9_]+$/.test(name)) {
+    if (!/^[a-z][a-z0-9_]*$/.test(name)) {
       throw new Error(`Placeholder nomeado inválido: {{${name}}}. Use apenas letras minúsculas, números e underscore.`)
     }
     names.add(name)
@@ -249,6 +253,37 @@ export function resolveVarValue(raw: string | undefined, contact: ContactLike): 
   return val
 }
 
+// Versão “estrita” usada APENAS no pré-check.
+// Objetivo: detectar valores realmente ausentes, sem fallback cosmético (ex.: nome → "Cliente").
+function resolveVarValueForPrecheck(raw: string | undefined, contact: ContactLike): string {
+  const val = (raw ?? '').trim()
+
+  // Tokens documentados internamente do SmartZap (não Meta): nomes em pt-BR + compat
+  if (val === '{{nome}}' || val === '{{name}}' || val === '{{contact.name}}') {
+    return String(contact.name || '').trim()
+  }
+  if (val === '{{telefone}}' || val === '{{phone}}' || val === '{{contact.phone}}') {
+    return String(contact.phone || '').trim()
+  }
+  if (val === '{{email}}' || val === '{{contact.email}}') {
+    const email = (contact.email ?? (contact.custom_fields as any)?.email ?? '')
+    return String(email || '').trim()
+  }
+
+  // Custom field token: {{campo_personalizado}}
+  const customFieldMatch = val.match(/^\{\{([a-zA-Z0-9_]+)\}\}$/)
+  if (customFieldMatch) {
+    const fieldName = customFieldMatch[1]
+    const customFields = (contact.custom_fields || {}) as Record<string, unknown>
+    if (customFields[fieldName] !== undefined && customFields[fieldName] !== null) {
+      return String(customFields[fieldName]).trim()
+    }
+    return ''
+  }
+
+  return val
+}
+
 function normalizePositionalArrayOrMap(input: unknown): string[] {
   if (Array.isArray(input)) return input.map(v => String(v ?? ''))
   if (input && typeof input === 'object') {
@@ -325,12 +360,15 @@ export function precheckContactForTemplate(
     const headerArr = normalizePositionalArrayOrMap((rawTemplateVariables as any)?.header)
     const bodyArr = normalizePositionalArrayOrMap((rawTemplateVariables as any)?.body)
     const buttons = ((rawTemplateVariables as any)?.buttons || {}) as Record<string, string>
+    const headerMediaId =
+      ((rawTemplateVariables as any)?.headerMediaId as string | undefined) ||
+      ((rawTemplateVariables as any)?.header_media_id as string | undefined)
 
     if (spec.header?.requiredKeys.length) {
       const key = spec.header.requiredKeys[0] // only one
       const idx = Number(key)
       const raw = String(headerArr[idx - 1] ?? '')
-      const resolved = resolveVarValue(raw, contact)
+      const resolved = resolveVarValueForPrecheck(raw, contact)
       values.header = [{ key, text: resolved }]
       requiredParams.push({ where: 'header', key, raw, resolved })
     }
@@ -338,7 +376,7 @@ export function precheckContactForTemplate(
     values.body = spec.body.requiredKeys.map(k => {
       const idx = Number(k)
       const raw = String(bodyArr[idx - 1] ?? '')
-      const resolved = resolveVarValue(raw, contact)
+      const resolved = resolveVarValueForPrecheck(raw, contact)
       requiredParams.push({ where: 'body', key: k, raw, resolved })
       return { key: k, text: resolved }
     })
@@ -354,34 +392,39 @@ export function precheckContactForTemplate(
         const legacy = buttons[`button_${b.index}_${idx - 1}`]
         const modern = buttons[`button_${b.index}_${idx}`]
         const raw = String((legacy ?? modern) ?? '')
-        const resolved = resolveVarValue(raw, contact)
+        const resolved = resolveVarValueForPrecheck(raw, contact)
         params.push({ key: k, text: resolved })
         requiredParams.push({ where: 'button', key: k, buttonIndex: b.index, raw, resolved })
       }
       buttonValues.push({ index: b.index, params })
     }
     if (buttonValues.length) values.buttons = buttonValues
+    if (headerMediaId && headerMediaId.trim()) values.headerMediaId = headerMediaId.trim()
   } else {
     // named
     const headerMap = normalizeNamedMap((rawTemplateVariables as any)?.header)
     const bodyMap = normalizeNamedMap((rawTemplateVariables as any)?.body)
+    const headerMediaId =
+      ((rawTemplateVariables as any)?.headerMediaId as string | undefined) ||
+      ((rawTemplateVariables as any)?.header_media_id as string | undefined)
 
     if (spec.header?.requiredKeys.length) {
       const key = spec.header.requiredKeys[0]
       const raw = String(headerMap[key] ?? '')
-      const resolved = resolveVarValue(raw, contact)
+      const resolved = resolveVarValueForPrecheck(raw, contact)
       values.header = [{ key, text: resolved }]
       requiredParams.push({ where: 'header', key, raw, resolved })
     }
 
     values.body = spec.body.requiredKeys.map(k => {
       const raw = String(bodyMap[k] ?? '')
-      const resolved = resolveVarValue(raw, contact)
+      const resolved = resolveVarValueForPrecheck(raw, contact)
       requiredParams.push({ where: 'body', key: k, raw, resolved })
       return { key: k, text: resolved }
     })
 
     // buttons dynamic is forbidden for named, so nothing to resolve
+    if (headerMediaId && headerMediaId.trim()) values.headerMediaId = headerMediaId.trim()
   }
 
   const missingDetails: MissingParamDetail[] = requiredParams
@@ -413,14 +456,86 @@ export function precheckContactForTemplate(
   return { ok: true, normalizedPhone, values }
 }
 
+type TemplateButtonInfo = {
+  index: number
+  button: TemplateButton
+}
+
+function collectTemplateButtons(components: TemplateComponent[]): TemplateButtonInfo[] {
+  const buttons: TemplateButtonInfo[] = []
+  let index = 0
+  for (const comp of components) {
+    if (comp.type !== 'BUTTONS') continue
+    const btns = (comp.buttons as TemplateButton[]) || []
+    for (const btn of btns) {
+      buttons.push({ index, button: btn })
+      index += 1
+    }
+  }
+  return buttons
+}
+
+function mapButtonSubType(buttonType?: TemplateButton['type']): string | null {
+  switch (buttonType) {
+    case 'URL':
+      return 'url'
+    case 'QUICK_REPLY':
+      return 'quick_reply'
+    case 'PHONE_NUMBER':
+      return 'phone_number'
+    case 'COPY_CODE':
+      return 'copy_code'
+    case 'OTP':
+      return 'otp'
+    case 'FLOW':
+      return 'flow'
+    case 'CATALOG':
+      return 'catalog'
+    case 'MPM':
+      return 'mpm'
+    case 'VOICE_CALL':
+      return 'voice_call'
+    case 'ORDER_DETAILS':
+      return 'order_details'
+    case 'SPM':
+      return 'spm'
+    case 'SEND_LOCATION':
+      return 'send_location'
+    case 'REMINDER':
+      return 'reminder'
+    case 'POSTBACK':
+      return 'postback'
+    case 'EXTENSION':
+      return 'extension'
+    default:
+      return null
+  }
+}
+
+function generateFlowToken(flowId?: string, campaignId?: string): string {
+  const seed = Math.random().toString(36).slice(2, 8)
+  const stamp = Date.now().toString(36)
+  const suffix = campaignId ? `:c:${campaignId}` : ''
+  return `smartzap:${flowId || 'flow'}:${stamp}:${seed}${suffix}`
+}
+
+function appendCampaignToFlowToken(token: string, campaignId?: string): string {
+  if (!campaignId) return token
+  if (token.includes(':c:')) return token
+  if (!token.startsWith('smartzap:')) return token
+  return `${token}:c:${campaignId}`
+}
+
 export function buildMetaTemplatePayload(input: {
   to: string
   templateName: string
   language: string
   parameterFormat: TemplateParameterFormat
   values: ResolvedTemplateValues
+  template?: Template
+  campaignId?: string
 }): any {
-  const { to, templateName, language, parameterFormat, values } = input
+  const { to, templateName, language, parameterFormat, values, template, campaignId } = input
 
   const payload: any = {
     messaging_product: 'whatsapp',
@@ -433,7 +548,67 @@ export function buildMetaTemplatePayload(input: {
     },
   }
 
-  if (values.header?.length) {
+  const headerComponent = (template?.components || []).find(
+    (c: any) => String(c?.type || '').toUpperCase() === 'HEADER'
+  ) as any | undefined
+  const headerFormat = headerComponent?.format ? String(headerComponent.format).toUpperCase() : undefined
+  const headerIsMedia = headerFormat && ['IMAGE', 'VIDEO', 'DOCUMENT', 'GIF'].includes(headerFormat)
+
+  const extractHeaderExampleLink = (): string | undefined => {
+    const example = headerComponent?.example
+    if (!example) return undefined
+
+    let obj: any = example
+    if (typeof example === 'string') {
+      try {
+        obj = JSON.parse(example)
+      } catch {
+        obj = undefined
+      }
+    }
+
+    const handle = obj?.header_handle
+    if (Array.isArray(handle) && typeof handle[0] === 'string') {
+      const v = handle[0].trim()
+      return v.length ? v : undefined
+    }
+    return undefined
+  }
+
+  // HEADER: se for mídia, precisamos incluir parâmetro de mídia.
+  // Se não houver fonte (link/id), é melhor falhar de forma explícita do que enviar payload inválido
+  // e estourar erro na Meta (#132012 expected IMAGE received UNKNOWN).
+  if (headerIsMedia) {
+    const headerMediaId = values.headerMediaId?.trim()
+    const exampleLink = extractHeaderExampleLink()
+    const hasLink = Boolean(exampleLink && /^https?:\/\//i.test(exampleLink))
+    if (!headerMediaId && !hasLink) {
+      throw new Error(
+        `Template "${templateName}" possui HEADER ${headerFormat}, mas não há mídia configurada para envio. ` +
+          'Dica: sincronize os templates (para obter URL de exemplo) ou implemente suporte a mídia de header no disparo.'
+      )
+    }
+
+    const mediaParamType = headerFormat === 'IMAGE' ? 'image' : headerFormat === 'DOCUMENT' ? 'document' : 'video'
+    const mediaKey = mediaParamType
+    payload.template.components.push({
+      type: 'header',
+      parameters: [
+        headerMediaId
+          ? {
+              type: mediaParamType,
+              [mediaKey]: { id: headerMediaId },
+            }
+          : {
+              type: mediaParamType,
+              [mediaKey]: { link: exampleLink },
+            },
+      ],
+    })
+  }
+
+  // HEADER de texto (apenas se o template NÃO for header de mídia)
+  if (!headerIsMedia && values.header?.length) {
     payload.template.components.push({
       type: 'header',
       parameters: values.header.map((p) =>
@@ -455,12 +630,69 @@ export function buildMetaTemplatePayload(input: {
     })
   }
 
-  if (values.buttons?.length) {
+  const buttonParamsByIndex = new Map<number, Array<{ key: string; text: string }>>(
+    (values.buttons || []).map((b) => [b.index, b.params])
+  )
+
+  if (template?.components?.length) {
+    const templateButtons = collectTemplateButtons(template.components)
+    for (const entry of templateButtons) {
+      const subType = mapButtonSubType(entry.button.type)
+      if (!subType) continue
+
+      const params = buttonParamsByIndex.get(entry.index) || []
+      const component: any = {
+        type: 'button',
+        sub_type: subType,
+        index: String(entry.index),
+      }
+
+      if (subType === 'url') {
+        if (params.length) {
+          component.parameters = params.map((p) => ({ type: 'text', text: p.text }))
+        }
+      } else if (subType === 'quick_reply') {
+        if (params.length) {
+          component.parameters = params.map((p) => ({ type: 'payload', payload: p.text }))
+        }
+      } else if (subType === 'copy_code') {
+        if (params[0]?.text) {
+          component.parameters = [{ type: 'coupon_code', coupon_code: params[0].text }]
+        }
+      } else if (subType === 'flow') {
+        const flowId =
+          (entry.button.flow_id as string | undefined) ||
+          ((entry.button.action as any)?.flow_id as string | undefined)
+        const rawFlowToken = params[0]?.text?.trim()
+        const flowToken = rawFlowToken
+          ? appendCampaignToFlowToken(rawFlowToken, campaignId)
+          : generateFlowToken(flowId, campaignId)
+        const action: Record<string, unknown> = { flow_token: flowToken }
+
+        const flowAction = (entry.button.action as any)?.flow_action
+        const flowActionPayload = (entry.button.action as any)?.flow_action_payload
+        if (flowAction) action.flow_action = flowAction
+        if (flowActionPayload) action.flow_action_payload = flowActionPayload
+
+        component.parameters = [{ type: 'action', action }]
+      } else if (subType === 'voice_call') {
+        if (entry.button.payload) {
+          component.parameters = [{ type: 'payload', payload: entry.button.payload }]
+        }
+      } else if (subType === 'order_details') {
+        if (entry.button.action) {
+          component.parameters = [{ type: 'action', action: entry.button.action }]
+        }
+      }
+
+      payload.template.components.push(component)
+    }
+  } else if (values.buttons?.length) {
     for (const btn of values.buttons) {
       payload.template.components.push({
         type: 'button',
         sub_type: 'url',
-        index: btn.index,
+        index: String(btn.index),
         parameters: btn.params.map((p) => ({ type: 'text', text: p.text })),
       })
     }

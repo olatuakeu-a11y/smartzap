@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { GeneratedTemplate } from '@/lib/ai/services/template-agent';
 import { templateService } from '@/lib/whatsapp/template.service';
+import { Page, PageHeader, PageTitle } from '@/components/ui/page';
 
 export default function NewTemplateProjectPage() {
     const router = useRouter();
@@ -116,21 +117,26 @@ export default function NewTemplateProjectPage() {
     };
 
     return (
-        <div className="container mx-auto py-8 max-w-5xl">
-            <div className="flex items-center gap-4 mb-8">
-                <button onClick={() => router.back()} className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full">
-                    <ArrowLeft className="w-5 h-5" />
-                </button>
-                <h1 className="text-2xl font-bold">Novo Projeto de Templates</h1>
-                {strategy && (
-                    <Badge variant="outline" className="ml-4 gap-2 py-1 px-3">
-                        {strategy === 'marketing' && <Megaphone className="w-3 h-3" />}
-                        {strategy === 'utility' && <Wrench className="w-3 h-3" />}
-                        {strategy === 'bypass' && <VenetianMask className="w-3 h-3" />}
-                        Modo: {strategy.toUpperCase()}
-                    </Badge>
-                )}
-            </div>
+        <Page>
+            <PageHeader>
+                <div className="flex items-center gap-4">
+                    <button
+                        onClick={() => router.back()}
+                        className="p-2 rounded-full border border-white/10 bg-zinc-950/40 text-gray-200 hover:text-white hover:bg-white/5"
+                    >
+                        <ArrowLeft className="w-5 h-5" />
+                    </button>
+                    <PageTitle className="text-white">Novo Projeto de Templates</PageTitle>
+                    {strategy && (
+                        <Badge variant="outline" className="ml-2 gap-2 py-1 px-3 border-white/10 text-gray-200">
+                            {strategy === 'marketing' && <Megaphone className="w-3 h-3" />}
+                            {strategy === 'utility' && <Wrench className="w-3 h-3" />}
+                            {strategy === 'bypass' && <VenetianMask className="w-3 h-3" />}
+                            Modo: {strategy.toUpperCase()}
+                        </Badge>
+                    )}
+                </div>
+            </PageHeader>
 
             <StrategySelectorModal
                 isOpen={!strategy}
@@ -143,32 +149,32 @@ export default function NewTemplateProjectPage() {
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     {/* Left: Input */}
                     <div className="lg:col-span-2 space-y-6">
-                        <div className="bg-white dark:bg-zinc-900 border dark:border-zinc-800 p-6 rounded-xl shadow-sm">
-                            <div className="flex items-center gap-2 mb-4 text-emerald-600">
+                        <div className="rounded-2xl border border-white/10 bg-zinc-900/60 p-6 shadow-[0_12px_30px_rgba(0,0,0,0.35)]">
+                            <div className="flex items-center gap-2 mb-4 text-emerald-200">
                                 <Sparkles className="w-5 h-5" />
-                                <h2 className="font-semibold">O que você deseja criar?</h2>
+                                <h2 className="font-semibold text-white">O que você deseja criar?</h2>
                             </div>
 
                             <textarea
                                 value={prompt}
                                 onChange={(e) => setPrompt(e.target.value)}
                                 placeholder="Ex: Templates para confirmação de agendamento de consulta médica com opção de remarcar..."
-                                className="w-full h-40 p-4 rounded-lg border dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-950 focus:ring-2 focus:ring-emerald-500 outline-none resize-none text-lg"
+                                className="w-full h-40 p-4 rounded-xl border border-white/10 bg-zinc-950/40 focus:ring-2 focus:ring-emerald-500/30 outline-none resize-none text-base text-white placeholder:text-gray-600"
                             />
 
-                            <div className="flex items-center justify-between mt-4 text-sm text-zinc-500">
+                            <div className="flex items-center justify-between mt-4 text-xs text-gray-500">
                                 <span>Dica: Seja específico sobre o objetivo e tom de voz.</span>
                                 <span>{prompt.length} caracteres</span>
                             </div>
                         </div>
 
                         <div className="grid grid-cols-2 gap-4">
-                            <div className="bg-white dark:bg-zinc-900 border dark:border-zinc-800 p-4 rounded-xl">
-                                <label className="block text-sm font-medium mb-2">Quantidade</label>
+                            <div className="rounded-2xl border border-white/10 bg-zinc-900/60 p-4 shadow-[0_12px_30px_rgba(0,0,0,0.35)]">
+                                <label className="block text-xs uppercase tracking-widest text-gray-500 mb-2">Quantidade</label>
                                 <select
                                     value={quantity}
                                     onChange={(e) => setQuantity(Number(e.target.value))}
-                                    className="w-full p-2 rounded bg-zinc-50 dark:bg-zinc-950 border dark:border-zinc-700"
+                                    className="w-full h-11 rounded-xl bg-zinc-950/40 border border-white/10 px-3 text-white"
                                 >
                                     <option value={3}>3 Opções</option>
                                     <option value={5}>5 Opções</option>
@@ -176,12 +182,12 @@ export default function NewTemplateProjectPage() {
                                 </select>
                             </div>
 
-                            <div className="bg-white dark:bg-zinc-900 border dark:border-zinc-800 p-4 rounded-xl">
-                                <label className="block text-sm font-medium mb-2">Idioma</label>
+                            <div className="rounded-2xl border border-white/10 bg-zinc-900/60 p-4 shadow-[0_12px_30px_rgba(0,0,0,0.35)]">
+                                <label className="block text-xs uppercase tracking-widest text-gray-500 mb-2">Idioma</label>
                                 <select
                                     value={language}
                                     onChange={(e) => setLanguage(e.target.value)}
-                                    className="w-full p-2 rounded bg-zinc-50 dark:bg-zinc-950 border dark:border-zinc-700"
+                                    className="w-full h-11 rounded-xl bg-zinc-950/40 border border-white/10 px-3 text-white"
                                 >
                                     <option value="pt_BR">Português (Brasil)</option>
                                     <option value="en_US">Inglês (EUA)</option>
@@ -190,14 +196,14 @@ export default function NewTemplateProjectPage() {
                             </div>
                         </div>
 
-                        <div className="bg-white dark:bg-zinc-900 border dark:border-zinc-800 p-4 rounded-xl">
-                            <label className="block text-sm font-medium mb-2">URL Padrão (Opcional)</label>
+                        <div className="rounded-2xl border border-white/10 bg-zinc-900/60 p-4 shadow-[0_12px_30px_rgba(0,0,0,0.35)]">
+                            <label className="block text-xs uppercase tracking-widest text-gray-500 mb-2">URL Padrão (Opcional)</label>
                             <input
                                 type="url"
                                 value={universalUrl}
                                 onChange={(e) => setUniversalUrl(e.target.value)}
                                 placeholder="https://seu-site.com"
-                                className="w-full p-2 rounded bg-zinc-50 dark:bg-zinc-950 border dark:border-zinc-700"
+                                className="w-full h-11 rounded-xl bg-zinc-950/40 border border-white/10 px-3 text-white placeholder:text-gray-600"
                             />
                             <p className="text-xs text-zinc-500 mt-1">Será usada nos botões dos templates gerados.</p>
                         </div>
@@ -205,7 +211,7 @@ export default function NewTemplateProjectPage() {
                         <button
                             onClick={handleGenerate}
                             disabled={!prompt}
-                            className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-medium flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="w-full py-4 bg-white text-black rounded-xl font-semibold flex items-center justify-center gap-2 transition-colors hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             <Wand2 className="w-5 h-5" />
                             Gerar Templates com IA
@@ -214,19 +220,19 @@ export default function NewTemplateProjectPage() {
 
                     {/* Right: Info */}
                     <div className="space-y-6">
-                        <div className="bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-800 p-6 rounded-xl">
-                            <h3 className="font-semibold text-blue-900 dark:text-blue-100 mb-2">Como funciona?</h3>
-                            <ul className="space-y-3 text-sm text-blue-800 dark:text-blue-200">
+                        <div className="rounded-2xl border border-emerald-400/20 bg-emerald-500/10 p-6 shadow-[0_12px_30px_rgba(0,0,0,0.35)]">
+                            <h3 className="font-semibold text-emerald-200 mb-2">Como funciona?</h3>
+                            <ul className="space-y-3 text-sm text-gray-300">
                                 <li className="flex items-start gap-2">
-                                    <span className="mt-1 block w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />
+                                    <span className="mt-1 block w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
                                     Nossa IA Agent analisa seu pedido e busca as melhores práticas da Meta.
                                 </li>
                                 <li className="flex items-start gap-2">
-                                    <span className="mt-1 block w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />
+                                    <span className="mt-1 block w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
                                     Gera templates otimizados para aprovação na categoria UTILIDADE.
                                 </li>
                                 <li className="flex items-start gap-2">
-                                    <span className="mt-1 block w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />
+                                    <span className="mt-1 block w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
                                     O AI Judge verifica as regras e corrige proibições automaticamente.
                                 </li>
                             </ul>
@@ -236,23 +242,23 @@ export default function NewTemplateProjectPage() {
             )}
 
             {step === 'generating' && (
-                <div className="flex flex-col items-center justify-center min-h-[400px]">
-                    <Loader2 className="w-12 h-12 text-emerald-600 animate-spin mb-4" />
-                    <h2 className="text-xl font-semibold mb-2">Criando seus templates...</h2>
-                    <p className="text-zinc-500">O Agente está consultando as diretrizes da Meta e gerando variações.</p>
+                <div className="flex flex-col items-center justify-center min-h-100">
+                    <Loader2 className="w-12 h-12 text-emerald-300 animate-spin mb-4" />
+                    <h2 className="text-xl font-semibold text-white mb-2">Criando seus templates...</h2>
+                    <p className="text-gray-500">O Agente está consultando as diretrizes da Meta e gerando variações.</p>
                 </div>
             )}
 
             {step === 'review' && (
                 <div className="space-y-6">
                     <div className="flex items-center justify-between">
-                        <h2 className="text-xl font-semibold">Revise os Templates Gerados</h2>
+                        <h2 className="text-xl font-semibold text-white">Revise os Templates Gerados</h2>
                         <div className="flex items-center gap-2">
                             <span className="text-sm text-zinc-500">{selectedIds.size} selecionados</span>
                             <button
                                 onClick={handleSaveProject}
                                 disabled={isCreating || selectedIds.size === 0}
-                                className="px-6 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium flex items-center gap-2 disabled:opacity-50"
+                                className="px-6 py-2 bg-white text-black rounded-lg font-semibold flex items-center gap-2 hover:bg-gray-200 disabled:opacity-50"
                             >
                                 {isCreating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                                 Salvar Projeto
@@ -266,36 +272,36 @@ export default function NewTemplateProjectPage() {
                                 key={t.id}
                                 onClick={() => toggleSelect(t.id)}
                                 className={`
-                  relative p-4 rounded-xl border-2 cursor-pointer transition-all hover:shadow-md
+                  relative p-4 rounded-2xl border cursor-pointer transition-all hover:shadow-[0_12px_30px_rgba(0,0,0,0.35)]
                   ${selectedIds.has(t.id)
-                                        ? 'border-emerald-500 bg-emerald-50/10 dark:bg-emerald-900/10'
-                                        : 'border-transparent bg-white dark:bg-zinc-900 shadow-sm'}
+                                        ? 'border-emerald-400/40 bg-emerald-500/10'
+                                        : 'border-white/10 bg-zinc-900/60'}
                 `}
                             >
                                 {selectedIds.has(t.id) && (
-                                    <div className="absolute top-2 right-2 p-1 bg-emerald-500 text-white rounded-full">
+                                    <div className="absolute top-2 right-2 p-1 bg-emerald-500 text-black rounded-full">
                                         <Check className="w-3 h-3" />
                                     </div>
                                 )}
 
                                 {/* Header */}
                                 <div className="mb-3">
-                                    <span className="text-xs font-mono text-zinc-500">{t.name}</span>
+                                    <span className="text-xs font-mono text-gray-500">{t.name}</span>
                                     {t.header && (
-                                        <div className="mt-1 font-bold text-sm text-zinc-800 dark:text-zinc-200">
+                                        <div className="mt-1 font-semibold text-sm text-white">
                                             {t.header.text || `[Mídia: ${t.header.format}]`}
                                         </div>
                                     )}
                                 </div>
 
                                 {/* Body */}
-                                <div className="text-sm text-zinc-600 dark:text-zinc-300 whitespace-pre-wrap mb-4">
+                                <div className="text-sm text-gray-300 whitespace-pre-wrap mb-4">
                                     {t.content}
                                 </div>
 
                                 {/* Footer */}
                                 {t.footer && (
-                                    <div className="mb-3 text-xs text-zinc-400">
+                                    <div className="mb-3 text-xs text-gray-500">
                                         {t.footer.text}
                                     </div>
                                 )}
@@ -304,7 +310,7 @@ export default function NewTemplateProjectPage() {
                                 {t.buttons && t.buttons.length > 0 && (
                                     <div className="space-y-2">
                                         {t.buttons.map((btn, i) => (
-                                            <div key={i} className="w-full py-2 px-3 bg-zinc-100 dark:bg-zinc-800 text-center text-blue-500 text-sm rounded font-medium">
+                                            <div key={i} className="w-full py-2 px-3 bg-zinc-950/40 text-center text-emerald-200 text-sm rounded font-medium border border-white/10">
                                                 {btn.type === 'URL' && <span className="mr-1">🔗</span>}
                                                 {btn.text}
                                             </div>
@@ -314,7 +320,7 @@ export default function NewTemplateProjectPage() {
 
                                 {/* AI Judgment Badge */}
                                 {t.judgment && !t.judgment.approved && (
-                                    <div className="mt-4 p-2 bg-red-50 dark:bg-red-900/20 text-red-600 text-xs rounded border border-red-100 dark:border-red-800 flex items-start gap-1">
+                                    <div className="mt-4 p-2 bg-amber-500/10 text-amber-200 text-xs rounded border border-amber-500/20 flex items-start gap-1">
                                         <AlertCircle className="w-3 h-3 shrink-0 mt-0.5" />
                                         <div>
                                             <span className="font-bold">Atenção:</span> {t.judgment.issues[0]?.reason || 'Problemas detectados'}
@@ -322,8 +328,8 @@ export default function NewTemplateProjectPage() {
                                     </div>
                                 )}
                                 {t.wasFixed && (
-                                    <div className="mt-4 p-2 bg-blue-50 dark:bg-blue-900/20 text-blue-600 text-xs rounded border border-blue-100 dark:border-blue-800 flex items-start gap-1">
-                                        <Sparkles className="w-3 h-3 shrink-0 mt-0.5" />
+                                    <div className="mt-4 p-2 bg-emerald-500/10 text-emerald-200 text-xs rounded border border-emerald-500/20 flex items-start gap-1">
+                                        <Sparkles className="w-3 h-3 shrink-0 mt-0.5 text-emerald-300" />
                                         <div>
                                             Corrigido automaticamente pelo AI Judge
                                         </div>
@@ -334,6 +340,6 @@ export default function NewTemplateProjectPage() {
                     </div>
                 </div>
             )}
-        </div>
+        </Page>
     );
 }

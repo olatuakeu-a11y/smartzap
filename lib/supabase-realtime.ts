@@ -92,6 +92,31 @@ export function removeChannel(channel: RealtimeChannel): void {
 }
 
 // ============================================================================
+// BROADCAST (EPHEMERAL EVENTS)
+// ============================================================================
+
+export interface BroadcastMessage<TPayload = unknown> {
+    type: 'broadcast'
+    event: string
+    payload: TPayload
+}
+
+/**
+ * Subscribes to Broadcast events on a channel.
+ * Useful for ephemeral "live progress" without DB writes.
+ */
+export function subscribeToBroadcast<TPayload = unknown>(
+    channel: RealtimeChannel,
+    event: string,
+    callback: (message: BroadcastMessage<TPayload>) => void
+): RealtimeChannel {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return channel.on('broadcast' as any, { event } as any, (msg: any) => {
+        callback(msg as BroadcastMessage<TPayload>)
+    })
+}
+
+// ============================================================================
 // CONVENIENCE FUNCTIONS
 // ============================================================================
 

@@ -41,6 +41,13 @@ export function SubmissionDetailView({
         { id: 'PENDING', label: 'Pendentes', count: groups.PENDING.length, color: 'zinc', icon: Filter },
     ] as const;
 
+    const sectionIconTone: Record<(typeof sections)[number]['color'], string> = {
+        emerald: 'text-emerald-300',
+        yellow: 'text-amber-300',
+        red: 'text-amber-300',
+        zinc: 'text-gray-400',
+    };
+
     return (
         <div className="flex h-[calc(100vh-140px)] gap-6">
             {/* --- LEFT SIDE: LIST & STATS --- */}
@@ -51,7 +58,7 @@ export function SubmissionDetailView({
                     <div className="flex items-center gap-4">
                         <button
                             onClick={onBack}
-                            className="p-2 -ml-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors"
+                            className="p-2 -ml-2 text-gray-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors border border-white/10 bg-zinc-950/40"
                         >
                             <ArrowLeft className="w-5 h-5" />
                         </button>
@@ -59,8 +66,8 @@ export function SubmissionDetailView({
                             <h1 className="text-xl font-bold text-white flex items-center gap-2">
                                 {submission.name}
                                 <span className={`px-2 py-0.5 text-xs rounded-full border ${submission.status === 'processing'
-                                    ? 'bg-blue-500/10 text-blue-400 border-blue-500/20'
-                                    : 'bg-zinc-800 text-zinc-400 border-zinc-700'
+                                    ? 'bg-emerald-500/10 text-emerald-200 border-emerald-500/20'
+                                    : 'bg-zinc-950/40 text-gray-400 border-white/10'
                                     }`}>
                                     {submission.status === 'processing' ? 'Processando' : 'Concluído'}
                                 </span>
@@ -75,7 +82,7 @@ export function SubmissionDetailView({
                         <button
                             onClick={onRefresh}
                             disabled={isLoading}
-                            className="px-3 py-2 bg-zinc-800 border border-zinc-700 text-zinc-300 rounded-lg hover:bg-zinc-700 hover:text-white transition-colors flex items-center gap-2 disabled:opacity-50"
+                            className="px-3 py-2 bg-zinc-950/40 border border-white/10 text-gray-200 rounded-lg hover:bg-white/5 hover:text-white transition-colors flex items-center gap-2 disabled:opacity-50"
                         >
                             <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
                             Atualizar Status
@@ -84,7 +91,7 @@ export function SubmissionDetailView({
                         {(groups.MARKETING.length > 0 || groups.REJECTED.length > 0) && (
                             <button
                                 onClick={onCleanMarketing}
-                                className="px-3 py-2 bg-red-500/10 border border-red-500/20 text-red-400 rounded-lg hover:bg-red-500/20 transition-colors flex items-center gap-2"
+                                className="px-3 py-2 bg-amber-500/10 border border-amber-500/20 text-amber-200 rounded-lg hover:bg-amber-500/15 transition-colors flex items-center gap-2"
                             >
                                 <Trash2 className="w-4 h-4" />
                                 Limpar {groups.MARKETING.length + groups.REJECTED.length} não-Utility
@@ -119,22 +126,22 @@ export function SubmissionDetailView({
                 </div>
 
                 {/* Template List */}
-                <div className="flex-1 bg-zinc-900 border border-zinc-800 rounded-xl overflow-y-auto">
+                <div className="flex-1 bg-zinc-900/60 border border-white/10 rounded-2xl overflow-y-auto shadow-[0_12px_30px_rgba(0,0,0,0.35)]">
                     {sections.map(section => {
                         if (section.count === 0) return null;
 
                         const isExpanded = expandedSection === 'ALL' || expandedSection === section.id;
 
                         return (
-                            <div key={section.id} className="border-b border-zinc-800 last:border-0">
+                            <div key={section.id} className="border-b border-white/10 last:border-0">
                                 <button
                                     onClick={() => setExpandedSection(isExpanded && expandedSection !== 'ALL' ? 'ALL' : section.id)}
-                                    className="w-full flex items-center justify-between p-4 hover:bg-zinc-800/50 transition-colors"
+                                    className="w-full flex items-center justify-between p-4 hover:bg-white/5 transition-colors"
                                 >
                                     <div className="flex items-center gap-3">
-                                        <section.icon className={`w-5 h-5 text-${section.color}-500`} />
+                                        <section.icon className={`w-5 h-5 ${sectionIconTone[section.color]}`} />
                                         <span className="font-medium text-white">{section.label}</span>
-                                        <span className="px-2 py-0.5 rounded-full bg-zinc-800 text-xs text-zinc-400">
+                                        <span className="px-2 py-0.5 rounded-full bg-zinc-950/40 text-xs text-gray-400 border border-white/10">
                                             {section.count}
                                         </span>
                                     </div>
@@ -148,15 +155,15 @@ export function SubmissionDetailView({
                                                 key={template.id}
                                                 onClick={() => setSelectedTemplate(template)}
                                                 className={`p-3 rounded-lg border transition-all cursor-pointer ${selectedTemplate?.id === template.id
-                                                    ? 'bg-zinc-800 border-emerald-500 ring-1 ring-emerald-500'
-                                                    : 'bg-zinc-900/50 border-zinc-800 hover:border-zinc-700 hover:bg-zinc-800'
+                                                    ? 'bg-emerald-500/10 border-emerald-500/30 ring-1 ring-emerald-500/40'
+                                                    : 'bg-zinc-950/40 border-white/10 hover:border-white/20 hover:bg-white/5'
                                                     }`}
                                             >
                                                 <div className="flex justify-between items-start mb-2">
                                                     <span className="text-sm font-medium text-white flex items-center gap-2">
                                                         {template.name}
                                                         {template.category !== template.originalCategory && (
-                                                            <span className="text-[10px] text-yellow-500 bg-yellow-500/10 px-1.5 py-0.5 rounded">
+                                                            <span className="text-[10px] text-amber-300 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">
                                                                 Mudou de Categoria
                                                             </span>
                                                         )}
@@ -170,7 +177,7 @@ export function SubmissionDetailView({
                                                     {template.content}
                                                 </p>
                                                 {template.rejectionReason && (
-                                                    <div className="mt-2 p-2 bg-red-500/10 border border-red-500/20 rounded text-xs text-red-400">
+                                                    <div className="mt-2 p-2 bg-amber-500/10 border border-amber-500/20 rounded text-xs text-amber-200">
                                                         {template.rejectionReason}
                                                     </div>
                                                 )}
@@ -185,7 +192,7 @@ export function SubmissionDetailView({
             </div>
 
             {/* --- RIGHT SIDE: PREVIEW --- */}
-            <div className="w-[380px] shrink-0 border-l border-zinc-800 pl-6 flex flex-col justify-center">
+            <div className="w-[380px] shrink-0 border-l border-white/10 pl-6 flex flex-col justify-center">
                 {selectedTemplate ? (
                     <div className="sticky top-6">
                         <h3 className="text-sm font-medium text-zinc-400 mb-4 text-center">
@@ -202,12 +209,12 @@ export function SubmissionDetailView({
                             variables={['Variável 1', 'Variável 2', 'Variável 3']} // Shows placeholder variables
                             size="md"
                         />
-                        <div className="mt-6 p-4 bg-zinc-900 border border-zinc-800 rounded-lg">
+                        <div className="mt-6 p-4 bg-zinc-900/60 border border-white/10 rounded-2xl shadow-[0_12px_30px_rgba(0,0,0,0.35)]">
                             <h4 className="text-sm font-medium text-white mb-2">Detalhes Técnicos</h4>
                             <div className="space-y-2 text-xs text-zinc-400">
                                 <div className="flex justify-between">
                                     <span>Categoria:</span>
-                                    <span className={selectedTemplate.category === 'UTILITY' ? 'text-emerald-400' : 'text-yellow-400'}>
+                                    <span className={selectedTemplate.category === 'UTILITY' ? 'text-emerald-300' : 'text-amber-300'}>
                                         {selectedTemplate.category}
                                     </span>
                                 </div>
@@ -223,7 +230,7 @@ export function SubmissionDetailView({
                         </div>
                     </div>
                 ) : (
-                    <div className="h-full flex flex-col items-center justify-center text-zinc-500 border border-dashed border-zinc-800 rounded-2xl bg-zinc-900/30">
+                    <div className="h-full flex flex-col items-center justify-center text-zinc-500 border border-dashed border-white/10 rounded-2xl bg-zinc-900/60 shadow-[0_12px_30px_rgba(0,0,0,0.35)]">
                         <Eye className="w-12 h-12 mb-4 opacity-50" />
                         <p className="text-sm">Selecione um template para visualizar</p>
                     </div>
@@ -237,14 +244,14 @@ function StatCard({ label, count, total, color, icon: Icon }: any) {
     const percent = Math.round((count / total) * 100) || 0;
 
     const colors: Record<string, string> = {
-        emerald: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
-        yellow: 'text-yellow-400 bg-yellow-500/10 border-yellow-500/20',
-        red: 'text-red-400 bg-red-500/10 border-red-500/20',
-        zinc: 'text-zinc-400 bg-zinc-500/10 border-zinc-500/20',
+        emerald: 'text-emerald-300 bg-emerald-500/10 border-emerald-500/20',
+        yellow: 'text-amber-300 bg-amber-500/10 border-amber-500/20',
+        red: 'text-amber-200 bg-amber-500/10 border-amber-500/20',
+        zinc: 'text-gray-400 bg-zinc-500/10 border-white/10',
     };
 
     return (
-        <div className={`p-4 rounded-xl border ${colors[color]}`}>
+        <div className={`p-4 rounded-2xl border shadow-[0_12px_30px_rgba(0,0,0,0.35)] ${colors[color]}`}>
             <div className="flex justify-between items-start mb-2">
                 <Icon className={`w-5 h-5`} />
                 <span className="text-2xl font-bold">{count}</span>

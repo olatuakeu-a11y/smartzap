@@ -8,14 +8,15 @@ const POLLING_INTERVAL = 30000;
 export const useDashboardController = (initialData?: { stats: any, recentCampaigns: any[] }) => {
   // Stats with Realtime updates - subscribes to campaigns table for live metrics
   const statsQuery = useRealtimeQuery({
-    queryKey: ['dashboardStats'],
+    queryKey: ['dashboardStats', 'v2'],
     queryFn: dashboardService.getStats,
     initialData: initialData?.stats,
+    placeholderData: (previous) => previous,
     refetchInterval: POLLING_INTERVAL,
-    staleTime: 15000,
+    staleTime: 0,
     gcTime: 60000,
     refetchOnMount: true,
-    refetchOnWindowFocus: 'always',
+    refetchOnWindowFocus: false,
     // Realtime configuration
     table: 'campaigns',
     events: ['INSERT', 'UPDATE'],
@@ -27,11 +28,12 @@ export const useDashboardController = (initialData?: { stats: any, recentCampaig
     queryKey: ['recentCampaigns'],
     queryFn: dashboardService.getRecentCampaigns,
     initialData: initialData?.recentCampaigns,
+    placeholderData: (previous) => previous,
     refetchInterval: POLLING_INTERVAL,
     staleTime: 20000,
     gcTime: 120000,
-    refetchOnMount: true,
-    refetchOnWindowFocus: true,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
     // Realtime configuration
     table: 'campaigns',
     events: ['INSERT', 'UPDATE', 'DELETE'],
@@ -50,4 +52,3 @@ export const useDashboardController = (initialData?: { stats: any, recentCampaig
     }
   };
 };
-

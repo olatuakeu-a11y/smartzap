@@ -49,6 +49,12 @@ export const TemplatePreviewRenderer: React.FC<TemplatePreviewRendererProps> = (
             'CATALOG': <MessageCircle size={14} />,
             'MPM': <MessageCircle size={14} />,
             'VOICE_CALL': <Phone size={14} />,
+            'EXTENSION': <MessageCircle size={14} />,
+            'ORDER_DETAILS': <MessageCircle size={14} />,
+            'POSTBACK': <MessageCircle size={14} />,
+            'REMINDER': <MessageCircle size={14} />,
+            'SEND_LOCATION': <MessageCircle size={14} />,
+            'SPM': <MessageCircle size={14} />,
         };
 
         return (

@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { settingsService } from '../services/settingsService';
-import { AppSettings } from '../types';
+import { AppSettings, WorkflowExecutionConfig } from '../types';
 import { useAccountLimits } from './useAccountLimits';
 import {
   checkAccountHealth,
@@ -24,6 +24,17 @@ interface WebhookInfo {
     todayFailed: number;
   } | null;
 }
+
+interface WebhookSubscriptionStatus {
+  ok: boolean;
+  wabaId?: string;
+  messagesSubscribed?: boolean;
+  subscribedFields?: string[];
+  apps?: Array<{ id?: string; name?: string; subscribed_fields?: string[] }>;
+  error?: string;
+  details?: unknown;
+}
+
 
 // System health status
 interface HealthStatus {
@@ -101,6 +112,9 @@ export const useSettingsController = () => {
   const [accountHealth, setAccountHealth] = useState<AccountHealth | null>(null);
   const [isCheckingHealth, setIsCheckingHealth] = useState(false);
 
+  // Connection test state (Settings -> Configuração da API)
+  const [isTestingConnection, setIsTestingConnection] = useState(false);
+
   // --- Queries ---
   const settingsQuery = useQuery({
     queryKey: ['settings'],
@@ -119,15 +133,41 @@ export const useSettingsController = () => {
     staleTime: 30 * 1000, // Cache for 30 seconds
   });
 
+  // Meta subscription status (WABA subscribed_apps) — needed to receive `messages`
+  const webhookSubscriptionQuery = useQuery({
+    queryKey: ['metaWebhookSubscription'],
+    queryFn: async (): Promise<WebhookSubscriptionStatus> => {
+      const response = await fetch('/api/meta/webhooks/subscription');
+      // We intentionally return the body even on non-2xx to display details in UI
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        return {
+          ok: false,
+          error: (data as any)?.error || 'Falha ao consultar subscription',
+          details: (data as any)?.details,
+        };
+      }
+      return data as WebhookSubscriptionStatus;
+    },
+    enabled: !!settingsQuery.data?.isConnected,
+    // Importante: esse status costuma confundir (Meta UI vs subscribed_apps).
+    // Para evitar mostrar “Inativo” com cache ao navegar para Configurações,
+    // sempre revalida ao montar.
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
+    staleTime: 0,
+    retry: false,
+  });
+
   // Phone numbers query (for webhook override management)
-  // Uses credentials from Redis - no need to pass from frontend
+  // Backend usa credenciais salvas (Supabase settings / env) — não precisa passar do frontend
   const phoneNumbersQuery = useQuery({
     queryKey: ['phoneNumbers'],
     queryFn: async (): Promise<PhoneNumber[]> => {
       const response = await fetch('/api/phone-numbers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({}), // Empty body - backend uses Redis credentials
+        body: JSON.stringify({}), // Body vazio: backend usa credenciais salvas (Supabase/env)
       });
       if (!response.ok) {
         const error = await response.json();
@@ -147,12 +187,54 @@ export const useSettingsController = () => {
     staleTime: 60 * 1000,
   });
 
+  // Meta App (opcional): permite debug_token no diagnóstico
+  const metaAppQuery = useQuery({
+    queryKey: ['metaAppConfig'],
+    queryFn: settingsService.getMetaAppConfig,
+    staleTime: 60 * 1000,
+  })
+
   // Test Contact Query - persisted in Supabase
   const testContactQuery = useQuery({
     queryKey: ['testContact'],
     queryFn: settingsService.getTestContact,
     staleTime: 60 * 1000,
   });
+
+
+  // WhatsApp Turbo (Adaptive Throttle)
+  const whatsappThrottleQuery = useQuery({
+    queryKey: ['whatsappThrottle'],
+    queryFn: settingsService.getWhatsAppThrottle,
+    enabled: !!settingsQuery.data?.isConnected,
+    staleTime: 30 * 1000,
+    retry: false,
+  });
+
+  // Auto-supressão (Proteção de Qualidade)
+  const autoSuppressionQuery = useQuery({
+    queryKey: ['autoSuppression'],
+    queryFn: settingsService.getAutoSuppression,
+    enabled: !!settingsQuery.data?.isConnected,
+    staleTime: 30 * 1000,
+    retry: false,
+  })
+
+  // Calendar Booking (Google Calendar)
+  const calendarBookingQuery = useQuery({
+    queryKey: ['calendarBookingConfig'],
+    queryFn: settingsService.getCalendarBookingConfig,
+    staleTime: 60 * 1000,
+    retry: false,
+  })
+
+  const workflowExecutionQuery = useQuery({
+    queryKey: ['workflowExecutionConfig'],
+    queryFn: settingsService.getWorkflowExecutionConfig,
+    staleTime: 60 * 1000,
+    retry: false,
+  })
+
 
   // Available domains query (auto-detect from Vercel)
   const domainsQuery = useQuery({
@@ -248,6 +330,172 @@ export const useSettingsController = () => {
     }
   });
 
+  const saveWhatsAppThrottleMutation = useMutation({
+    mutationFn: settingsService.saveWhatsAppThrottle,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['whatsappThrottle'] });
+      toast.success('Configuração do modo turbo salva!');
+    },
+    onError: (err: any) => {
+      toast.error(err?.message || 'Erro ao salvar modo turbo');
+    }
+  });
+
+  const saveAutoSuppressionMutation = useMutation({
+    mutationFn: settingsService.saveAutoSuppression,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['autoSuppression'] })
+      toast.success('Configuração de auto-supressão salva!')
+    },
+    onError: (err: any) => {
+      toast.error(err?.message || 'Erro ao salvar auto-supressão')
+    },
+  })
+
+  const saveCalendarBookingMutation = useMutation({
+    mutationFn: settingsService.saveCalendarBookingConfig,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['calendarBookingConfig'] })
+      toast.success('Configuração de agendamento salva!')
+    },
+    onError: (err: any) => {
+      toast.error(err?.message || 'Erro ao salvar configuracao de agendamento')
+    },
+  })
+
+  const saveWorkflowExecutionMutation = useMutation({
+    mutationFn: (data: Partial<WorkflowExecutionConfig>) =>
+      settingsService.saveWorkflowExecutionConfig(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['workflowExecutionConfig'] })
+      toast.success('Configuração de execução salva!')
+    },
+    onError: (err: any) => {
+      toast.error(err?.message || 'Erro ao salvar configuração de execução')
+    },
+  })
+
+  const subscribeWebhookMessagesMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch('/api/meta/webhooks/subscription', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fields: ['messages'] }),
+      });
+
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error((data as any)?.error || 'Erro ao inscrever messages');
+      }
+
+      return data;
+    },
+    onSuccess: async (data: any) => {
+      await queryClient.invalidateQueries({ queryKey: ['metaWebhookSubscription'] });
+      await queryClient.refetchQueries({ queryKey: ['metaWebhookSubscription'] });
+
+      const confirmed = !!data?.confirmed;
+      if (confirmed) {
+        toast.success('Inscrição do campo "messages" ativada!');
+      } else {
+        toast.warning('Inscrição solicitada, mas a Meta ainda não confirmou.', {
+          description: 'Clique em “Atualizar status” em alguns segundos (ou tente de novo).',
+        });
+      }
+    },
+    onError: (err: any) => {
+      toast.error(err?.message || 'Erro ao ativar inscrição');
+    },
+  });
+
+  const handleTestConnection = async () => {
+    setIsTestingConnection(true);
+    const toastId = toast.loading('Testando conexão com a Meta…');
+    try {
+      // Se o usuário ainda não salvou as credenciais, testamos com o que está no formulário.
+      // Se estiver mascarado (***configured***), o backend usa credenciais salvas.
+      const result = await settingsService.testConnection({
+        phoneNumberId: formSettings.phoneNumberId,
+        businessAccountId: formSettings.businessAccountId,
+        accessToken: formSettings.accessToken,
+      });
+
+      toast.dismiss(toastId);
+
+      // Se o backend conseguiu inferir o WABA e o usuário não preencheu, auto-preenche.
+      if (!formSettings.businessAccountId && result?.wabaId) {
+        setFormSettings((prev) => ({
+          ...prev,
+          businessAccountId: String(result.wabaId),
+        }));
+      }
+
+      const phone = result.displayPhoneNumber || result.phoneNumberId || 'OK';
+      toast.success('Teste de conexão bem-sucedido!', {
+        description: result.verifiedName
+          ? `${phone} • ${result.verifiedName}${(!formSettings.businessAccountId && result?.wabaId) ? `\nWABA preenchido automaticamente: ${result.wabaId}` : ''}`
+          : `${phone}${(!formSettings.businessAccountId && result?.wabaId) ? `\nWABA preenchido automaticamente: ${result.wabaId}` : ''}`,
+      });
+    } catch (err: any) {
+      toast.dismiss(toastId);
+      const msg = err?.message || 'Falha ao testar conexão';
+      const details = err?.details;
+
+      const hintTitle = (details as any)?.details?.hintTitle as string | undefined
+      const hint = (details as any)?.details?.hint as string | undefined
+      const nextSteps = (details as any)?.details?.nextSteps as string[] | undefined
+      const fbtraceId = (details as any)?.details?.fbtraceId as string | undefined
+
+      const stepsPreview = Array.isArray(nextSteps) && nextSteps.length
+        ? nextSteps.slice(0, 2).map((s) => `• ${s}`).join('\n')
+        : null
+
+      const descriptionParts = [
+        hintTitle ? `${hintTitle}: ${msg}` : msg,
+        hint ? hint : null,
+        stepsPreview,
+        fbtraceId ? `fbtrace_id: ${fbtraceId}` : null,
+      ].filter(Boolean)
+
+      toast.error('Falha no teste de conexão', {
+        description: descriptionParts.join('\n'),
+      });
+    } finally {
+      setIsTestingConnection(false);
+    }
+  };
+
+  const unsubscribeWebhookMessagesMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch('/api/meta/webhooks/subscription', {
+        method: 'DELETE',
+      });
+
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error((data as any)?.error || 'Erro ao remover inscrição');
+      }
+
+      return data;
+    },
+    onSuccess: async (data: any) => {
+      await queryClient.invalidateQueries({ queryKey: ['metaWebhookSubscription'] });
+      await queryClient.refetchQueries({ queryKey: ['metaWebhookSubscription'] });
+
+      const confirmed = data?.confirmed;
+      if (confirmed === true) {
+        toast.success('Inscrição removida.');
+      } else {
+        toast.message('Remoção solicitada.', {
+          description: 'Atualize o status para confirmar no WABA.',
+        });
+      }
+    },
+    onError: (err: any) => {
+      toast.error(err?.message || 'Erro ao remover inscrição');
+    },
+  });
+
   const handleSave = async () => {
     // 1. Optimistic Update
     const pendingSettings = { ...formSettings, isConnected: true };
@@ -321,15 +569,27 @@ export const useSettingsController = () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          // accessToken is fetched from Redis on the server
+          // accessToken é obtido no servidor a partir das credenciais salvas (Supabase/env)
           callbackUrl,
-          verifyToken: webhookQuery.data?.webhookToken, // Use the auto-generated token
+          // Preflight por padrão: retorna erro mais claro quando Preview está protegido (401)
+          preflight: true,
+          force: false,
         }),
       });
 
       if (!response.ok) {
-        const error = await response.json();
-        toast.error(error.error || 'Erro ao configurar webhook');
+        const error = await response.json().catch(() => ({}));
+        const title = (error as any)?.error || 'Erro ao configurar webhook';
+        const hint = (error as any)?.hint || (error as any)?.action;
+        const code = (error as any)?.code;
+
+        if (hint) {
+          toast.error(title, {
+            description: code ? `${hint} (código: ${code})` : hint,
+          });
+        } else {
+          toast.error(title);
+        }
         return false;
       }
 
@@ -345,7 +605,7 @@ export const useSettingsController = () => {
   // Remove webhook override for a phone number
   const removeWebhookOverride = async (phoneNumberId: string): Promise<boolean> => {
     try {
-      // No body needed - server fetches credentials from Redis
+      // Sem body: servidor busca credenciais salvas (Supabase/env)
       const response = await fetch(`/api/phone-numbers/${phoneNumberId}/webhook/override`, {
         method: 'DELETE',
       });
@@ -436,6 +696,10 @@ export const useSettingsController = () => {
     onSave: handleSave,
     onSaveSettings: handleSaveSettings,
     onDisconnect: handleDisconnect,
+
+    // Test connection (sem salvar)
+    onTestConnection: handleTestConnection,
+    isTestingConnection,
     // Account limits
     accountLimits,
     refreshLimits,
@@ -454,6 +718,13 @@ export const useSettingsController = () => {
     webhookUrl: webhookQuery.data?.webhookUrl,
     webhookToken: webhookQuery.data?.webhookToken,
     webhookStats: webhookQuery.data?.stats,
+    // Meta webhook subscription (messages)
+    webhookSubscription: webhookSubscriptionQuery.data,
+    webhookSubscriptionLoading: webhookSubscriptionQuery.isLoading,
+    refreshWebhookSubscription: () => queryClient.invalidateQueries({ queryKey: ['metaWebhookSubscription'] }),
+    subscribeWebhookMessages: subscribeWebhookMessagesMutation.mutateAsync,
+    unsubscribeWebhookMessages: unsubscribeWebhookMessagesMutation.mutateAsync,
+    webhookSubscriptionMutating: subscribeWebhookMessagesMutation.isPending || unsubscribeWebhookMessagesMutation.isPending,
     // Phone numbers for webhook override
     phoneNumbers: phoneNumbersQuery.data || [],
     phoneNumbersLoading: phoneNumbersQuery.isLoading,
@@ -479,11 +750,40 @@ export const useSettingsController = () => {
     saveAIConfig: saveAIMutation.mutateAsync,
     removeAIKey: removeAIMutation.mutateAsync,
     isSavingAI: saveAIMutation.isPending,
+
+    // Meta App (opcional)
+    metaApp: metaAppQuery.data || null,
+    metaAppLoading: metaAppQuery.isLoading,
+    refreshMetaApp: () => queryClient.invalidateQueries({ queryKey: ['metaAppConfig'] }),
     // Test Contact - persisted in Supabase
     testContact: testContactQuery.data || null,
     testContactLoading: testContactQuery.isLoading,
     saveTestContact: saveTestContactMutation.mutateAsync,
     removeTestContact: removeTestContactMutation.mutateAsync,
     isSavingTestContact: saveTestContactMutation.isPending,
+
+    // WhatsApp Turbo
+    whatsappThrottle: whatsappThrottleQuery.data || null,
+    whatsappThrottleLoading: whatsappThrottleQuery.isLoading,
+    saveWhatsAppThrottle: saveWhatsAppThrottleMutation.mutateAsync,
+    isSavingWhatsAppThrottle: saveWhatsAppThrottleMutation.isPending,
+
+    // Auto-supressão (Proteção de Qualidade)
+    autoSuppression: autoSuppressionQuery.data || null,
+    autoSuppressionLoading: autoSuppressionQuery.isLoading,
+    saveAutoSuppression: saveAutoSuppressionMutation.mutateAsync,
+    isSavingAutoSuppression: saveAutoSuppressionMutation.isPending,
+
+    // Calendar Booking (Google Calendar)
+    calendarBooking: calendarBookingQuery.data || null,
+    calendarBookingLoading: calendarBookingQuery.isLoading,
+    saveCalendarBooking: saveCalendarBookingMutation.mutateAsync,
+    isSavingCalendarBooking: saveCalendarBookingMutation.isPending,
+
+    workflowExecution: workflowExecutionQuery.data || null,
+    workflowExecutionLoading: workflowExecutionQuery.isLoading,
+    saveWorkflowExecution: saveWorkflowExecutionMutation.mutateAsync,
+    isSavingWorkflowExecution: saveWorkflowExecutionMutation.isPending,
+
   };
 };  

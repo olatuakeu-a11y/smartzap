@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getWhatsAppCredentials, getCredentialsSource } from '@/lib/whatsapp-credentials'
 import { supabase, isSupabaseConfigured } from '@/lib/supabase'
-import { redis } from '@/lib/redis'
+import { fetchWithTimeout, safeJson } from '@/lib/server-http'
 
 // Build Vercel dashboard URL dynamically from environment
 function getVercelDashboardUrl(): string | null {
@@ -36,11 +36,6 @@ interface HealthCheckResult {
       latency?: number
       message?: string
     }
-    redis: {
-      status: 'ok' | 'error' | 'not_configured'
-      latency?: number
-      message?: string
-    }
     qstash: {
       status: 'ok' | 'error' | 'not_configured'
       message?: string
@@ -67,7 +62,6 @@ export async function GET() {
     overall: 'healthy',
     services: {
       database: { status: 'not_configured', provider: 'none' },
-      redis: { status: 'not_configured' },
       qstash: { status: 'not_configured' },
       whatsapp: { status: 'not_configured' },
     },
@@ -113,40 +107,7 @@ export async function GET() {
     result.overall = 'unhealthy'
   }
 
-  // 2. Check Redis (Upstash)
-  if (redis) {
-    try {
-      const start = Date.now()
-      // `PING` é a verificação mais barata. Se não existir, faz um GET inocente.
-      const maybePing = (redis as any).ping
-      if (typeof maybePing === 'function') {
-        await maybePing.call(redis)
-      } else {
-        await redis.get('__healthcheck__')
-      }
-      const latency = Date.now() - start
-
-      result.services.redis = {
-        status: 'ok',
-        latency,
-        message: `Redis conectado (${latency}ms)`,
-      }
-    } catch (error) {
-      result.services.redis = {
-        status: 'error',
-        message: error instanceof Error ? error.message : (error as any)?.message || 'Connection failed',
-      }
-      result.overall = 'degraded'
-    }
-  } else {
-    result.services.redis = {
-      status: 'not_configured',
-      message: 'Upstash Redis not configured',
-    }
-    result.overall = result.overall === 'healthy' ? 'degraded' : result.overall
-  }
-
-  // 3. Check QStash
+  // 2. Check QStash
   if (process.env.QSTASH_TOKEN) {
     result.services.qstash = {
       status: 'ok',
@@ -160,7 +121,7 @@ export async function GET() {
     result.overall = 'degraded'
   }
 
-  // 4. Check WhatsApp credentials
+  // 3. Check WhatsApp credentials
   try {
     const source = await getCredentialsSource()
     const credentials = await getWhatsAppCredentials()
@@ -168,24 +129,25 @@ export async function GET() {
     if (credentials) {
       // Test connection to Meta API
       const testUrl = `https://graph.facebook.com/v24.0/${credentials.phoneNumberId}?fields=display_phone_number`
-      const response = await fetch(testUrl, {
+      const response = await fetchWithTimeout(testUrl, {
         headers: { 'Authorization': `Bearer ${credentials.accessToken}` },
+        timeoutMs: 8000,
       })
 
       if (response.ok) {
-        const data = await response.json()
+        const data = await safeJson<any>(response)
         result.services.whatsapp = {
           status: 'ok',
           source,
-          phoneNumber: data.display_phone_number,
-          message: `Connected: ${data.display_phone_number}`,
+          phoneNumber: data?.display_phone_number,
+          message: data?.display_phone_number ? `Connected: ${data.display_phone_number}` : 'Connected',
         }
       } else {
-        const error = await response.json()
+        const error = await safeJson<any>(response)
         result.services.whatsapp = {
           status: 'error',
           source,
-          message: error.error?.message || 'Token invalid or expired',
+          message: error?.error?.message || 'Token invalid or expired',
         }
         result.overall = 'degraded'
       }

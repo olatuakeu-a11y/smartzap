@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getWhatsAppCredentials } from '@/lib/whatsapp-credentials'
 import { templateDb } from '@/lib/supabase-db'
+import { canonicalTemplateCategory } from '@/lib/template-category'
 import { createHash } from 'crypto'
+import { fetchWithTimeout, safeJson } from '@/lib/server-http'
+
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
 
 interface MetaTemplateComponent {
   type: 'HEADER' | 'BODY' | 'FOOTER' | 'BUTTONS'
@@ -15,9 +20,15 @@ interface MetaTemplate {
   status: string
   language: string
   category: string
-  parameter_format?: 'positional' | 'named'
+  parameter_format?: string
   components: MetaTemplateComponent[]
   last_updated_time: string
+}
+
+const normalizeParameterFormat = (value?: string) => {
+  if (!value) return 'positional'
+  const normalized = String(value).toLowerCase()
+  return normalized === 'named' ? 'named' : 'positional'
 }
 
 // Helper to fetch ALL templates from Meta API (with pagination)
@@ -25,33 +36,45 @@ async function fetchTemplatesFromMeta(businessAccountId: string, accessToken: st
   const allTemplates: MetaTemplate[] = []
   let nextUrl: string | null = `https://graph.facebook.com/v24.0/${businessAccountId}/message_templates?fields=name,status,language,category,parameter_format,components,last_updated_time&limit=100`
 
+  // Guardrail: evita loop infinito caso a paginação da Meta esteja quebrada.
+  let pages = 0
+  const maxPages = 25
+
   // Paginate through all results
   while (nextUrl) {
-    const res: Response = await fetch(nextUrl, {
-      headers: { 'Authorization': `Bearer ${accessToken}` }
+    pages++
+    if (pages > maxPages) {
+      throw new Error(`Limite de paginação atingido ao buscar templates (>${maxPages} páginas).`) 
+    }
+
+    const res: Response = await fetchWithTimeout(nextUrl, {
+      headers: { 'Authorization': `Bearer ${accessToken}` },
+      timeoutMs: 12000,
     })
 
     if (!res.ok) {
-      const error = await res.json()
-      throw new Error(error.error?.message || 'Failed to fetch templates')
+      const error = await safeJson<any>(res)
+      throw new Error(error?.error?.message || 'Falha ao buscar templates na Meta')
     }
 
-    const data = await res.json()
-    allTemplates.push(...(data.data || []))
+    const data = await safeJson<any>(res)
+    allTemplates.push(...(data?.data || []))
 
     // Check for next page
-    nextUrl = data.paging?.next || null
+    nextUrl = data?.paging?.next || null
   }
 
   // Transform Meta format to our App format
   return allTemplates.map((t: MetaTemplate) => {
+    const parameterFormat = normalizeParameterFormat(t.parameter_format)
     const bodyComponent = t.components.find((c: MetaTemplateComponent) => c.type === 'BODY')
+    const canonicalCategory = canonicalTemplateCategory(t.category)
     const specHash = createHash('sha256')
       .update(JSON.stringify({
         name: t.name,
         language: t.language,
-        category: t.category,
-        parameter_format: t.parameter_format || 'positional',
+        category: canonicalCategory,
+        parameter_format: parameterFormat,
         components: t.components,
       }))
       .digest('hex')
@@ -59,10 +82,10 @@ async function fetchTemplatesFromMeta(businessAccountId: string, accessToken: st
     return {
       id: t.name,
       name: t.name,
-      category: t.category,
+      category: canonicalCategory,
       language: t.language,
       status: t.status,
-      parameterFormat: t.parameter_format || 'positional',
+      parameterFormat,
       specHash,
       fetchedAt: new Date().toISOString(),
       content: bodyComponent?.text || 'No content',
@@ -121,8 +144,23 @@ async function syncTemplatesToLocalDb(templates: ReturnType<typeof fetchTemplate
 }
 
 
-// GET /api/templates - Fetch templates using Redis credentials
-export async function GET() {
+// GET /api/templates - Busca templates usando credenciais salvas (Supabase/env)
+export async function GET(request: NextRequest) {
+  const url = new URL(request.url)
+  const source = url.searchParams.get('source')
+  if (source === 'local') {
+    try {
+      const templates = await templateDb.getAll()
+      return NextResponse.json(templates)
+    } catch (error) {
+      console.error('Local templates error:', error)
+      return NextResponse.json(
+        { error: 'Falha ao buscar templates locais' },
+        { status: 500 }
+      )
+    }
+  }
+
   try {
     const credentials = await getWhatsAppCredentials()
 
@@ -138,11 +176,26 @@ export async function GET() {
       credentials.accessToken
     )
 
-    // 🆕 Sync templates to local Supabase DB (fire and forget)
-    // This ensures templateDb.getByName() finds templates during campaign dispatch
-    syncTemplatesToLocalDb(templates).catch(() => { })
+    // 🆕 Sync templates to local Supabase DB
+    // Importante: aguardamos para evitar race condition com /api/campaign/precheck.
+    await syncTemplatesToLocalDb(templates)
 
-    return NextResponse.json(templates)
+    // Merge com dados locais (ex.: cache de preview de mídia).
+    const local = await templateDb.getAll().catch(() => [])
+    const localByName = new Map(local.map((t) => [t.name, t]))
+    const merged = templates.map((t) => {
+      const cached = localByName.get(t.name)
+      if (!cached) return t
+      return {
+        ...t,
+        headerMediaPreviewUrl: cached.headerMediaPreviewUrl ?? null,
+        headerMediaPreviewExpiresAt: cached.headerMediaPreviewExpiresAt ?? null,
+        headerMediaId: cached.headerMediaId ?? null,
+        headerMediaHash: cached.headerMediaHash ?? null,
+      }
+    })
+
+    return NextResponse.json(merged)
   } catch (error) {
     console.error('Meta API Error:', error)
     return NextResponse.json(
@@ -153,7 +206,7 @@ export async function GET() {
 }
 
 
-// POST /api/templates - Fetch templates (with optional body credentials, fallback to Redis)
+// POST /api/templates - Busca templates (body opcional; fallback para Supabase/env)
 export async function POST(request: NextRequest) {
   let businessAccountId: string | undefined
   let accessToken: string | undefined
@@ -167,10 +220,10 @@ export async function POST(request: NextRequest) {
       accessToken = body.accessToken
     }
   } catch {
-    // Empty body, will use Redis
+    // Body vazio/inválido: usar credenciais salvas
   }
 
-  // Fallback to Redis credentials
+  // Fallback para credenciais salvas (Supabase/env)
   if (!businessAccountId || !accessToken) {
     const credentials = await getWhatsAppCredentials()
     if (credentials) {

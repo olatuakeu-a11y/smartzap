@@ -17,12 +17,20 @@ export async function GET() {
     let totalFailed = 0
     let activeCampaigns = 0
 
+      const activeStatuses = new Set([
+        'enviando',
+        'agendado',
+        'sending',
+        'scheduled',
+      ])
+
       ; (data || []).forEach(row => {
         totalSent += row.sent || 0
         totalDelivered += row.delivered || 0
         totalRead += row.read || 0
         totalFailed += row.failed || 0
-        if (row.status === 'Enviando' || row.status === 'Agendado') {
+        const status = String(row.status || '').trim().toLowerCase()
+        if (activeStatuses.has(status)) {
           activeCampaigns++
         }
       })
@@ -43,8 +51,11 @@ export async function GET() {
       },
       {
         headers: {
-          // Cache no CDN por 15s, serve stale enquanto revalida em background
-          'Cache-Control': 'public, s-maxage=15, stale-while-revalidate=30',
+          // Dashboard precisa refletir mudanças em tempo real (realtime/polling).
+          // Cache em CDN faz os indicadores parecerem “travados” até um hard refresh.
+          'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+          'Pragma': 'no-cache',
+          'Expires': '0',
         },
       }
     )

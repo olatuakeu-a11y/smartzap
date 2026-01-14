@@ -13,6 +13,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/utils/supabase/client';
 import { cn } from '@/lib/utils';
 import { WhatsAppPhonePreview } from '@/components/ui/WhatsAppPhonePreview';
+import { Page, PageActions, PageDescription, PageHeader, PageTitle } from '@/components/ui/page';
 
 export default function TemplateProjectDetailsPage() {
     const params = useParams();
@@ -158,22 +159,22 @@ export default function TemplateProjectDetailsPage() {
 
     if (isLoading) {
         return (
-            <div className="flex items-center justify-center min-h-screen">
-                <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
+            <div className="flex items-center justify-center h-full">
+                <Loader2 className="w-8 h-8 animate-spin text-emerald-300" />
             </div>
         );
     }
 
     if (error || !project) {
         return (
-            <div className="flex flex-col items-center justify-center min-h-screen gap-4">
-                <div className="p-4 bg-red-50 text-red-600 rounded-lg flex items-center gap-2">
-                    <AlertCircle className="w-5 h-5" />
+            <div className="flex flex-col items-center justify-center h-full gap-4">
+                <div className="p-4 bg-amber-500/10 text-amber-200 border border-amber-500/20 rounded-lg flex items-center gap-2">
+                    <AlertCircle className="w-5 h-5 text-amber-300" />
                     <span>Erro ao carregar projeto ou projeto não encontrado.</span>
                 </div>
                 <button
                     onClick={() => router.push('/templates')}
-                    className="flex items-center gap-2 text-zinc-500 hover:text-zinc-900"
+                    className="flex items-center gap-2 text-gray-400 hover:text-white"
                 >
                     <ArrowLeft className="w-4 h-4" />
                     Voltar para lista
@@ -183,64 +184,68 @@ export default function TemplateProjectDetailsPage() {
     }
 
     return (
-        <div className="grid grid-cols-12 h-[calc(100vh-80px)] md:h-[calc(100vh-60px)] gap-6 p-6 overflow-hidden w-full">
-            {/* --- LEFT SIDE: LIST & STATS --- */}
-            <div className="col-span-12 lg:col-span-8 flex flex-col min-w-0 h-full">
-
-                {/* Header Actions */}
-                <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-6 gap-4">
-                    <div className="flex items-center gap-4">
+        <Page className="flex flex-col h-full min-h-0">
+            <PageHeader>
+                <div className="min-w-0">
+                    <div className="flex items-center gap-3">
                         <button
                             onClick={() => router.push('/templates')}
-                            className="p-2 -ml-2 text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors"
+                            className="p-2 -ml-2 text-gray-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors border border-white/10 bg-zinc-950/40"
+                            aria-label="Voltar para templates"
                         >
                             <ArrowLeft className="w-5 h-5" />
                         </button>
-                        <div>
-                            <h1 className="text-xl font-bold flex items-center gap-2">
-                                {project.title}
-                                <span className="px-2 py-0.5 text-xs rounded-full border bg-zinc-100 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400">
+
+                        <div className="min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                                <PageTitle className="text-2xl sm:text-3xl truncate">{project.title}</PageTitle>
+                                <span className="px-2 py-0.5 text-xs rounded-full border bg-zinc-950/40 border-white/10 text-gray-400 shrink-0">
                                     {groups.DRAFT.length === 0 && groups.PENDING.length === 0 ? 'Concluído' : 'Em Progresso'}
                                 </span>
-                            </h1>
-                            <p className="text-xs text-zinc-500 mt-1">
+                            </div>
+                            <PageDescription className="text-sm">
                                 Criado em {new Date(project.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', hour: '2-digit', minute: '2-digit' })}
-                            </p>
+                            </PageDescription>
                         </div>
                     </div>
-
-                    <div className="flex gap-2 w-full md:w-auto">
-                        <button
-                            onClick={() => syncProjectMutation.mutate()}
-                            disabled={syncProjectMutation.isPending}
-                            className="px-3 py-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors flex items-center gap-2 text-sm disabled:opacity-50"
-                        >
-                            <RefreshCw className={cn("w-4 h-4", syncProjectMutation.isPending && "animate-spin")} />
-                            {syncProjectMutation.isPending ? 'Sincronizando...' : 'Sincronizar Meta'}
-                        </button>
-
-                        {groups.DRAFT.length > 0 && (
-                            <button
-                                onClick={toggleSelectAll}
-                                className="px-3 py-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors flex items-center gap-2 text-sm"
-                            >
-                                {selectedItems.length === groups.DRAFT.length ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4" />}
-                                Selecionar Tudo
-                            </button>
-                        )}
-
-                        {selectedItems.length > 0 && (
-                            <button
-                                onClick={() => bulkSubmitMutation.mutate(selectedItems)}
-                                disabled={bulkSubmitMutation.isPending}
-                                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors flex items-center gap-2 text-sm font-medium disabled:opacity-50"
-                            >
-                                {bulkSubmitMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                                Enviar ({selectedItems.length}) para Meta
-                            </button>
-                        )}
-                    </div>
                 </div>
+
+                <PageActions className="flex-wrap justify-start sm:justify-end">
+                    <button
+                        onClick={() => syncProjectMutation.mutate()}
+                        disabled={syncProjectMutation.isPending}
+                        className="px-3 py-2 bg-zinc-950/40 border border-white/10 text-gray-200 rounded-lg hover:bg-white/5 transition-colors flex items-center gap-2 text-sm disabled:opacity-50"
+                    >
+                        <RefreshCw className={cn("w-4 h-4", syncProjectMutation.isPending && "animate-spin")} />
+                        {syncProjectMutation.isPending ? 'Sincronizando...' : 'Sincronizar Meta'}
+                    </button>
+
+                    {groups.DRAFT.length > 0 && (
+                        <button
+                            onClick={toggleSelectAll}
+                            className="px-3 py-2 bg-zinc-950/40 border border-white/10 text-gray-200 rounded-lg hover:bg-white/5 transition-colors flex items-center gap-2 text-sm"
+                        >
+                            {selectedItems.length === groups.DRAFT.length ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4" />}
+                            Selecionar Tudo
+                        </button>
+                    )}
+
+                    {selectedItems.length > 0 && (
+                        <button
+                            onClick={() => bulkSubmitMutation.mutate(selectedItems)}
+                            disabled={bulkSubmitMutation.isPending}
+                            className="px-4 py-2 bg-white text-black rounded-lg transition-colors flex items-center gap-2 text-sm font-semibold hover:bg-gray-200 disabled:opacity-50"
+                        >
+                            {bulkSubmitMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                            Enviar ({selectedItems.length}) para Meta
+                        </button>
+                    )}
+                </PageActions>
+            </PageHeader>
+
+            <div className="grid grid-cols-12 flex-1 min-h-0 gap-6 overflow-hidden w-full">
+                {/* --- LEFT SIDE: LIST & STATS --- */}
+                <div className="col-span-12 lg:col-span-8 flex flex-col min-w-0 min-h-0">
 
                 {/* Stats Grid */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 shrink-0">
@@ -275,7 +280,7 @@ export default function TemplateProjectDetailsPage() {
                 </div>
 
                 {/* Template List */}
-                <div className="flex-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl overflow-y-auto">
+                <div className="flex-1 bg-zinc-900/60 border border-white/10 rounded-2xl overflow-y-auto shadow-[0_12px_30px_rgba(0,0,0,0.35)]">
                     {sections.map(section => {
                         if (section.count === 0) return null;
 
@@ -284,24 +289,24 @@ export default function TemplateProjectDetailsPage() {
                         const sectionItems = groups[section.id];
 
                         return (
-                            <div key={section.id} className="border-b border-zinc-200 dark:border-zinc-800 last:border-0">
+                            <div key={section.id} className="border-b border-white/10 last:border-0">
                                 <button
                                     onClick={() => setExpandedSection(isExpanded && expandedSection !== 'ALL' ? 'ALL' : section.id)}
-                                    className="w-full flex items-center justify-between p-4 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors sticky top-0 bg-white dark:bg-zinc-900 z-10"
+                                    className="w-full flex items-center justify-between p-4 hover:bg-white/5 transition-colors sticky top-0 bg-zinc-900/60 z-10"
                                 >
                                     <div className="flex items-center gap-3">
                                         <section.icon className={cn("w-5 h-5", {
-                                            'text-emerald-500': section.color === 'emerald',
-                                            'text-red-500': section.color === 'red',
-                                            'text-yellow-500': section.color === 'yellow',
-                                            'text-zinc-500': section.color === 'zinc',
+                                            'text-emerald-300': section.color === 'emerald',
+                                            'text-red-300': section.color === 'red',
+                                            'text-amber-300': section.color === 'yellow',
+                                            'text-gray-400': section.color === 'zinc',
                                         })} />
-                                        <span className="font-medium">{section.label}</span>
-                                        <span className="px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-xs text-zinc-500">
+                                        <span className="font-medium text-white">{section.label}</span>
+                                        <span className="px-2 py-0.5 rounded-full bg-zinc-950/40 border border-white/10 text-xs text-gray-400">
                                             {section.count}
                                         </span>
                                     </div>
-                                    <ChevronDown className={cn("w-4 h-4 text-zinc-400 transition-transform", { "rotate-180": isExpanded })} />
+                                    <ChevronDown className={cn("w-4 h-4 text-gray-400 transition-transform", { "rotate-180": isExpanded })} />
                                 </button>
 
                                 {isExpanded && (
@@ -319,8 +324,8 @@ export default function TemplateProjectDetailsPage() {
                                                     className={cn(
                                                         "p-3 rounded-lg border transition-all cursor-pointer flex gap-3 relative group",
                                                         isActive
-                                                            ? "bg-emerald-50 dark:bg-emerald-900/10 border-emerald-500 ring-1 ring-emerald-500"
-                                                            : "bg-zinc-50 dark:bg-zinc-900/50 border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700"
+                                                            ? "bg-emerald-500/10 border-emerald-500/30 ring-1 ring-emerald-500/40"
+                                                            : "bg-zinc-950/40 border-white/10 hover:border-white/20 hover:bg-white/5"
                                                     )}
                                                 >
                                                     {isDraft && (
@@ -329,8 +334,8 @@ export default function TemplateProjectDetailsPage() {
                                                             className={cn(
                                                                 "mt-1 w-5 h-5 rounded border flex items-center justify-center transition-colors shrink-0 z-10",
                                                                 isSelected
-                                                                    ? "bg-emerald-500 border-emerald-500 text-white"
-                                                                    : "border-zinc-300 dark:border-zinc-600 text-transparent hover:border-zinc-400"
+                                                                    ? "bg-emerald-500 border-emerald-500 text-black"
+                                                                    : "border-white/20 text-transparent hover:border-white/40"
                                                             )}
                                                         >
                                                             <Check className="w-3.5 h-3.5" />
@@ -343,27 +348,27 @@ export default function TemplateProjectDetailsPage() {
                                                                 {item.name}
                                                             </span>
                                                             <div className="flex items-center gap-2">
-                                                                <span className="text-xs text-zinc-400 flex items-center gap-1 shrink-0">
-                                                                    <Copy className="w-3 h-3" />
-                                                                    {item.language}
-                                                                </span>
-                                                                {isDraft && (
-                                                                    <button
-                                                                        onClick={(e) => {
-                                                                            e.stopPropagation();
-                                                                            if (confirm('Excluir este rascunho?')) {
-                                                                                deleteItemMutation.mutate(item.id);
-                                                                            }
-                                                                        }}
-                                                                        className="p-1 text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors opacity-0 group-hover:opacity-100"
-                                                                        title="Excluir rascunho"
-                                                                    >
-                                                                        <Trash2 className="w-3.5 h-3.5" />
-                                                                    </button>
+                                                            <span className="text-xs text-gray-400 flex items-center gap-1 shrink-0">
+                                                                <Copy className="w-3 h-3" />
+                                                                {item.language}
+                                                            </span>
+                                                            {isDraft && (
+                                                                <button
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        if (confirm('Excluir este rascunho?')) {
+                                                                            deleteItemMutation.mutate(item.id);
+                                                                        }
+                                                                    }}
+                                                                    className="p-1 text-zinc-400 hover:text-amber-300 hover:bg-amber-500/10 rounded transition-colors opacity-0 group-hover:opacity-100"
+                                                                    title="Excluir rascunho"
+                                                                >
+                                                                    <Trash2 className="w-3.5 h-3.5" />
+                                                                </button>
                                                                 )}
                                                             </div>
                                                         </div>
-                                                        <p className="text-xs text-zinc-500 dark:text-zinc-400 line-clamp-2">
+                                                        <p className="text-xs text-gray-400 line-clamp-2">
                                                             {item.content}
                                                         </p>
                                                     </div>
@@ -378,8 +383,8 @@ export default function TemplateProjectDetailsPage() {
                 </div>
             </div>
 
-            {/* --- RIGHT SIDE: PREVIEW --- */}
-            <div className="hidden lg:flex col-span-4 border-l border-zinc-200 dark:border-zinc-800 pl-6 flex-col justify-center">
+                {/* --- RIGHT SIDE: PREVIEW --- */}
+                <div className="hidden lg:flex col-span-4 border-l border-white/10 pl-6 flex-col min-h-0">
                 {previewItem ? (
                     <div className="sticky top-6 w-full">
                         <h3 className="text-sm font-medium text-zinc-400 mb-4 text-center">
@@ -396,16 +401,16 @@ export default function TemplateProjectDetailsPage() {
                             variables={['Nome do Contato', 'Valor', 'Data']} // Placeholder
                             size="md"
                         />
-                        <div className="mt-6 p-4 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg">
-                            <h4 className="text-sm font-medium mb-2">Detalhes Técnicos</h4>
-                            <div className="space-y-2 text-xs text-zinc-500">
+                        <div className="mt-6 p-4 bg-zinc-900/60 border border-white/10 rounded-2xl shadow-[0_12px_30px_rgba(0,0,0,0.35)]">
+                            <h4 className="text-sm font-medium text-white mb-2">Detalhes Técnicos</h4>
+                            <div className="space-y-2 text-xs text-gray-400">
                                 <div className="flex justify-between">
                                     <span>Status Meta:</span>
                                     <span className={cn(
                                         "font-medium",
-                                        previewItem.meta_status === 'APPROVED' && "text-emerald-500",
-                                        previewItem.meta_status === 'REJECTED' && "text-red-500",
-                                        previewItem.meta_status === 'PENDING' && "text-yellow-500",
+                                        previewItem.meta_status === 'APPROVED' && "text-emerald-300",
+                                        previewItem.meta_status === 'REJECTED' && "text-amber-300",
+                                        previewItem.meta_status === 'PENDING' && "text-amber-300",
                                     )}>{previewItem.meta_status || 'Rascunho'}</span>
                                 </div>
                                 <div className="flex justify-between">
@@ -416,13 +421,14 @@ export default function TemplateProjectDetailsPage() {
                         </div>
                     </div>
                 ) : (
-                    <div className="h-full flex flex-col items-center justify-center text-zinc-400 border border-dashed border-zinc-200 dark:border-zinc-800 rounded-2xl bg-zinc-50 dark:bg-zinc-900/30 w-full">
+                    <div className="h-full flex flex-col items-center justify-center text-gray-400 border border-dashed border-white/10 rounded-2xl bg-zinc-900/60 shadow-[0_12px_30px_rgba(0,0,0,0.35)] w-full">
                         <Eye className="w-12 h-12 mb-4 opacity-50" />
                         <p className="text-sm">Selecione um template para visualizar</p>
                     </div>
                 )}
+                </div>
             </div>
-        </div>
+        </Page>
     );
 }
 
@@ -430,14 +436,14 @@ function StatCard({ label, count, total, color, icon: Icon }: any) {
     const percent = total > 0 ? Math.round((count / total) * 100) : 0;
 
     const colors: Record<string, string> = {
-        emerald: 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 border-emerald-100 dark:border-emerald-500/20',
-        yellow: 'text-yellow-600 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-500/10 border-yellow-100 dark:border-yellow-500/20',
-        red: 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-500/10 border-red-100 dark:border-red-500/20',
-        zinc: 'text-zinc-600 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-500/10 border-zinc-100 dark:border-zinc-500/20',
+        emerald: 'text-emerald-300 bg-emerald-500/10 border-emerald-500/20',
+        yellow: 'text-amber-300 bg-amber-500/10 border-amber-500/20',
+        red: 'text-amber-200 bg-amber-500/10 border-amber-500/20',
+        zinc: 'text-gray-400 bg-zinc-500/10 border-white/10',
     };
 
     return (
-        <div className={cn("p-4 rounded-xl border flex flex-col justify-between h-24", colors[color])}>
+        <div className={cn("p-4 rounded-2xl border flex flex-col justify-between h-24 shadow-[0_12px_30px_rgba(0,0,0,0.35)]", colors[color])}>
             <div className="flex justify-between items-start">
                 <Icon className="w-5 h-5 opacity-70" />
                 <span className="text-2xl font-bold">{count}</span>

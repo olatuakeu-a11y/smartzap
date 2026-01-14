@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
+import { isSupabaseConfigured } from '@/lib/supabase'
 import { normalizePhoneNumber, validateAnyPhoneNumber } from '@/lib/phone-formatter'
 
 /**
@@ -13,6 +14,10 @@ const SETTING_KEY = 'test_contact'
 
 export async function GET() {
     try {
+        if (!isSupabaseConfigured()) {
+            return NextResponse.json(null)
+        }
+
         const { data, error } = await supabase
             .from('settings')
             .select('value')
@@ -25,18 +30,31 @@ export async function GET() {
 
         if (data?.value) {
             // Parse JSON string to object (column is TEXT type)
-            const parsed = typeof data.value === 'string'
-                ? JSON.parse(data.value)
-                : data.value
-            return NextResponse.json(parsed)
+            if (typeof data.value === 'string') {
+                try {
+                    const parsed = JSON.parse(data.value)
+                    return NextResponse.json(parsed)
+                } catch {
+                    // Compat: versões antigas podem ter salvo apenas o telefone em texto.
+                    const asText = String(data.value || '').trim()
+                    const normalized = normalizePhoneNumber(asText)
+                    const validation = validateAnyPhoneNumber(normalized)
+                    if (validation.isValid) {
+                        return NextResponse.json({ phone: normalized })
+                    }
+                    return NextResponse.json(null)
+                }
+            }
+
+            return NextResponse.json(data.value)
         }
 
         return NextResponse.json(null)
     } catch (error) {
         console.error('Error fetching test contact:', error)
         return NextResponse.json(
-            { error: 'Failed to fetch test contact' },
-            { status: 500 }
+            // Evita 500 para não causar cascata de retries/lentidão no frontend.
+            { error: 'Failed to fetch test contact', details: String((error as any)?.message || error) }
         )
     }
 }
