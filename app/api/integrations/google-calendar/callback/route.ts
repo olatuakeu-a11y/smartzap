@@ -40,7 +40,11 @@ export async function GET(request: NextRequest) {
     response.cookies.delete(RETURN_COOKIE)
     return response
   } catch (error) {
-    console.error('[google-calendar] callback error:', error)
-    return NextResponse.json({ error: 'Falha ao concluir OAuth' }, { status: 500 })
+    const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido'
+    console.error('[google-calendar] callback error:', errorMessage, error)
+    return NextResponse.json({
+      error: 'Falha ao concluir OAuth',
+      details: errorMessage
+    }, { status: 500 })
   }
 }
