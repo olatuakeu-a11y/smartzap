@@ -44,6 +44,9 @@
 - **🏷️ Nome único ao publicar Flow**
   - `app/api/flows/[id]/meta/publish/route.ts` adiciona sufixo com ID para evitar colisão na Meta
 
+- **🧾 Erro da Meta exibido no publish**
+  - `services/flowsService.ts` agora expõe `error_user_title` e `error_user_msg` quando disponíveis
+
 ## 25/12/2025 - Debug (Run/Trace para campanhas)
 
 - **🔎 Timeline estruturada por `trace_id` (sem caçar logs)**

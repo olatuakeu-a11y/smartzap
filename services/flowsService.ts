@@ -176,6 +176,14 @@ export const flowsService = {
     fetch('http://127.0.0.1:7243/ingest/1294d6ce-76f2-430d-96ab-3ae4d7527327',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H8',location:'services/flowsService.ts:165',message:'publishToMeta response',data:{flowId:id,ok:res.ok,status:res.status,hasError:!res.ok,hasDebug:Boolean(data?.debug),error:data?.error ?? null,metaError:((data?.debug && (data.debug as any)?.graphError) ? true : false)},timestamp:Date.now()})}).catch(()=>{});
     // #endregion agent log
     if (!res.ok) {
+      if (data?.debug?.graphError) {
+        const ge = data.debug.graphError
+        const userTitle = ge.error_user_title ? String(ge.error_user_title) : ''
+        const userMsg = ge.error_user_msg ? String(ge.error_user_msg) : ''
+        const details = [userTitle, userMsg].filter(Boolean).join(' — ')
+        const base = (data?.error && String(data.error)) || 'Falha ao publicar MiniApp na Meta'
+        throw new Error(details ? `${base}: ${details}` : base)
+      }
       const msg = (data?.error && String(data.error)) || 'Falha ao publicar MiniApp na Meta'
       const details = data?.issues ? `: ${Array.isArray(data.issues) ? data.issues.join(', ') : String(data.issues)}` : ''
       throw new Error(`${msg}${details}`)
