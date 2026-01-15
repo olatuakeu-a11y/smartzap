@@ -47,6 +47,9 @@
 - **🧾 Erro da Meta exibido no publish**
   - `services/flowsService.ts` agora expõe `error_user_title` e `error_user_msg` quando disponíveis
 
+- **🔐 Registro automático da chave pública**
+  - `app/api/flows/[id]/meta/publish/route.ts` agora registra a chave pública na Meta antes de publicar flows dinâmicos
+
 ## 25/12/2025 - Debug (Run/Trace para campanhas)
 
 - **🔎 Timeline estruturada por `trace_id` (sem caçar logs)**

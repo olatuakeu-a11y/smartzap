@@ -8,6 +8,8 @@ import { supabase } from '@/lib/supabase'
 import { getWhatsAppCredentials } from '@/lib/whatsapp-credentials'
 import {
   metaCreateFlow,
+  metaGetEncryptionPublicKey,
+  metaSetEncryptionPublicKey,
   metaGetFlowDetails,
   metaGetFlowPreview,
   metaPublishFlow,
@@ -30,6 +32,7 @@ function isDynamicFlow(flowJson: unknown): boolean {
 }
 
 const ENDPOINT_URL_SETTING = 'whatsapp_flow_endpoint_url'
+const PUBLIC_KEY_SETTING = 'whatsapp_flow_public_key'
 
 /**
  * Retorna a URL do endpoint se configurado
@@ -211,6 +214,41 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
           )
         }
         endpointUri = url
+      }
+
+      if (dynamic) {
+        const publicKey = await settingsDb.get(PUBLIC_KEY_SETTING)
+        const hasPublicKey = Boolean(publicKey)
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/1294d6ce-76f2-430d-96ab-3ae4d7527327',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H9',location:'app/api/flows/[id]/meta/publish/route.ts:198',message:'flow public key status',data:{flowId:id,hasPublicKey},timestamp:Date.now()})}).catch(()=>{});
+        // #endregion agent log
+        if (!publicKey) {
+          return NextResponse.json(
+            {
+              error: 'Chave pública do Flow não configurada. Gere as chaves em Configurações > MiniApp Dinâmico.',
+            },
+            { status: 400 }
+          )
+        }
+
+        const existingKey = await metaGetEncryptionPublicKey({
+          accessToken: credentials.accessToken,
+          wabaId: credentials.businessAccountId,
+        })
+        const needsRegistration = !existingKey.publicKey || existingKey.publicKey.trim() !== publicKey.trim()
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/1294d6ce-76f2-430d-96ab-3ae4d7527327',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H9',location:'app/api/flows/[id]/meta/publish/route.ts:214',message:'flow public key registration check',data:{flowId:id,hasExistingKey:Boolean(existingKey.publicKey),needsRegistration},timestamp:Date.now()})}).catch(()=>{});
+        // #endregion agent log
+        if (needsRegistration) {
+          await metaSetEncryptionPublicKey({
+            accessToken: credentials.accessToken,
+            wabaId: credentials.businessAccountId,
+            publicKey,
+          })
+          // #region agent log
+          fetch('http://127.0.0.1:7243/ingest/1294d6ce-76f2-430d-96ab-3ae4d7527327',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H9',location:'app/api/flows/[id]/meta/publish/route.ts:229',message:'flow public key registered',data:{flowId:id},timestamp:Date.now()})}).catch(()=>{});
+          // #endregion agent log
+        }
       }
 
       const flowJsonObj = flowJson && typeof flowJson === 'object' ? (flowJson as Record<string, unknown>) : null
