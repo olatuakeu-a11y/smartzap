@@ -102,6 +102,9 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   try {
     const input = PublishSchema.parse(await req.json().catch(() => ({})))
     wantsDebug = req.headers.get('x-debug-client') === '1'
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/1294d6ce-76f2-430d-96ab-3ae4d7527327',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'ultra-logging',hypothesisId:'H1',location:'app/api/flows/[id]/meta/publish/route.ts:104',message:'publish request parsed',data:{flowId:id,wantsDebug,updateIfExists:input.updateIfExists,publish:input.publish,categoriesCount:input.categories.length},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion agent log
 
     const credentials = await getWhatsAppCredentials()
     if (!credentials?.accessToken || !credentials.businessAccountId) {
@@ -132,6 +135,9 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     if (!row) return NextResponse.json({ error: 'Flow não encontrado' }, { status: 404 })
 
     let flowJson = extractFlowJson(row)
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/1294d6ce-76f2-430d-96ab-3ae4d7527327',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'ultra-logging',hypothesisId:'H2',location:'app/api/flows/[id]/meta/publish/route.ts:136',message:'publish flow snapshot',data:{flowId:id,hasSpecForm:Boolean(row?.spec?.form),hasSavedFlowJson:Boolean(row?.flow_json),metaFlowId:row?.meta_flow_id ?? null,flowJsonVersion:(flowJson as any)?.version ?? null,flowJsonDataApiVersion:(flowJson as any)?.data_api_version ?? null},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion agent log
     // #region agent log
     fetch('http://127.0.0.1:7243/ingest/1294d6ce-76f2-430d-96ab-3ae4d7527327',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H1',location:'app/api/flows/[id]/meta/publish/route.ts:104',message:'extractFlowJson result',data:{flowId:id,hasSpecForm:Boolean(row?.spec?.form),hasFlowJson:Boolean(row?.flow_json),flowJsonVersion:(flowJson as any)?.version ?? null,flowJsonDataApiVersion:(flowJson as any)?.data_api_version ?? null},timestamp:Date.now()})}).catch(()=>{});
     // #endregion agent log
@@ -211,6 +217,9 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       if (dynamic) {
         const url = await getFlowEndpointUrl()
         // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/1294d6ce-76f2-430d-96ab-3ae4d7527327',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'ultra-logging',hypothesisId:'H3',location:'app/api/flows/[id]/meta/publish/route.ts:214',message:'dynamic endpoint resolved',data:{flowId:id,hasEndpointUrl:Boolean(url),endpointHost:url ? (()=>{try{return new URL(url).host}catch{return null}})() : null},timestamp:Date.now()})}).catch(()=>{});
+        // #endregion agent log
+        // #region agent log
         fetch('http://127.0.0.1:7243/ingest/1294d6ce-76f2-430d-96ab-3ae4d7527327',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H3',location:'app/api/flows/[id]/meta/publish/route.ts:172',message:'dynamic flow endpoint resolution',data:{flowId:id,hasEndpointUrl:Boolean(url)},timestamp:Date.now()})}).catch(()=>{});
         // #endregion agent log
         if (!url) {
@@ -266,6 +275,9 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       const screens = Array.isArray((flowJsonObj as any)?.screens) ? (flowJsonObj as any).screens : []
       const screenIds = screens.map((s: any) => String(s?.id || '')).filter(Boolean).slice(0, 6)
       // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/1294d6ce-76f2-430d-96ab-3ae4d7527327',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'ultra-logging',hypothesisId:'H4',location:'app/api/flows/[id]/meta/publish/route.ts:268',message:'meta create flow summary',data:{flowId:id,hasEndpointUri:Boolean(endpointUri),dataApiVersion:(flowJsonObj as any)?.data_api_version ?? null,flowJsonVersion:(flowJsonObj as any)?.version ?? null,screensCount:Array.isArray(screens)?screens.length:null,screenIds},timestamp:Date.now()})}).catch(()=>{});
+      // #endregion agent log
+      // #region agent log
       fetch('http://127.0.0.1:7243/ingest/1294d6ce-76f2-430d-96ab-3ae4d7527327',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H6',location:'app/api/flows/[id]/meta/publish/route.ts:189',message:'meta create flow payload summary',data:{flowId:id,hasEndpointUri:Boolean(endpointUri),dataApiVersion:(flowJsonObj as any)?.data_api_version ?? null,flowJsonVersion:(flowJsonObj as any)?.version ?? null,screensCount:Array.isArray(screens)?screens.length:null,screenIds},timestamp:Date.now()})}).catch(()=>{});
       // #endregion agent log
 
@@ -287,6 +299,9 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
 
       metaFlowId = created.id
       validationErrors = created.validation_errors ?? null
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/1294d6ce-76f2-430d-96ab-3ae4d7527327',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'ultra-logging',hypothesisId:'H5',location:'app/api/flows/[id]/meta/publish/route.ts:289',message:'meta create flow response',data:{flowId:id,metaFlowId,validationErrorsCount:Array.isArray((created as any)?.validation_errors)?(created as any).validation_errors.length:null},timestamp:Date.now()})}).catch(()=>{});
+      // #endregion agent log
 
       // Atualiza detalhes (status etc.)
       const details = await metaGetFlowDetails({ accessToken: credentials.accessToken, flowId: metaFlowId })

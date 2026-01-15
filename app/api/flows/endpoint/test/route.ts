@@ -67,9 +67,26 @@ export async function GET() {
   })
 
   const text = await res.text()
+  let decryptedOk = false
+  try {
+    const responseBuffer = Buffer.from(text, 'base64')
+    const responseAuthTag = responseBuffer.subarray(-16)
+    const responseCiphertext = responseBuffer.subarray(0, -16)
+    const flippedIv = Buffer.alloc(iv.length)
+    for (let i = 0; i < iv.length; i++) flippedIv[i] = iv[i] ^ 0xff
+    const decipher = crypto.createDecipheriv('aes-128-gcm', aesKey, flippedIv)
+    decipher.setAuthTag(responseAuthTag)
+    decipher.update(responseCiphertext)
+    decipher.final()
+    decryptedOk = true
+  } catch (error) {
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/1294d6ce-76f2-430d-96ab-3ae4d7527327',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'endpoint-health',hypothesisId:'H9',location:'app/api/flows/endpoint/test/route.ts:74',message:'endpoint response decrypt failed',data:{errorName:error instanceof Error ? error.name : 'unknown',errorMessage:error instanceof Error ? error.message : 'unknown'},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion agent log
+  }
 
   // #region agent log
-  fetch('http://127.0.0.1:7243/ingest/1294d6ce-76f2-430d-96ab-3ae4d7527327',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'endpoint-health',hypothesisId:'H7',location:'app/api/flows/endpoint/test/route.ts:68',message:'endpoint test response',data:{status:res.status,ok:res.ok,bodyLength:text.length},timestamp:Date.now()})}).catch(()=>{});
+  fetch('http://127.0.0.1:7243/ingest/1294d6ce-76f2-430d-96ab-3ae4d7527327',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'endpoint-health',hypothesisId:'H7',location:'app/api/flows/endpoint/test/route.ts:82',message:'endpoint test response',data:{status:res.status,ok:res.ok,bodyLength:text.length,decryptedOk},timestamp:Date.now()})}).catch(()=>{});
   // #endregion agent log
 
   return NextResponse.json({
