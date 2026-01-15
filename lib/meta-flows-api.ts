@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import crypto from 'crypto'
 
 const GRAPH_VERSION = 'v24.0'
 const GRAPH_BASE = `https://graph.facebook.com/${GRAPH_VERSION}`
@@ -244,8 +245,14 @@ export async function metaSetEncryptionPublicKey(params: {
   phoneNumberId: string
   publicKey: string
 }): Promise<{ success: boolean }> {
+  const normalizedKey = params.publicKey.trim().replace(/\r\n/g, '\n')
+  const publicKeyHash = crypto.createHash('sha256').update(normalizedKey).digest('hex').slice(0, 12)
+  // #region agent log
+  fetch('http://127.0.0.1:7243/ingest/1294d6ce-76f2-430d-96ab-3ae4d7527327',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'ultra-logging',hypothesisId:'H7',location:'lib/meta-flows-api.ts:246',message:'metaSetEncryptionPublicKey request',data:{phoneNumberId:params.phoneNumberId.slice(0,6),publicKeyHash},timestamp:Date.now()})}).catch(()=>{});
+  // #endregion agent log
+
   const form = new URLSearchParams()
-  form.set('business_public_key', params.publicKey)
+  form.set('business_public_key', normalizedKey)
 
   const res = await fetch(`${GRAPH_BASE}/${encodeURIComponent(params.phoneNumberId)}/whatsapp_business_encryption`, {
     method: 'POST',
@@ -259,6 +266,10 @@ export async function metaSetEncryptionPublicKey(params: {
   const data = await readJsonSafe(res)
   if (!res.ok) throw new MetaGraphApiError(buildGraphErrorMessage(data, 'Falha ao registrar chave publica na Meta'), res.status, data)
 
+  // #region agent log
+  fetch('http://127.0.0.1:7243/ingest/1294d6ce-76f2-430d-96ab-3ae4d7527327',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'ultra-logging',hypothesisId:'H7',location:'lib/meta-flows-api.ts:262',message:'metaSetEncryptionPublicKey response',data:{success:!!data?.success},timestamp:Date.now()})}).catch(()=>{});
+  // #endregion agent log
+
   return { success: !!data?.success }
 }
 
@@ -268,7 +279,7 @@ export async function metaSetEncryptionPublicKey(params: {
 export async function metaGetEncryptionPublicKey(params: {
   accessToken: string
   phoneNumberId: string
-}): Promise<{ publicKey: string | null }> {
+}): Promise<{ publicKey: string | null; signatureStatus?: string | null }> {
   const url = `${GRAPH_BASE}/${encodeURIComponent(params.phoneNumberId)}/whatsapp_business_encryption`
   const res = await fetch(url, {
     method: 'GET',
@@ -281,13 +292,26 @@ export async function metaGetEncryptionPublicKey(params: {
   if (!res.ok) {
     // Se nao tem chave configurada, retorna null em vez de erro
     if (res.status === 400) {
-      return { publicKey: null }
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/1294d6ce-76f2-430d-96ab-3ae4d7527327',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'ultra-logging',hypothesisId:'H8',location:'lib/meta-flows-api.ts:286',message:'metaGetEncryptionPublicKey no key',data:{status:res.status},timestamp:Date.now()})}).catch(()=>{});
+      // #endregion agent log
+      return { publicKey: null, signatureStatus: null }
     }
     throw new MetaGraphApiError(buildGraphErrorMessage(data, 'Falha ao buscar chave publica na Meta'), res.status, data)
   }
 
+  const metaKey = typeof data?.business_public_key === 'string' ? data.business_public_key : null
+  const signatureStatus = typeof data?.business_public_key_signature_status === 'string'
+    ? data.business_public_key_signature_status
+    : null
+  const metaKeyHash = metaKey ? crypto.createHash('sha256').update(metaKey.trim().replace(/\r\n/g, '\n')).digest('hex').slice(0, 12) : null
+  // #region agent log
+  fetch('http://127.0.0.1:7243/ingest/1294d6ce-76f2-430d-96ab-3ae4d7527327',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'ultra-logging',hypothesisId:'H8',location:'lib/meta-flows-api.ts:300',message:'metaGetEncryptionPublicKey response',data:{hasKey:Boolean(metaKey),metaKeyHash,signatureStatus},timestamp:Date.now()})}).catch(()=>{});
+  // #endregion agent log
+
   return {
-    publicKey: typeof data?.business_public_key === 'string' ? data.business_public_key : null,
+    publicKey: metaKey,
+    signatureStatus,
   }
 }
 
