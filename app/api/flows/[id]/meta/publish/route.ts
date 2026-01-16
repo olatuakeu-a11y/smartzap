@@ -125,6 +125,18 @@ function extractFlowJson(row: any): unknown {
   return generateFlowJsonFromFormSpec(emptyNormalized)
 }
 
+function stripEditorMetadata(input: unknown): unknown {
+  if (Array.isArray(input)) return input.map(stripEditorMetadata)
+  if (!input || typeof input !== 'object') return input
+
+  const out: Record<string, unknown> = {}
+  for (const [k, v] of Object.entries(input as Record<string, unknown>)) {
+    if (k === '__editor_key' || k === '__editor_title_key') continue
+    out[k] = stripEditorMetadata(v)
+  }
+  return out
+}
+
 export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params
   let wantsDebug = false
@@ -162,6 +174,23 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
 
     let flowJson = extractFlowJson(row)
     const flowJsonObj = flowJson && typeof flowJson === 'object' ? (flowJson as Record<string, unknown>) : null
+
+    // A Meta rejeita propriedades internas do editor (ex: __editor_key).
+    // Removemos somente essas chaves para publicar sem afetar o preview no app.
+    const flowJsonForMeta = stripEditorMetadata(flowJson)
+    const flowJsonForMetaObj =
+      flowJsonForMeta && typeof flowJsonForMeta === 'object' ? (flowJsonForMeta as Record<string, unknown>) : null
+
+    try {
+      const removed =
+        JSON.stringify(flowJson || {}).length > 0 && JSON.stringify(flowJsonForMeta || {}).length > 0
+          ? Math.max(0, JSON.stringify(flowJson || {}).length - JSON.stringify(flowJsonForMeta || {}).length)
+          : null
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/1294d6ce-76f2-430d-96ab-3ae4d7527327',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'meta-publish',hypothesisId:'H7',location:'app/api/flows/[id]/meta/publish/route.ts:stripEditorMetadata',message:'stripped editor metadata',data:{flowId:id,hadFlowJson:!!flowJsonObj,hadFlowJsonForMeta:!!flowJsonForMetaObj,approxBytesRemoved:removed},timestamp:Date.now()})}).catch(()=>{});
+      // #endregion agent log
+    } catch {}
+
     debugInfo.flowJsonVersion = (flowJsonObj as any)?.version ?? null
     debugInfo.flowJsonDataApiVersion = (flowJsonObj as any)?.data_api_version ?? null
     try {
@@ -193,7 +222,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
 
     // Validação do schema do Flow JSON (mais próximo do que a Meta espera) antes de chamar a Graph API.
     // Isso evita o "(100) Invalid parameter" sem contexto.
-    let localValidation = validateMetaFlowJson(flowJson)
+    let localValidation = validateMetaFlowJson(flowJsonForMeta)
     try {
       // #region agent log
       fetch('http://127.0.0.1:7243/ingest/1294d6ce-76f2-430d-96ab-3ae4d7527327',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'meta-publish',hypothesisId:'H2',location:'app/api/flows/[id]/meta/publish/route.ts:validateMetaFlowJson',message:'local validation result',data:{flowId:id,isValid:!!localValidation.isValid,errorsCount:Array.isArray(localValidation.errors)?localValidation.errors.length:null,warningsCount:Array.isArray(localValidation.warnings)?localValidation.warnings.length:null,errorsPreview:Array.isArray(localValidation.errors)?localValidation.errors.slice(0,3):null},timestamp:Date.now()})}).catch(()=>{});
@@ -208,10 +237,11 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     if (!isDynamic && !localValidation.isValid && row?.spec?.form) {
       const normalized = normalizeFlowFormSpec(row.spec.form, row?.name || 'Flow')
       const regenerated = generateFlowJsonFromFormSpec(normalized)
-      const regeneratedValidation = validateMetaFlowJson(regenerated)
+      const regeneratedValidation = validateMetaFlowJson(stripEditorMetadata(regenerated))
 
       if (regeneratedValidation.isValid) {
         flowJson = regenerated
+        // mantém flowJson (para DB) e valida/publica com versão sanitizada
         localValidation = regeneratedValidation
       }
     }
@@ -357,7 +387,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
           wabaId: credentials.businessAccountId,
           name: uniqueName,
           categories: input.categories.length > 0 ? input.categories : ['OTHER'],
-          flowJson,
+          flowJson: flowJsonForMeta,
           publish: !!input.publish,
           endpointUri,
         })
@@ -375,7 +405,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
               wabaId: credentials.businessAccountId,
               name: retryName,
               categories: input.categories.length > 0 ? input.categories : ['OTHER'],
-              flowJson,
+              flowJson: flowJsonForMeta,
               publish: !!input.publish,
               endpointUri,
             })

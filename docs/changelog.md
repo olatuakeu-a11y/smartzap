@@ -35,6 +35,7 @@
 - **📡 Publish na Meta: compatibilidade com `routing_model`**
   - `lib/dynamic-flow.ts` normaliza IDs de telas para o padrão aceito pela Meta no `routing_model` (somente letras/underscore), migrando `SCREEN_1/2/3...` → `SCREEN_A/B/C...`
   - `app/api/flows/[id]/meta/publish/route.ts` passa a exigir `endpoint_uri` também quando houver `data_api_version: "3.0"`/`routing_model` (mesmo sem `data_exchange`), com mensagem explícita de que **localhost não publica**
+  - `app/api/flows/[id]/meta/publish/route.ts` remove metadados internos do editor (`__editor_key`, `__editor_title_key`) do JSON enviado à Meta (evita validation errors 139002)
 
 ## 15/01/2026 - Builder dinâmico estilo “Formulário”
 

@@ -252,7 +252,7 @@ export default function FlowBuilderEditorPage({
     // Se vier de um fluxo já salvo, mostra no preview imediatamente.
     const savedJson = (flow as any)?.flow_json
     if (savedJson && typeof savedJson === 'object') {
-      setFormPreviewJson((prev) => prev || savedJson)
+      setFormPreviewJson((prev: unknown) => prev || savedJson)
     }
   }, [flow?.id])
 
