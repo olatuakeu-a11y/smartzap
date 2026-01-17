@@ -65,6 +65,12 @@ export async function POST(request: Request) {
     )
 
     const data = await safeJson<any>(response)
+    try {
+      const msgId = Array.isArray((data as any)?.messages) ? String((data as any).messages?.[0]?.id || '') : ''
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/1294d6ce-76f2-430d-96ab-3ae4d7527327',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'flow-send',hypothesisId:'S1',location:'app/api/flows/send/route.ts:afterGraph',message:'meta message id received',data:{ok:response.ok,status:response.status,hasMessageId:!!msgId,messageIdSuffix:msgId?msgId.slice(-6):null},timestamp:Date.now()})}).catch(()=>{});
+      // #endregion agent log
+    } catch {}
     // #region agent log
     fetch('http://127.0.0.1:7243/ingest/1294d6ce-76f2-430d-96ab-3ae4d7527327',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H3',location:'app/api/flows/send/route.ts:69',message:'flow send response',data:{ok:response.ok,status:response.status,hasError:!response.ok,metaErrorCode:((data as any)?.error?.code ?? null),metaErrorSubcode:((data as any)?.error?.error_subcode ?? null)},timestamp:Date.now()})}).catch(()=>{});
     // #endregion agent log

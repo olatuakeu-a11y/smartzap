@@ -118,6 +118,7 @@ export const flowsService = {
       name?: string
       status?: string
       metaFlowId?: string
+      resetMeta?: boolean
       spec?: unknown
       templateKey?: string
       flowJson?: unknown

@@ -131,9 +131,213 @@ function stripEditorMetadata(input: unknown): unknown {
 
   const out: Record<string, unknown> = {}
   for (const [k, v] of Object.entries(input as Record<string, unknown>)) {
-    if (k === '__editor_key' || k === '__editor_title_key') continue
+    // Metadados internos do editor que a Meta rejeita no Flow JSON
+    if (k === '__editor_key' || k === '__editor_title_key' || k === '__builder_id') continue
     out[k] = stripEditorMetadata(v)
   }
+  return out
+}
+
+function isPlainObject(v: unknown): v is Record<string, unknown> {
+  return !!v && typeof v === 'object' && !Array.isArray(v)
+}
+
+function countFormWrappers(flowJson: unknown): number {
+  let count = 0
+  if (!flowJson || typeof flowJson !== 'object') return count
+  const json = flowJson as any
+  const screens = Array.isArray(json.screens) ? json.screens : []
+  for (const s of screens) {
+    const layout = s && typeof s === 'object' ? s.layout : null
+    const children = layout && typeof layout === 'object' && Array.isArray(layout.children) ? layout.children : []
+    const stack = [...children]
+    while (stack.length) {
+      const node = stack.pop()
+      if (!node || typeof node !== 'object') continue
+      if (String((node as any).type || '') === 'Form') count += 1
+      const nested = Array.isArray((node as any).children) ? (node as any).children : null
+      if (nested?.length) stack.push(...nested)
+    }
+  }
+  return count
+}
+
+/**
+ * A Meta valida `${form.*}` de forma mais restritiva quando existe o wrapper `Form`
+ * (ex.: "Missing Form component ${form.topics} for screen ...").
+ * Para publicar com payload completo no `complete`, removemos (flatten) o wrapper `Form`
+ * preservando os filhos (inclusive Footer).
+ */
+function flattenFormWrappers(input: unknown): unknown {
+  if (Array.isArray(input)) {
+    const out: unknown[] = []
+    for (const item of input) {
+      const flattened = flattenFormWrappers(item)
+      if (Array.isArray(flattened)) out.push(...flattened)
+      else out.push(flattened)
+    }
+    return out
+  }
+  if (!input || typeof input !== 'object') return input
+
+  const obj = input as any
+  if (String(obj.type || '') === 'Form' && Array.isArray(obj.children)) {
+    // Flatten: retorna os filhos no lugar do wrapper
+    return flattenFormWrappers(obj.children)
+  }
+
+  const out: Record<string, unknown> = {}
+  for (const [k, v] of Object.entries(obj as Record<string, unknown>)) {
+    out[k] = flattenFormWrappers(v)
+  }
+  return out
+}
+
+function countNavigatePayloads(flowJson: unknown): { navigateWithPayload: number; totalNavigate: number } {
+  let navigateWithPayload = 0
+  let totalNavigate = 0
+  if (!flowJson || typeof flowJson !== 'object') return { navigateWithPayload, totalNavigate }
+  const json = flowJson as any
+  const screens = Array.isArray(json.screens) ? json.screens : []
+  for (const s of screens) {
+    const layout = s && typeof s === 'object' ? s.layout : null
+    const children = layout && typeof layout === 'object' && Array.isArray(layout.children) ? layout.children : []
+    const stack = [...children]
+    while (stack.length) {
+      const node = stack.pop()
+      if (!node || typeof node !== 'object') continue
+      const action = (node as any)['on-click-action']
+      if (action && typeof action === 'object') {
+        const name = String((action as any).name || '').toLowerCase()
+        if (name === 'navigate') {
+          totalNavigate += 1
+          const payload = (action as any).payload
+          if (payload && typeof payload === 'object' && Object.keys(payload).length > 0) navigateWithPayload += 1
+        }
+      }
+      const nested = Array.isArray((node as any).children) ? (node as any).children : null
+      if (nested?.length) stack.push(...nested)
+    }
+  }
+  return { navigateWithPayload, totalNavigate }
+}
+
+function scanForDisallowedKeys(input: unknown): { count: number; samplePaths: string[] } {
+  let count = 0
+  const samplePaths: string[] = []
+  const stack: Array<{ node: unknown; path: string }> = [{ node: input, path: '$' }]
+  while (stack.length) {
+    const { node, path } = stack.pop()!
+    if (!node || typeof node !== 'object') continue
+    if (Array.isArray(node)) {
+      for (let i = 0; i < node.length; i += 1) {
+        stack.push({ node: node[i], path: `${path}[${i}]` })
+      }
+      continue
+    }
+    for (const [k, v] of Object.entries(node as Record<string, unknown>)) {
+      if (k.startsWith('__') && k !== '__example__') {
+        count += 1
+        if (samplePaths.length < 5) samplePaths.push(`${path}.${k}`)
+      }
+      stack.push({ node: v, path: `${path}.${k}` })
+    }
+  }
+  return { count, samplePaths }
+}
+
+function summarizeFlowJson(input: unknown): {
+  screenCount: number
+  screenIds: string[]
+  layoutTypes: string[]
+  componentTypes: string[]
+  inputComponentTypes: string[]
+  footerActions: Array<{
+    screenId: string
+    action: string
+    payloadKeys: number
+    payloadKeysSample: string[]
+    payloadNonString: number
+    payloadHasFormRef: boolean
+  }>
+} {
+  const out = {
+    screenCount: 0,
+    screenIds: [] as string[],
+    layoutTypes: [] as string[],
+    componentTypes: [] as string[],
+    inputComponentTypes: [] as string[],
+    footerActions: [] as Array<{
+      screenId: string
+      action: string
+      payloadKeys: number
+      payloadKeysSample: string[]
+      payloadNonString: number
+      payloadHasFormRef: boolean
+    }>,
+  }
+  if (!input || typeof input !== 'object') return out
+  const json = input as any
+  const screens = Array.isArray(json.screens) ? json.screens : []
+  out.screenCount = screens.length
+  const inputTypes = new Set([
+    'TextInput',
+    'TextArea',
+    'Dropdown',
+    'RadioButtonsGroup',
+    'CheckboxGroup',
+    'DatePicker',
+    'CalendarPicker',
+    'OptIn',
+  ])
+  for (const s of screens) {
+    const screenId = String(s?.id || '')
+    if (screenId) out.screenIds.push(screenId)
+    const layoutType = s?.layout?.type ? String(s.layout.type) : ''
+    if (layoutType) out.layoutTypes.push(layoutType)
+    const children = Array.isArray(s?.layout?.children) ? s.layout.children : []
+    const stack = [...children]
+    while (stack.length) {
+      const node = stack.pop()
+      if (!node || typeof node !== 'object') continue
+      const type = typeof (node as any).type === 'string' ? String((node as any).type) : ''
+      if (type) out.componentTypes.push(type)
+      if (type && inputTypes.has(type)) out.inputComponentTypes.push(type)
+      const action = (node as any)['on-click-action']
+      if (type === 'Footer' && action && typeof action === 'object') {
+        const payload = (action as any).payload
+        const payloadKeys = payload && typeof payload === 'object' ? Object.keys(payload as any).length : 0
+        const payloadKeysSample =
+          payload && typeof payload === 'object' ? Object.keys(payload as any).slice(0, 6).map((k) => String(k)) : []
+        let payloadNonString = 0
+        let payloadHasFormRef = false
+        if (payload && typeof payload === 'object') {
+          for (const v of Object.values(payload as any)) {
+            if (typeof v === 'string') {
+              if (v.includes('${form.') || v.includes('\\${form.')) payloadHasFormRef = true
+            } else if (v != null) {
+              payloadNonString += 1
+            }
+          }
+        }
+        out.footerActions.push({
+          screenId: screenId || '(unknown)',
+          action: String((action as any).name || ''),
+          payloadKeys,
+          payloadKeysSample,
+          payloadNonString,
+          payloadHasFormRef,
+        })
+      }
+      const nested = Array.isArray((node as any).children) ? (node as any).children : null
+      if (nested?.length) stack.push(...nested)
+    }
+  }
+  out.screenIds = out.screenIds.slice(0, 6)
+  out.layoutTypes = Array.from(new Set(out.layoutTypes)).slice(0, 6)
+  out.componentTypes = Array.from(new Set(out.componentTypes)).slice(0, 12)
+  out.inputComponentTypes = Array.from(new Set(out.inputComponentTypes)).slice(0, 8)
+  out.footerActions = out.footerActions.slice(0, 6)
   return out
 }
 
@@ -177,17 +381,29 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
 
     // A Meta rejeita propriedades internas do editor (ex: __editor_key).
     // Removemos somente essas chaves para publicar sem afetar o preview no app.
-    const flowJsonForMeta = stripEditorMetadata(flowJson)
+    const beforeStrip = stripEditorMetadata(flowJson)
+    const formsBefore = countFormWrappers(beforeStrip)
+    const flowJsonForMeta = flattenFormWrappers(beforeStrip)
     const flowJsonForMetaObj =
       flowJsonForMeta && typeof flowJsonForMeta === 'object' ? (flowJsonForMeta as Record<string, unknown>) : null
+    try {
+      const formsAfter = countFormWrappers(flowJsonForMeta)
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/1294d6ce-76f2-430d-96ab-3ae4d7527327',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'meta-publish',hypothesisId:'H10',location:'app/api/flows/[id]/meta/publish/route.ts:flattenFormWrappers',message:'flattened Form wrappers for Meta publish',data:{flowId:id,formsBefore,formsAfter},timestamp:Date.now()})}).catch(()=>{});
+      // #endregion agent log
+    } catch {}
 
     try {
       const removed =
         JSON.stringify(flowJson || {}).length > 0 && JSON.stringify(flowJsonForMeta || {}).length > 0
           ? Math.max(0, JSON.stringify(flowJson || {}).length - JSON.stringify(flowJsonForMeta || {}).length)
           : null
+      const nav = countNavigatePayloads(flowJsonForMeta)
+      const disallowed = scanForDisallowedKeys(flowJsonForMeta)
+      const summary = summarizeFlowJson(flowJsonForMeta)
+      const hasInputComponents = summary.inputComponentTypes.length > 0
       // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/1294d6ce-76f2-430d-96ab-3ae4d7527327',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'meta-publish',hypothesisId:'H7',location:'app/api/flows/[id]/meta/publish/route.ts:stripEditorMetadata',message:'stripped editor metadata',data:{flowId:id,hadFlowJson:!!flowJsonObj,hadFlowJsonForMeta:!!flowJsonForMetaObj,approxBytesRemoved:removed},timestamp:Date.now()})}).catch(()=>{});
+      fetch('http://127.0.0.1:7243/ingest/1294d6ce-76f2-430d-96ab-3ae4d7527327',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'meta-publish',hypothesisId:'H9',location:'app/api/flows/[id]/meta/publish/route.ts:stripEditorMetadata',message:'prepared flowJsonForMeta',data:{flowId:id,hadFlowJson:!!flowJsonObj,hadFlowJsonForMeta:!!flowJsonForMetaObj,approxBytesRemoved:removed,navigateWithPayload:nav.navigateWithPayload,totalNavigate:nav.totalNavigate,disallowedKeys:disallowed.count,disallowedSample:disallowed.samplePaths,hasInputComponents,summary},timestamp:Date.now()})}).catch(()=>{});
       // #endregion agent log
     } catch {}
 

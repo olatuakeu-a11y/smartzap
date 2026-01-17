@@ -9,6 +9,7 @@ import { toast } from 'sonner'
 import { Page, PageActions, PageDescription, PageHeader, PageTitle } from '@/components/ui/page'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Checkbox } from '@/components/ui/checkbox'
 import { UnifiedFlowEditor } from '@/components/features/flows/builder/UnifiedFlowEditor'
 import { AdvancedFlowPanel } from '@/components/features/flows/builder/dynamic-flow/AdvancedFlowPanel'
 import { MetaFlowPreview } from '@/components/ui/MetaFlowPreview'
@@ -47,7 +48,50 @@ export default function FlowBuilderEditorPage({
   const [formPreviewSelectedScreenId, setFormPreviewSelectedScreenId] = React.useState<string | null>(null)
   const [previewSelectedEditorKey, setPreviewSelectedEditorKey] = React.useState<string | null>(null)
   const [previewDynamicSpec, setPreviewDynamicSpec] = React.useState<DynamicFlowSpecV1 | null>(null)
+  const [editorSpecOverride, setEditorSpecOverride] = React.useState<unknown>(null)
   const [startMode, setStartMode] = React.useState<'ai' | 'template' | 'zero' | null>(null)
+  const stepRef = React.useRef(step)
+  const startModeRef = React.useRef(startMode)
+  const controllerSpecRef = React.useRef(controller.spec as unknown)
+  const editorSpecOverrideRef = React.useRef(editorSpecOverride)
+
+  React.useEffect(() => {
+    stepRef.current = step
+    startModeRef.current = startMode
+    controllerSpecRef.current = controller.spec as unknown
+    editorSpecOverrideRef.current = editorSpecOverride
+  }, [controller.spec, editorSpecOverride, startMode, step])
+
+  const handleEditorPreviewChange = React.useCallback(
+    ({ spec, generatedJson, activeScreenId }: { spec?: DynamicFlowSpecV1 | null; generatedJson: unknown; activeScreenId?: string | null }) => {
+      const stepNow = stepRef.current
+      const startModeNow = startModeRef.current
+      const hadOverride = !!editorSpecOverrideRef.current
+      // #region agent log
+      try {
+        const screens = Array.isArray((generatedJson as any)?.screens) ? (generatedJson as any).screens : []
+        const firstScreenId = screens.length ? String(screens[0]?.id || '') : null
+        fetch('http://127.0.0.1:7243/ingest/1294d6ce-76f2-430d-96ab-3ae4d7527327',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'template-preview',hypothesisId:'H4',location:'app/(dashboard)/flows/builder/[id]/page.tsx:UnifiedFlowEditor.onPreviewChange',message:'editor emitted preview',data:{step:stepNow,startMode:startModeNow,firstScreenId,activeScreenId},timestamp:Date.now()})}).catch(()=>{})
+      } catch {}
+      // #endregion agent log
+      setFormPreviewJson(generatedJson)
+      setPreviewDynamicSpec(spec || null)
+      // #region agent log
+      try {
+        const screens = Array.isArray((generatedJson as any)?.screens) ? (generatedJson as any).screens : []
+        const firstScreenId = screens.length ? String(screens[0]?.id || '') : null
+        fetch('http://127.0.0.1:7243/ingest/1294d6ce-76f2-430d-96ab-3ae4d7527327',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'max-depth',hypothesisId:'L2',location:'app/(dashboard)/flows/builder/[id]/page.tsx:onPreviewChange',message:'page applying editor preview (guarded editorSpecOverride)',data:{stepNow,startModeNow,activeScreenId,firstScreenId,hadOverride},timestamp:Date.now()})}).catch(()=>{})
+      } catch {}
+      // #endregion agent log
+      setEditorSpecOverride((prev) => {
+        if (prev) return prev
+        const base = controllerSpecRef.current && typeof controllerSpecRef.current === 'object' ? (controllerSpecRef.current as any) : {}
+        return { ...base, dynamicFlow: spec }
+      })
+      setFormPreviewSelectedScreenId(activeScreenId || null)
+    },
+    []
+  )
   const [aiPrompt, setAiPrompt] = React.useState('')
   const [aiLoading, setAiLoading] = React.useState(false)
   const [selectedTemplateKey, setSelectedTemplateKey] = React.useState<string>(FLOW_TEMPLATES[0]?.key || '')
@@ -138,6 +182,11 @@ export default function FlowBuilderEditorPage({
   const handleApplyTemplate = React.useCallback(() => {
     const tpl = FLOW_TEMPLATES.find((t) => t.key === selectedTemplateKey)
     if (!tpl) return
+    try {
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/1294d6ce-76f2-430d-96ab-3ae4d7527327',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'template-apply',hypothesisId:'T1',location:'app/(dashboard)/flows/builder/[id]/page.tsx:handleApplyTemplate',message:'apply template start',data:{step,startMode,selectedTemplateKey,tplKey:tpl.key,isDynamic:!!tpl.isDynamic,hasTplForm:!!tpl.form},timestamp:Date.now()})}).catch(()=>{});
+      // #endregion agent log
+    } catch {}
     // Usa tpl.form se disponível (para templates dinâmicos), senão converte do flowJson
     const form = tpl.form
       ? { ...tpl.form, title: name || tpl.form.title }
@@ -146,24 +195,50 @@ export default function FlowBuilderEditorPage({
       const normalized = normalizeBookingFlowConfig(tpl.dynamicConfig || getDefaultBookingFlowConfig())
       const dynamicSpec = bookingConfigToDynamicSpec(normalized)
       const dynamicJson = generateDynamicFlowJson(dynamicSpec)
+      try {
+        const screens = Array.isArray((dynamicJson as any)?.screens) ? (dynamicJson as any).screens : []
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/1294d6ce-76f2-430d-96ab-3ae4d7527327',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'template-apply',hypothesisId:'T2',location:'app/(dashboard)/flows/builder/[id]/page.tsx:handleApplyTemplate',message:'apply template computed json',data:{tplKey:tpl.key,screenCount:screens.length,firstScreenId:screens.length?String(screens[0]?.id||''):null},timestamp:Date.now()})}).catch(()=>{});
+        // #endregion agent log
+      } catch {}
       setFormPreviewJson(dynamicJson)
+      setPreviewDynamicSpec(dynamicSpec)
+      setEditorSpecOverride({ ...(controller.spec as any), form, booking: normalized, dynamicFlow: dynamicSpec })
       controller.save({
         spec: { ...(controller.spec as any), form, booking: normalized, dynamicFlow: dynamicSpec },
         flowJson: dynamicJson,
         templateKey: tpl.key,
       })
+      try {
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/1294d6ce-76f2-430d-96ab-3ae4d7527327',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'template-apply',hypothesisId:'T3',location:'app/(dashboard)/flows/builder/[id]/page.tsx:handleApplyTemplate',message:'apply template saved',data:{tplKey:tpl.key,willSetStep2:true},timestamp:Date.now()})}).catch(()=>{});
+        // #endregion agent log
+      } catch {}
       setStep(2)
       toast.success('Template aplicado! Ajuste as telas e publique.')
       return
     }
     const dynamicSpec = tpl.isDynamic ? dynamicFlowSpecFromJson(tpl.flowJson as any) : formSpecToDynamicSpec(form, name || 'MiniApp')
     const dynamicJson = tpl.isDynamic ? tpl.flowJson : generateDynamicFlowJson(dynamicSpec)
+    try {
+      const screens = Array.isArray((dynamicJson as any)?.screens) ? (dynamicJson as any).screens : []
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/1294d6ce-76f2-430d-96ab-3ae4d7527327',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'template-apply',hypothesisId:'T2',location:'app/(dashboard)/flows/builder/[id]/page.tsx:handleApplyTemplate',message:'apply template computed json',data:{tplKey:tpl.key,isDynamic:!!tpl.isDynamic,screenCount:screens.length,firstScreenId:screens.length?String(screens[0]?.id||''):null},timestamp:Date.now()})}).catch(()=>{});
+      // #endregion agent log
+    } catch {}
     setFormPreviewJson(dynamicJson)
+    setPreviewDynamicSpec(dynamicSpec as any)
+    setEditorSpecOverride({ ...(controller.spec as any), form, dynamicFlow: dynamicSpec, ...(tpl.key ? { templateKey: tpl.key } : {}) })
     controller.save({
       spec: { ...(controller.spec as any), form, dynamicFlow: dynamicSpec },
       flowJson: dynamicJson,
       templateKey: tpl.key,
     })
+    try {
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/1294d6ce-76f2-430d-96ab-3ae4d7527327',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'template-apply',hypothesisId:'T3',location:'app/(dashboard)/flows/builder/[id]/page.tsx:handleApplyTemplate',message:'apply template saved',data:{tplKey:tpl.key,templateKeySent:true,willSetStep2:true},timestamp:Date.now()})}).catch(()=>{});
+      // #endregion agent log
+    } catch {}
     setStep(2)
     toast.success(tpl.isDynamic
       ? 'Template dinâmico aplicado! O agendamento em tempo real será configurado ao publicar.'
@@ -254,6 +329,7 @@ export default function FlowBuilderEditorPage({
     if (savedJson && typeof savedJson === 'object') {
       setFormPreviewJson((prev: unknown) => prev || savedJson)
     }
+    setEditorSpecOverride(null)
   }, [flow?.id])
 
   // No passo 1, só mostramos prévia quando o usuário está escolhendo um modelo pronto.
@@ -328,6 +404,116 @@ export default function FlowBuilderEditorPage({
     { id: 2, label: 'Conteúdo' },
     { id: 3, label: 'Finalizar' },
   ] as const
+
+  const collectFieldCatalog = React.useCallback((spec: DynamicFlowSpecV1 | null) => {
+    const out: Array<{ name: string; label: string }> = []
+    if (!spec) return out
+    const supported = new Set([
+      'TextInput',
+      'TextArea',
+      'Dropdown',
+      'RadioButtonsGroup',
+      'CheckboxGroup',
+      'DatePicker',
+      'CalendarPicker',
+      'OptIn',
+    ])
+    const seen = new Set<string>()
+    const walk = (nodes: any[]) => {
+      for (const n of nodes || []) {
+        if (!n || typeof n !== 'object') continue
+        const type = typeof (n as any).type === 'string' ? String((n as any).type) : ''
+        const name = typeof (n as any).name === 'string' ? String((n as any).name).trim() : ''
+        if (name && supported.has(type) && !seen.has(name)) {
+          const rawLabel =
+            typeof (n as any).label === 'string'
+              ? String((n as any).label).trim()
+              : typeof (n as any).text === 'string'
+                ? String((n as any).text).trim()
+                : ''
+          seen.add(name)
+          out.push({ name, label: rawLabel || name })
+        }
+        const children = Array.isArray((n as any).children) ? (n as any).children : null
+        if (children?.length) walk(children)
+      }
+    }
+    for (const s of spec.screens || []) {
+      walk(Array.isArray((s as any).components) ? (s as any).components : [])
+    }
+    return out
+  }, [])
+
+  const finalScreenId = React.useMemo(() => {
+    const spec = previewDynamicSpec
+    if (!spec || !Array.isArray(spec.screens) || spec.screens.length === 0) return null
+    const finals = spec.screens.filter((s) => !!(s as any)?.terminal || String((s as any)?.action?.type || '').toLowerCase() === 'complete')
+    const chosen = finals.length ? finals[finals.length - 1] : spec.screens[spec.screens.length - 1]
+    return chosen?.id || null
+  }, [previewDynamicSpec])
+
+  const confirmationState = React.useMemo(() => {
+    const spec = previewDynamicSpec
+    if (!spec || !finalScreenId) return null
+    const s: any = (spec.screens || []).find((x) => x.id === finalScreenId)
+    const payload =
+      s?.action?.payload && typeof s.action.payload === 'object' && !Array.isArray(s.action.payload)
+        ? (s.action.payload as any)
+        : {}
+    const sendDisabled = String(payload?.send_confirmation || '').toLowerCase() === 'false'
+    const title = typeof payload?.confirmation_title === 'string' ? payload.confirmation_title : ''
+    const footer = typeof payload?.confirmation_footer === 'string' ? payload.confirmation_footer : ''
+    const fields = Array.isArray(payload?.confirmation_fields) ? (payload.confirmation_fields as any[]).filter((x) => typeof x === 'string') : null
+    return { sendDisabled, title, footer, fields }
+  }, [finalScreenId, previewDynamicSpec])
+
+  const applyConfirmationPatch = React.useCallback(
+    (patch: { enabled?: boolean; title?: string; footer?: string; fields?: string[] | null }) => {
+      if (!previewDynamicSpec || !finalScreenId) return
+      const nextSpec: DynamicFlowSpecV1 = {
+        ...(previewDynamicSpec as any),
+        screens: (previewDynamicSpec.screens || []).map((s: any) => {
+          if (s.id !== finalScreenId) return s
+          const currentAction: any = s.action && typeof s.action === 'object' ? s.action : { type: 'complete', label: 'Concluir' }
+          const basePayload =
+            currentAction?.payload && typeof currentAction.payload === 'object' && !Array.isArray(currentAction.payload)
+              ? { ...(currentAction.payload as Record<string, unknown>) }
+              : {}
+
+          if (patch.enabled !== undefined) {
+            if (patch.enabled) delete (basePayload as any).send_confirmation
+            else (basePayload as any).send_confirmation = 'false'
+          }
+          if (patch.title !== undefined) {
+            const v = String(patch.title || '').trim()
+            if (v) (basePayload as any).confirmation_title = v
+            else delete (basePayload as any).confirmation_title
+          }
+          if (patch.footer !== undefined) {
+            const v = String(patch.footer || '').trim()
+            if (v) (basePayload as any).confirmation_footer = v
+            else delete (basePayload as any).confirmation_footer
+          }
+          if (patch.fields !== undefined) {
+            const list = Array.isArray(patch.fields) ? patch.fields.filter(Boolean) : []
+            if (list.length) (basePayload as any).confirmation_fields = list
+            else delete (basePayload as any).confirmation_fields
+          }
+
+          return { ...s, terminal: true, action: { ...currentAction, type: 'complete', payload: basePayload } }
+        }),
+      }
+
+      const nextJson = generateDynamicFlowJson(nextSpec)
+      setPreviewDynamicSpec(nextSpec)
+      setFormPreviewJson(nextJson)
+      controller.save({
+        spec: { ...(controller.spec as any), dynamicFlow: nextSpec },
+        flowJson: nextJson,
+      })
+    },
+    [controller, finalScreenId, previewDynamicSpec],
+  )
 
   return (
     <Page>
@@ -610,7 +796,7 @@ export default function FlowBuilderEditorPage({
                 {step === 2 ? (
                   <UnifiedFlowEditor
                     flowName={name || flow?.name || 'MiniApp'}
-                    currentSpec={controller.spec}
+                    currentSpec={editorSpecOverride || controller.spec}
                     flowJsonFromDb={(flow as any)?.flow_json}
                     isSaving={controller.isSaving}
                     selectedEditorKey={previewSelectedEditorKey}
@@ -620,18 +806,7 @@ export default function FlowBuilderEditorPage({
                       // #endregion agent log
                       setShowAdvancedPanel(true)
                     }}
-                    onPreviewChange={({ spec, generatedJson, activeScreenId }) => {
-                      // #region agent log
-                      try {
-                        const screens = Array.isArray((generatedJson as any)?.screens) ? (generatedJson as any).screens : []
-                        const firstScreenId = screens.length ? String(screens[0]?.id || '') : null
-                        fetch('http://127.0.0.1:7243/ingest/1294d6ce-76f2-430d-96ab-3ae4d7527327',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'template-preview',hypothesisId:'H4',location:'app/(dashboard)/flows/builder/[id]/page.tsx:UnifiedFlowEditor.onPreviewChange',message:'editor emitted preview',data:{step,startMode,firstScreenId,activeScreenId},timestamp:Date.now()})}).catch(()=>{});
-                      } catch {}
-                      // #endregion agent log
-                      setFormPreviewJson(generatedJson)
-                      setPreviewDynamicSpec(spec || null)
-                      setFormPreviewSelectedScreenId(activeScreenId || null)
-                    }}
+                    onPreviewChange={handleEditorPreviewChange}
                     onPreviewScreenIdChange={(screenId) => setFormPreviewSelectedScreenId(screenId)}
                     onSave={(patch) => {
                       controller.save({
@@ -665,10 +840,98 @@ export default function FlowBuilderEditorPage({
                     <Input value={name} onChange={(e) => setName(e.target.value)} />
                   </div>
 
+                  {previewDynamicSpec && finalScreenId ? (
+                    <div className="rounded-2xl border border-white/10 bg-zinc-950/30 p-4 space-y-4">
+                      <div>
+                        <div className="text-sm font-semibold text-white">Confirmação</div>
+                        <div className="text-xs text-gray-400 mt-1">
+                          Controla a mensagem “Resposta registrada ✅” e quais campos aparecem no resumo.
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between rounded-xl border border-white/10 bg-zinc-950/40 px-3 py-2">
+                        <div>
+                          <div className="text-xs font-medium text-gray-300">Enviar confirmação ao usuário</div>
+                          <div className="text-[11px] text-gray-500">Mostra um resumo das respostas após finalizar</div>
+                        </div>
+                        <button
+                          type="button"
+                          className="h-6 w-12 rounded-full border border-white/10 bg-white/5 relative"
+                          aria-pressed={!confirmationState?.sendDisabled}
+                          onClick={() => applyConfirmationPatch({ enabled: !!confirmationState?.sendDisabled })}
+                        >
+                          <span
+                            className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all ${
+                              confirmationState?.sendDisabled ? 'left-0.5 opacity-40' : 'left-[26px]'
+                            }`}
+                          />
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs uppercase tracking-widest text-gray-500 mb-2">Título (opcional)</label>
+                          <Input
+                            value={confirmationState?.title || ''}
+                            onChange={(e) => applyConfirmationPatch({ title: e.target.value })}
+                            placeholder="Resposta registrada ✅"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs uppercase tracking-widest text-gray-500 mb-2">Rodapé (opcional)</label>
+                          <Input
+                            value={confirmationState?.footer || ''}
+                            onChange={(e) => applyConfirmationPatch({ footer: e.target.value })}
+                            placeholder="Qualquer ajuste, responda esta mensagem."
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <div className="text-xs font-medium text-gray-300">Campos no resumo</div>
+                            <div className="text-[11px] text-gray-500">Escolha o que aparece na mensagem após finalizar.</div>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="border-white/10 bg-zinc-950/40 hover:bg-white/5"
+                            onClick={() => applyConfirmationPatch({ fields: collectFieldCatalog(previewDynamicSpec).map((f) => f.name) })}
+                          >
+                            Selecionar tudo
+                          </Button>
+                        </div>
+
+                        <div className="rounded-xl border border-white/10 bg-zinc-950/40 p-3 max-h-56 overflow-auto space-y-2">
+                          {collectFieldCatalog(previewDynamicSpec).map((f) => {
+                            const selected = confirmationState?.fields ? confirmationState.fields.includes(f.name) : true
+                            return (
+                              <label key={f.name} className="flex items-center gap-3 text-sm text-gray-200">
+                                <Checkbox
+                                  checked={selected}
+                                  onCheckedChange={(checked) => {
+                                    const current = confirmationState?.fields || collectFieldCatalog(previewDynamicSpec).map((x) => x.name)
+                                    const next = checked
+                                      ? Array.from(new Set([...current, f.name]))
+                                      : current.filter((x) => x !== f.name)
+                                    applyConfirmationPatch({ fields: next })
+                                  }}
+                                />
+                                <span className="truncate">{f.label}</span>
+                                <span className="ml-auto text-[11px] text-gray-500">{f.name}</span>
+                              </label>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
+
                   <div className="flex flex-wrap items-center gap-2 pt-2">
                     <Button
                       variant="outline"
-                      onClick={() => controller.save({ name, metaFlowId: metaFlowId || undefined })}
+                      onClick={() => controller.save({ name })}
                       disabled={controller.isSaving}
                       className="border-white/10 bg-zinc-950/40 hover:bg-white/5"
                     >
@@ -676,13 +939,27 @@ export default function FlowBuilderEditorPage({
                       Salvar rascunho
                     </Button>
 
+                    {metaStatus === 'PUBLISHED' ? (
+                      <Button
+                        variant="outline"
+                        onClick={async () => {
+                          await controller.saveAsync({ name, resetMeta: true })
+                          setMetaFlowId('')
+                          toast.success('Publicação resetada. O próximo envio cria um novo Flow na Meta.')
+                        }}
+                        disabled={controller.isSaving}
+                        className="border-white/10 bg-zinc-950/40 hover:bg-white/5"
+                      >
+                        Resetar publicação
+                      </Button>
+                    ) : null}
+
                     <Button
                       onClick={async () => {
                         const flowJsonToSave = formPreviewJson || (flow as any)?.flow_json
 
                         await controller.saveAsync({
                           name,
-                          metaFlowId: metaFlowId || undefined,
                           ...(controller.spec ? { spec: controller.spec } : {}),
                           ...(flowJsonToSave ? { flowJson: flowJsonToSave } : {}),
                         })

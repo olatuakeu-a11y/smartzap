@@ -31,6 +31,8 @@ import {
 import type { DynamicFlowActionType, DynamicFlowBranchRuleV1, DynamicFlowSpecV1 } from '@/lib/dynamic-flow'
 import { flowJsonToFormSpec } from '@/lib/flow-form'
 
+type UiBranchRule = DynamicFlowBranchRuleV1 & { __auto_next?: boolean }
+
 type BlockType =
   | 'text_heading'
   | 'text_subheading'
@@ -197,14 +199,60 @@ export function UnifiedFlowEditor(props: {
   onPreviewScreenIdChange?: (screenId: string | null) => void
 }) {
   const migratedRef = useRef(false)
+
+  const applyAutoFinalizeDestinations = (input: DynamicFlowSpecV1): DynamicFlowSpecV1 => {
+    const branchesByScreen = (input as any)?.branchesByScreen || {}
+    const allRules = Object.values(branchesByScreen).flatMap((v: any) => (Array.isArray(v) ? v : []))
+    const destIds = Array.from(
+      new Set(
+        allRules
+          .map((r: any) => (typeof r?.next === 'string' && r.next ? r.next : null))
+          .filter(Boolean) as string[],
+      ),
+    )
+    if (!destIds.length) return input
+
+    const screens = [...(input.screens || [])]
+    const routingModel: Record<string, string[]> = { ...((input as any).routingModel || {}) }
+    const defaultNextByScreen: Record<string, string | null> = { ...((input as any).defaultNextByScreen || {}) }
+
+    let changed = 0
+    for (const destId of destIds) {
+      const idx = screens.findIndex((s) => s.id === destId)
+      if (idx < 0) continue
+
+      const hasOwnBranches = Array.isArray(branchesByScreen?.[destId]) && branchesByScreen[destId].length > 0
+      if (hasOwnBranches) continue
+
+      const s: any = screens[idx]
+      const actionType = String(s?.action?.type || '').toLowerCase()
+      const alreadyFinal = !!s?.terminal || actionType === 'complete'
+      if (alreadyFinal) continue
+
+      screens[idx] = { ...s, terminal: true, action: { type: 'complete', label: 'Concluir' } }
+      routingModel[destId] = []
+      defaultNextByScreen[destId] = null
+      changed++
+    }
+
+    if (!changed) return input
+    const next = { ...(input as any), screens, routingModel, defaultNextByScreen } as DynamicFlowSpecV1
+    try {
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/1294d6ce-76f2-430d-96ab-3ae4d7527327',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'paths-ux',hypothesisId:'HUX3',location:'components/features/flows/builder/UnifiedFlowEditor.tsx:applyAutoFinalizeDestinations',message:'auto-finalized path destinations',data:{changed,destIds:destIds.slice(0,10)},timestamp:Date.now()})}).catch(()=>{});
+      // #endregion agent log
+    } catch {}
+    return next
+  }
+
   const initialSpec = useMemo(() => {
     const s = (props.currentSpec as any) || {}
     const rawDynamic = s?.dynamicFlow
     if (rawDynamic?.flowJson && typeof rawDynamic.flowJson === 'object') {
-      return normalizeDynamicFlowSpec(dynamicFlowSpecFromJson(rawDynamic.flowJson), props.flowName)
+      return normalizeDynamicFlowSpec(applyAutoFinalizeDestinations(dynamicFlowSpecFromJson(rawDynamic.flowJson)), props.flowName)
     }
     if (rawDynamic && typeof rawDynamic === 'object') {
-      return normalizeDynamicFlowSpec(rawDynamic, props.flowName)
+      return normalizeDynamicFlowSpec(applyAutoFinalizeDestinations(rawDynamic), props.flowName)
     }
     if (s?.booking && typeof s.booking === 'object') {
       return bookingConfigToDynamicSpec(s.booking)
@@ -217,7 +265,7 @@ export function UnifiedFlowEditor(props: {
       const hasRoutingModel = !!flowJson?.routing_model
       const hasDataApi = typeof flowJson?.data_api_version === 'string'
       if (hasRoutingModel || hasDataApi) {
-        return normalizeDynamicFlowSpec(dynamicFlowSpecFromJson(flowJson), props.flowName)
+        return normalizeDynamicFlowSpec(applyAutoFinalizeDestinations(dynamicFlowSpecFromJson(flowJson)), props.flowName)
       }
       const asForm = flowJsonToFormSpec(flowJson, props.flowName)
       return formSpecToDynamicSpec(asForm, props.flowName)
@@ -252,6 +300,7 @@ export function UnifiedFlowEditor(props: {
   const [dirty, setDirty] = useState(false)
   const [activeScreenId, setActiveScreenId] = useState<string>(initialSpec.screens[0]?.id || 'SCREEN_A')
   const lastAddedRef = useRef<string | null>(null)
+  const previewEmitCountRef = useRef(0)
 
   useEffect(() => {
     if (dirty) return
@@ -281,10 +330,19 @@ export function UnifiedFlowEditor(props: {
   const generatedJson = useMemo(() => generateDynamicFlowJson(spec), [spec])
   const canSave = issues.length === 0 && dirty && !props.isSaving
   const saveStatusText = props.isSaving ? 'Salvando…' : dirty ? 'Alterações…' : 'Salvo'
+  const onPreviewChange = props.onPreviewChange
 
   useEffect(() => {
-    props.onPreviewChange?.({ spec, generatedJson, issues, dirty, activeScreenId })
-  }, [activeScreenId, dirty, generatedJson, issues, props, spec])
+    previewEmitCountRef.current += 1
+    // #region agent log
+    try {
+      const screens = Array.isArray((generatedJson as any)?.screens) ? (generatedJson as any).screens : []
+      const firstScreenId = screens.length ? String(screens[0]?.id || '') : null
+      fetch('http://127.0.0.1:7243/ingest/1294d6ce-76f2-430d-96ab-3ae4d7527327',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'max-depth',hypothesisId:'L1',location:'components/features/flows/builder/UnifiedFlowEditor.tsx:useEffect:onPreviewChange',message:'about to emit preview',data:{count:previewEmitCountRef.current,dirty,activeScreenId,issuesCount:Array.isArray(issues)?issues.length:null,firstScreenId,hasOnPreviewChange:typeof props.onPreviewChange === 'function'},timestamp:Date.now()})}).catch(()=>{})
+    } catch {}
+    // #endregion agent log
+    onPreviewChange?.({ spec, generatedJson, issues, dirty, activeScreenId })
+  }, [activeScreenId, dirty, generatedJson, issues, onPreviewChange, spec])
 
   // Migração “silenciosa”: se não houver spec.dynamicFlow ainda, persistimos o canônico em background.
   useEffect(() => {
@@ -320,10 +378,23 @@ export function UnifiedFlowEditor(props: {
     setSpec((prev) => {
       const nextDraft = updater(prev)
       // Mantém o spec sempre consistente (routing + defaults + branches).
-      const normalized = normalizeDynamicFlowSpec(nextDraft, props.flowName)
+      const normalized = normalizeDynamicFlowSpec(applyAutoFinalizeDestinations(nextDraft), props.flowName)
       const screens = Array.isArray(normalized?.screens) ? [...normalized.screens] : []
       const routingModel =
         (normalized as any)?.routingModel && typeof (normalized as any).routingModel === 'object' ? (normalized as any).routingModel : {}
+
+      try {
+        const terminalsWithNext = screens
+          .map((s: any) => {
+            const nextId = Array.isArray(routingModel?.[s.id]) ? routingModel[s.id][0] : undefined
+            return nextId && s?.terminal ? { id: s.id, nextId } : null
+          })
+          .filter(Boolean)
+          .slice(0, 8)
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/1294d6ce-76f2-430d-96ab-3ae4d7527327',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'paths-ux',hypothesisId:'HUX1',location:'components/features/flows/builder/UnifiedFlowEditor.tsx:updateSpec',message:'pre enforce terminal-with-next',data:{activeScreenId,terminalsWithNextCount:terminalsWithNext.length,terminalsWithNext},timestamp:Date.now()})}).catch(()=>{});
+        // #endregion agent log
+      } catch {}
 
       // Regra UX: se uma tela tem próxima tela, ela NÃO pode ser “final”.
       for (let i = 0; i < screens.length; i++) {
@@ -342,6 +413,19 @@ export function UnifiedFlowEditor(props: {
           }
         }
       }
+
+      try {
+        const terminalsWithNextAfter = screens
+          .map((s: any) => {
+            const nextId = Array.isArray(routingModel?.[s.id]) ? routingModel[s.id][0] : undefined
+            return nextId && s?.terminal ? { id: s.id, nextId } : null
+          })
+          .filter(Boolean)
+          .slice(0, 8)
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/1294d6ce-76f2-430d-96ab-3ae4d7527327',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'paths-ux',hypothesisId:'HUX2',location:'components/features/flows/builder/UnifiedFlowEditor.tsx:updateSpec',message:'post enforce terminal-with-next',data:{activeScreenId,terminalsWithNextAfterCount:terminalsWithNextAfter.length,terminalsWithNextAfter},timestamp:Date.now()})}).catch(()=>{});
+        // #endregion agent log
+      } catch {}
 
       return normalizeDynamicFlowSpec({ ...normalized, screens }, props.flowName)
     })
@@ -380,6 +464,29 @@ export function UnifiedFlowEditor(props: {
     })
   }, [blocks])
 
+  const choiceOptionsByField = useMemo(() => {
+    const out: Record<string, Array<{ value: string; label: string }>> = {}
+    for (const b of blocks || []) {
+      const name = String(b?.name || '').trim()
+      if (!name) continue
+      const type = String(b?.type || '').trim()
+      const isChoice = type === 'Dropdown' || type === 'RadioButtonsGroup' || type === 'CheckboxGroup'
+      if (!isChoice) continue
+      const options = Array.isArray(b?.['data-source']) ? (b['data-source'] as any[]) : Array.isArray(b?.options) ? (b.options as any[]) : []
+      const normalized = options
+        .map((o) => {
+          if (!o || typeof o !== 'object') return null
+          const value = String((o as any).id ?? (o as any).title ?? '').trim()
+          const label = String((o as any).title ?? (o as any).id ?? '').trim()
+          if (!value) return null
+          return { value, label: label || value }
+        })
+        .filter(Boolean) as Array<{ value: string; label: string }>
+      if (normalized.length) out[name] = normalized
+    }
+    return out
+  }, [blocks])
+
   const activeBranches = useMemo(
     () => (Array.isArray(spec.branchesByScreen?.[activeScreenId]) ? (spec.branchesByScreen[activeScreenId] as DynamicFlowBranchRuleV1[]) : []),
     [activeScreenId, spec.branchesByScreen],
@@ -398,8 +505,123 @@ export function UnifiedFlowEditor(props: {
   const setBranchesForActive = (rules: DynamicFlowBranchRuleV1[]) => {
     updateSpec((prev) => {
       const branchesByScreen: Record<string, DynamicFlowBranchRuleV1[]> = { ...(prev.branchesByScreen || {}) }
-      branchesByScreen[activeScreenId] = rules
-      return { ...prev, branchesByScreen }
+      const normalizedRules = (rules as UiBranchRule[]).map((r) => {
+        const field = String(r?.field || '')
+        const op = String(r?.op || '').toLowerCase()
+        const needsValue = op === 'equals' || op === 'contains'
+        const options = field ? choiceOptionsByField[field] : undefined
+        if (!needsValue || !options?.length) return r
+        const v = r?.value
+        if (typeof v !== 'string') return r
+        const current = v.trim()
+        if (!current) return r
+        // Se o usuário digitou o título (exibido), converte para o value (id) usado pelo preview.
+        const match = options.find((o) => o.value === current) || options.find((o) => o.label.toLowerCase() === current.toLowerCase())
+        return match ? { ...r, value: match.value } : r
+      })
+
+      const norm = (v: unknown) => String(v ?? '').trim().toLowerCase()
+      const screensByTitle = new Map<string, string>()
+      for (const s of prev.screens || []) {
+        const title = norm((s as any)?.title || '')
+        const id = String((s as any)?.id || '')
+        if (title && id && !screensByTitle.has(title)) screensByTitle.set(title, id)
+      }
+
+      const autoNextRules = normalizedRules.map((r) => {
+        const rr = r as UiBranchRule
+        const op = String(rr?.op || '').toLowerCase()
+        const field = String(rr?.field || '')
+        const wantsAuto = rr.__auto_next !== false
+        if (!wantsAuto) return rr
+        if (op !== 'equals') return { ...rr, __auto_next: true }
+
+        const value = String(rr?.value ?? '').trim()
+        if (!field || !value) return { ...rr, __auto_next: true }
+
+        const opts = choiceOptionsByField[field] || []
+        const label = opts.find((o) => o.value === value)?.label
+        const destId = label ? screensByTitle.get(norm(label)) : undefined
+        if (!destId) return { ...rr, __auto_next: true }
+
+        return { ...rr, next: destId, __auto_next: true }
+      })
+
+      branchesByScreen[activeScreenId] = autoNextRules as DynamicFlowBranchRuleV1[]
+
+      // UX: se uma tela é destino de um Caminho, ela deve encerrar por padrão
+      // (para não “cair” na próxima tela automática).
+      const destIds = Array.from(
+        new Set(
+          autoNextRules
+            .map((r) => (typeof r?.next === 'string' && r.next ? r.next : null))
+            .filter(Boolean) as string[],
+        ),
+      )
+
+      if (destIds.length === 0) return { ...prev, branchesByScreen }
+
+      const screens = [...(prev.screens || [])]
+      const routingModel: Record<string, string[]> = { ...(prev.routingModel || {}) }
+      const defaultNextByScreen: Record<string, string | null> = { ...(prev.defaultNextByScreen || {}) }
+
+      for (const destId of destIds) {
+        const idx = screens.findIndex((s) => s.id === destId)
+        if (idx < 0) continue
+        const screen = screens[idx] as any
+        const hasOwnBranches = Array.isArray(branchesByScreen?.[destId]) && branchesByScreen[destId].length > 0
+        if (hasOwnBranches) continue
+
+        const actionType = String(screen?.action?.type || '').toLowerCase()
+        const hasAutoNext = Array.isArray(routingModel?.[destId]) ? routingModel[destId].length > 0 : false
+        const alreadyFinal = !!screen?.terminal || actionType === 'complete' || !hasAutoNext
+        if (alreadyFinal) continue
+
+        screens[idx] = {
+          ...screen,
+          terminal: true,
+          action: { type: 'complete', label: 'Concluir' },
+        }
+        routingModel[destId] = []
+        defaultNextByScreen[destId] = null
+      }
+
+      try {
+        const preview = destIds.slice(0, 6).map((id) => {
+          const s = screens.find((x) => x.id === id) as any
+          return {
+            id,
+            terminal: !!s?.terminal,
+            actionType: String(s?.action?.type || ''),
+            routingNext: Array.isArray(routingModel?.[id]) ? routingModel[id][0] || null : null,
+            defaultNext: defaultNextByScreen?.[id] ?? undefined,
+          }
+        })
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/1294d6ce-76f2-430d-96ab-3ae4d7527327',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'paths-ux',hypothesisId:'HUX0',location:'components/features/flows/builder/UnifiedFlowEditor.tsx:setBranchesForActive',message:'auto-finalize destinations computed',data:{activeScreenId,destIds:destIds.slice(0,8),destPreview:preview},timestamp:Date.now()})}).catch(()=>{});
+        // #endregion agent log
+      } catch {}
+
+      return { ...prev, branchesByScreen, screens, routingModel, defaultNextByScreen }
+    })
+  }
+
+  const makeScreenFinal = (screenId: string) => {
+    updateSpec((prev) => {
+      const screens = [...(prev.screens || [])]
+      const idx = screens.findIndex((s) => s.id === screenId)
+      if (idx < 0) return prev
+      const current = screens[idx] as any
+      screens[idx] = {
+        ...current,
+        terminal: true,
+        action: { type: 'complete', label: (current?.action?.label && String(current.action.label).trim()) || 'Concluir' },
+      }
+      const routingModel: Record<string, string[]> = { ...(prev.routingModel || {}) }
+      routingModel[screenId] = []
+      const defaultNextByScreen: Record<string, string | null> = { ...(prev.defaultNextByScreen || {}) }
+      defaultNextByScreen[screenId] = null
+      return { ...prev, screens, routingModel, defaultNextByScreen }
     })
   }
 
@@ -647,9 +869,55 @@ export function UnifiedFlowEditor(props: {
         action.payload = payload
         delete action.screen
       }
+      if (action.type === 'navigate') {
+        // Evita bug: payload em navigate quebra publish na Meta.
+        delete action.payload
+      } else if (current?.action?.payload && typeof current.action.payload === 'object' && !Array.isArray(current.action.payload)) {
+        // Mantém payload existente em complete (ex.: confirmação, payload final) quando não estivermos gerando payload de data_exchange.
+        if (action.payload === undefined) action.payload = { ...(current.action.payload as Record<string, unknown>) }
+      }
 
       screens[idx] = { ...current, action }
       return { ...prev, screens, routingModel, defaultNextByScreen }
+    })
+  }
+
+  const setActiveCompleteConfirmation = (patch: { enabled?: boolean; title?: string; footer?: string }) => {
+    updateSpec((prev) => {
+      const screens = [...prev.screens]
+      const idx = screens.findIndex((s) => s.id === activeScreenId)
+      if (idx < 0) return prev
+      const current = screens[idx] as any
+      const currentAction = (current?.action && typeof current.action === 'object' ? current.action : null) as any
+      const actionType = String(currentAction?.type || guessActionType(current)).toLowerCase()
+      if (actionType !== 'complete') return prev
+
+      const basePayload =
+        currentAction?.payload && typeof currentAction.payload === 'object' && !Array.isArray(currentAction.payload)
+          ? { ...(currentAction.payload as Record<string, unknown>) }
+          : {}
+
+      if (patch.enabled !== undefined) {
+        if (patch.enabled) {
+          delete (basePayload as any).send_confirmation
+        } else {
+          ;(basePayload as any).send_confirmation = 'false'
+        }
+      }
+      if (patch.title !== undefined) {
+        const v = String(patch.title || '').trim()
+        if (v) (basePayload as any).confirmation_title = v
+        else delete (basePayload as any).confirmation_title
+      }
+      if (patch.footer !== undefined) {
+        const v = String(patch.footer || '').trim()
+        if (v) (basePayload as any).confirmation_footer = v
+        else delete (basePayload as any).confirmation_footer
+      }
+
+      const nextAction = { ...currentAction, type: 'complete', payload: basePayload }
+      screens[idx] = { ...current, action: nextAction }
+      return { ...prev, screens }
     })
   }
 
@@ -669,7 +937,6 @@ export function UnifiedFlowEditor(props: {
           ...last,
           terminal: false,
           action: {
-            ...(last.action || {}),
             type: 'navigate',
             // Se antes era “final”, não reaproveita label tipo “Enviar/Concluir”.
             label: wasTerminal ? 'Continuar' : (last.action?.label && String(last.action.label).trim()) || 'Continuar',
@@ -1008,7 +1275,7 @@ export function UnifiedFlowEditor(props: {
                 <Input value={ctaLabel} onChange={(e) => setCta({ label: e.target.value })} placeholder="Continuar" />
               </div>
               <div>
-                <label className="block text-xs uppercase tracking-widest text-gray-500 mb-2">Ir para</label>
+                <label className="block text-xs uppercase tracking-widest text-gray-500 mb-2">Próxima tela</label>
                 <select
                   value={ctaType === 'complete' || !!activeScreen?.terminal ? '' : nextScreenId}
                   onChange={(e) => setCta({ nextScreenId: e.target.value })}
@@ -1028,6 +1295,8 @@ export function UnifiedFlowEditor(props: {
             </div>
           </div>
 
+          {/* Confirmação agora fica no passo 3 (Finalizar) */}
+
           <div className="rounded-2xl border border-white/10 bg-zinc-900/60 p-4 space-y-4">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
@@ -1040,13 +1309,18 @@ export function UnifiedFlowEditor(props: {
                 className="bg-zinc-950/40 border border-white/10 text-gray-200 hover:text-white hover:bg-white/5"
                 onClick={() => {
                   const firstField = pathFieldOptions[0]?.name || ''
+                  const opts = firstField ? choiceOptionsByField[firstField] : undefined
+                  const inferred =
+                    firstField && opts && opts.length
+                      ? spec.screens.find((s) => String(s?.title || '').trim().toLowerCase() === String(opts[0]?.label || '').trim().toLowerCase())
+                      : null
                   const next: DynamicFlowBranchRuleV1 = {
                     field: firstField,
                     op: 'equals',
-                    value: '',
-                    next: null,
+                    value: (opts && opts.length ? opts[0].value : '') as any,
+                    next: inferred?.id || null,
                   }
-                  setBranchesForActive([...(activeBranches || []), next])
+                  setBranchesForActive([...(activeBranches || []), { ...(next as any), __auto_next: true } as any])
                 }}
                 disabled={pathFieldOptions.length === 0}
               >
@@ -1093,16 +1367,44 @@ export function UnifiedFlowEditor(props: {
                 {activeBranches.map((rule, idx) => {
                   const op = String(rule.op || 'equals')
                   const needsValue = op === 'equals' || op === 'contains' || op === 'gt' || op === 'lt'
+                  const choiceOptions = choiceOptionsByField[String(rule.field || '')] || []
+                  const canUseChoiceSelect = (op === 'equals' || op === 'contains') && choiceOptions.length > 0
+                  const inferredDestId =
+                    canUseChoiceSelect && op === 'equals'
+                      ? (() => {
+                          const val = String((rule as any)?.value ?? '').trim()
+                          const label = choiceOptions.find((o) => o.value === val)?.label
+                          if (!label) return ''
+                          const dest = spec.screens.find(
+                            (s) => String(s?.title || '').trim().toLowerCase() === String(label).trim().toLowerCase(),
+                          )
+                          return dest?.id || ''
+                        })()
+                      : ''
+                  const isAutoNext = (rule as any)?.__auto_next !== false
+                  const destId = rule.next ? String(rule.next) : ''
+                  const dest = destId ? spec.screens.find((s) => s.id === destId) : null
+                  const destNext = destId ? (spec.routingModel?.[destId] || [])[0] || '' : ''
+                  const destIsFinal = !!dest?.terminal || String((dest as any)?.action?.type || '').toLowerCase() === 'complete' || !destNext
                   return (
                     <div key={`${activeScreenId}_branch_${idx}`} className="rounded-xl border border-white/10 bg-zinc-950/40 p-3">
-                      <div className="grid grid-cols-1 lg:grid-cols-[1fr_160px_1fr_200px_auto] gap-2 items-end">
-                        <div>
+                      <div className="space-y-2">
+                        <div className="grid grid-cols-1 lg:grid-cols-[1fr_160px_1fr_200px_auto] gap-2 items-end">
+                        <div className="min-w-0">
                           <label className="block text-xs uppercase tracking-widest text-gray-500 mb-2">Campo</label>
                           <select
                             value={String(rule.field || '')}
                             onChange={(e) => {
                               const next = [...activeBranches]
-                              next[idx] = { ...next[idx], field: e.target.value }
+                              const field = e.target.value
+                              const opts = field ? choiceOptionsByField[field] : undefined
+                              const nextValue =
+                                (String(next[idx]?.op || '').toLowerCase() === 'equals' || String(next[idx]?.op || '').toLowerCase() === 'contains') &&
+                                opts &&
+                                opts.length
+                                  ? opts[0].value
+                                  : next[idx]?.value
+                              next[idx] = { ...next[idx], field, ...(nextValue !== undefined ? { value: nextValue as any } : {}) }
                               setBranchesForActive(next)
                             }}
                             className="h-11 w-full rounded-xl border border-white/10 bg-white/5 px-3 text-[14px] text-zinc-200 focus:outline-none focus:ring-2 focus:ring-emerald-400/40"
@@ -1115,7 +1417,7 @@ export function UnifiedFlowEditor(props: {
                           </select>
                         </div>
 
-                        <div>
+                        <div className="min-w-0">
                           <label className="block text-xs uppercase tracking-widest text-gray-500 mb-2">Operador</label>
                           <select
                             value={op}
@@ -1137,28 +1439,48 @@ export function UnifiedFlowEditor(props: {
                           </select>
                         </div>
 
-                        <div>
+                        <div className="min-w-0">
                           <label className="block text-xs uppercase tracking-widest text-gray-500 mb-2">Valor</label>
-                          <Input
-                            value={needsValue ? String(rule.value ?? '') : ''}
-                            onChange={(e) => {
-                              const next = [...activeBranches]
-                              next[idx] = { ...next[idx], value: e.target.value }
-                              setBranchesForActive(next)
-                            }}
-                            disabled={!needsValue}
-                            placeholder={needsValue ? 'valor…' : '—'}
-                          />
+                          {canUseChoiceSelect ? (
+                            <select
+                              value={needsValue ? String(rule.value ?? '') : ''}
+                              onChange={(e) => {
+                                const next = [...activeBranches]
+                                next[idx] = { ...(next[idx] as any), value: e.target.value, __auto_next: true }
+                                setBranchesForActive(next)
+                              }}
+                              disabled={!needsValue}
+                              className="h-11 w-full rounded-xl border border-white/10 bg-white/5 px-3 text-[14px] text-zinc-200 focus:outline-none focus:ring-2 focus:ring-emerald-400/40 disabled:opacity-50"
+                            >
+                              {choiceOptions.map((o) => (
+                                <option key={o.value} value={o.value}>
+                                  {o.label}
+                                </option>
+                              ))}
+                            </select>
+                          ) : (
+                            <Input
+                              value={needsValue ? String(rule.value ?? '') : ''}
+                              onChange={(e) => {
+                                const next = [...activeBranches]
+                                next[idx] = { ...next[idx], value: e.target.value }
+                                setBranchesForActive(next)
+                              }}
+                              disabled={!needsValue}
+                              placeholder={needsValue ? 'valor…' : '—'}
+                            />
+                          )}
                         </div>
 
-                        <div>
-                          <label className="block text-xs uppercase tracking-widest text-gray-500 mb-2">Vai para</label>
+                        <div className="min-w-0">
+                          <label className="block text-xs uppercase tracking-widest text-gray-500 mb-2">Destino</label>
                           <select
                             value={rule.next || ''}
                             onChange={(e) => {
-                              const next = [...activeBranches]
-                              next[idx] = { ...next[idx], next: e.target.value ? e.target.value : null }
-                              setBranchesForActive(next)
+                              const next = [...activeBranches] as any[]
+                              // Se o usuário mexeu aqui, ele quer override explícito do automático.
+                              next[idx] = { ...(next[idx] || {}), next: e.target.value ? e.target.value : null, __auto_next: false }
+                              setBranchesForActive(next as any)
                             }}
                             className="h-11 w-full rounded-xl border border-white/10 bg-white/5 px-3 text-[14px] text-zinc-200 focus:outline-none focus:ring-2 focus:ring-emerald-400/40"
                           >
@@ -1176,7 +1498,7 @@ export function UnifiedFlowEditor(props: {
                         <Button
                           type="button"
                           variant="outline"
-                          className="border-white/10 bg-zinc-950/40 hover:bg-white/5"
+                          className="border-white/10 bg-zinc-950/40 hover:bg-white/5 self-end"
                           onClick={() => {
                             const next = activeBranches.filter((_, i) => i !== idx)
                             setBranchesForActive(next)
@@ -1185,6 +1507,25 @@ export function UnifiedFlowEditor(props: {
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
+                      </div>
+                      {inferredDestId && isAutoNext ? (
+                        <div className="text-[11px] text-gray-500">Automático (pela opção escolhida).</div>
+                      ) : null}
+                      {destId && dest && !destIsFinal ? (
+                        <div className="flex items-center justify-between gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2">
+                          <div className="text-[11px] text-gray-400">
+                            Essa tela ainda continua para <span className="text-gray-200">{destNext || '—'}</span>. Se quiser encerrar nela, marque como final.
+                          </div>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="h-8 border-white/10 bg-zinc-950/40 hover:bg-white/5 text-[12px]"
+                            onClick={() => makeScreenFinal(destId)}
+                          >
+                            Marcar como final
+                          </Button>
+                        </div>
+                      ) : null}
                       </div>
                     </div>
                   )

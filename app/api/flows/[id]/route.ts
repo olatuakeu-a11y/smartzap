@@ -18,6 +18,7 @@ const PatchFlowSchema = z
     name: z.string().min(1).max(140).optional(),
     status: z.string().min(1).max(40).optional(),
     metaFlowId: z.string().min(1).max(128).optional(),
+    resetMeta: z.boolean().optional(),
     spec: z.unknown().optional(),
     templateKey: z.string().min(1).max(80).optional(),
     flowJson: z.unknown().optional(),
@@ -58,6 +59,36 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     // #endregion agent log
 
     const update: Record<string, unknown> = { updated_at: now }
+
+    // Se o Flow já foi publicado na Meta, ele não pode ser alterado.
+    // UX: ao renomear, resetamos a publicação (limpa meta_flow_id) para que o próximo publish crie um Flow novo na Meta.
+    let shouldResetMeta = !!patch.resetMeta
+    let currentName: string | null = null
+    let currentMetaStatus: string | null = null
+    let currentMetaFlowId: string | null = null
+    if (patch.name !== undefined && !shouldResetMeta) {
+      try {
+        let { data: metaRow, error: metaErr } = await supabase
+          .from('flows')
+          .select('name, meta_flow_id, meta_status, meta_preview_url, meta_validation_errors, meta_last_checked_at, meta_published_at')
+          .eq('id', id)
+          .limit(1)
+        if (metaErr && isMissingDbColumn(metaErr)) {
+          ;({ data: metaRow, error: metaErr } = await supabase.from('flows').select('name, meta_flow_id, meta_status').eq('id', id).limit(1))
+        }
+        if (!metaErr) {
+          const row = Array.isArray(metaRow) ? metaRow[0] : (metaRow as any)
+          currentName = typeof row?.name === 'string' ? row.name : null
+          currentMetaStatus = typeof row?.meta_status === 'string' ? row.meta_status : null
+          currentMetaFlowId = typeof row?.meta_flow_id === 'string' ? row.meta_flow_id : null
+          const renamed = currentName !== null && patch.name.trim() && currentName.trim() !== patch.name.trim()
+          if (renamed && currentMetaFlowId && String(currentMetaStatus || '').toUpperCase() === 'PUBLISHED') {
+            shouldResetMeta = true
+          }
+        }
+      } catch {}
+    }
+
     if (patch.name !== undefined) update.name = patch.name
     if (patch.status !== undefined) update.status = patch.status
     if (patch.metaFlowId !== undefined) update.meta_flow_id = patch.metaFlowId
@@ -72,6 +103,15 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     }
     if (patch.mapping !== undefined) update.mapping = patch.mapping
 
+    if (shouldResetMeta) {
+      update.meta_flow_id = null
+      update.meta_status = null
+      update.meta_preview_url = null
+      update.meta_validation_errors = null
+      update.meta_last_checked_at = null
+      update.meta_published_at = null
+    }
+
     let { data, error } = await supabase.from('flows').update(update).eq('id', id).select('*').limit(1)
 
     // Fallback: se colunas novas não existirem, remove-as e tenta novamente.
@@ -81,6 +121,11 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
       delete stripped.flow_json
       delete stripped.flow_version
       delete stripped.mapping
+      delete stripped.meta_status
+      delete stripped.meta_preview_url
+      delete stripped.meta_validation_errors
+      delete stripped.meta_last_checked_at
+      delete stripped.meta_published_at
       ;({ data, error } = await supabase.from('flows').update(stripped).eq('id', id).select('*').limit(1))
     }
 

@@ -1,5 +1,28 @@
 # Changelog (docs)
 
+## 15/01/2026 - Estabilidade do editor unificado
+
+- **♻️ Loop de render e ordem de hooks corrigidos**
+  - `UnifiedFlowEditor` passa a emitir preview apenas com dependências estáveis (remove `props` do efeito)
+  - `FlowBuilderEditorPage` estabiliza `onPreviewChange` via `useCallback` e `refs` para evitar re-render em cascata
+  - `editorSpecOverride` agora é guardado para não reiniciar o editor a cada preview
+
+## 15/01/2026 - Labels reais na confirmação do Flow
+
+- **🏷️ Confirmação usa o texto da pergunta**
+  - `app/api/webhook/route.ts` agora extrai labels do `flow_json` e substitui `topics/notes/...` pelo texto da pergunta
+  - Fallback mantém o comportamento antigo quando não há `flow_json` disponível
+
+## 17/01/2026 - Confirmação pós-finalização no editor unificado
+
+- **✅ Confirmação voltou a funcionar em telas finais**
+  - `lib/dynamic-flow.ts` volta a permitir `payload` em ações `complete` (mantém bloqueio em `navigate` para evitar erro da Meta)
+  - **UX melhor**: a seção **Confirmação** foi movida para o passo **3 (Finalizar)** em `app/(dashboard)/flows/builder/[id]/page.tsx`
+  - Agora é possível **escolher quais campos aparecem** no resumo via `confirmation_fields` (persistido no `complete.payload`)
+- **💬 Mensagem pós-flow com resumo do que o usuário respondeu**
+  - `lib/dynamic-flow.ts` agora garante `payload` completo no `complete` com mapeamento `${form.*}` de todos os campos do flow
+  - `app/api/webhook/route.ts` já envia automaticamente uma mensagem de resumo (best-effort) quando `send_confirmation` não é `false`
+
 ## 16/01/2026 - Editor unificado (“Tela Viva”)
 
 - **🧠 Um único editor (sem “modo Formulário vs Dinâmico”)**
@@ -36,6 +59,10 @@
   - `lib/dynamic-flow.ts` normaliza IDs de telas para o padrão aceito pela Meta no `routing_model` (somente letras/underscore), migrando `SCREEN_1/2/3...` → `SCREEN_A/B/C...`
   - `app/api/flows/[id]/meta/publish/route.ts` passa a exigir `endpoint_uri` também quando houver `data_api_version: "3.0"`/`routing_model` (mesmo sem `data_exchange`), com mensagem explícita de que **localhost não publica**
   - `app/api/flows/[id]/meta/publish/route.ts` remove metadados internos do editor (`__editor_key`, `__editor_title_key`) do JSON enviado à Meta (evita validation errors 139002)
+  - `app/api/flows/[id]/meta/publish/route.ts` também remove `__builder_id` (Meta rejeita esse campo em componentes)
+  - `UnifiedFlowEditor`: destinos definidos em **Caminhos** passam a ser “finais” por padrão (evita “cascata” para próximas telas automáticas)
+  - `UnifiedFlowEditor`: em campos de opções, o destino do Caminho é inferido automaticamente quando existe uma tela com o mesmo título da opção (sem exigir clique extra; destino segue editável direto)
+  - Renomear um Flow já **PUBLISHED** reseta `meta_flow_id` automaticamente (próximo publish cria um novo Flow na Meta), e UI ganhou botão “Resetar publicação”
 
 ## 15/01/2026 - Builder dinâmico estilo “Formulário”
 

@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useMemo, useState } from 'react'
-import { X, MoreVertical } from 'lucide-react'
+import { X, MoreVertical, ArrowLeft } from 'lucide-react'
 
 type FlowComponent = Record<string, any>
 
@@ -583,6 +583,15 @@ export function MetaFlowPreview(props: {
   const [screenStack, setScreenStack] = useState<string[]>([])
   const [valuesByScreen, setValuesByScreen] = useState<Record<string, Record<string, any>>>({})
   const [completed, setCompleted] = useState(false)
+  const clickSeqRef = React.useRef(0)
+
+  React.useEffect(() => {
+    try {
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/1294d6ce-76f2-430d-96ab-3ae4d7527327',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'paths-preview',hypothesisId:'H4',location:'components/ui/MetaFlowPreview.tsx:effect',message:'currentScreenId changed',data:{currentScreenId,selectedScreenId:props.selectedScreenId ?? null,stackDepth:screenStack.length,completed},timestamp:Date.now()})}).catch(()=>{});
+      // #endregion agent log
+    } catch {}
+  }, [currentScreenId, props.selectedScreenId, screenStack.length, completed])
 
   React.useEffect(() => {
     // #region agent log
@@ -600,10 +609,15 @@ export function MetaFlowPreview(props: {
     const selected = props.selectedScreenId ? String(props.selectedScreenId) : ''
     if (!selected) return
     if (!screens.some((s) => s?.id === selected)) return
+    try {
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/1294d6ce-76f2-430d-96ab-3ae4d7527327',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'paths-preview',hypothesisId:'H2',location:'components/ui/MetaFlowPreview.tsx:effect',message:'selectedScreenId sync overrides preview screen',data:{selectedScreenId:selected,currentScreenIdBefore:currentScreenId,screensHasSelected:true},timestamp:Date.now()})}).catch(()=>{});
+      // #endregion agent log
+    } catch {}
     setCurrentScreenId(selected)
     setScreenStack([])
     setCompleted(false)
-  }, [props.selectedScreenId, screens, currentScreenId])
+  }, [props.selectedScreenId, screens])
 
   React.useEffect(() => {
     if (props.onScreenChange && currentScreenId) {
@@ -696,9 +710,12 @@ export function MetaFlowPreview(props: {
       return null
     }
 
+    const norm = (v: unknown) => String(v ?? '').trim().toLowerCase()
+
     const equals = (a: unknown, b: unknown) => {
-      if (Array.isArray(a)) return a.includes(b as any)
-      return String(a ?? '') === String(b ?? '')
+      // UX: comparar de forma tolerante (CheckboxGroup retorna array; opções muitas vezes são ids em minúsculo).
+      if (Array.isArray(a)) return a.some((x) => norm(x) === norm(b))
+      return norm(a) === norm(b)
     }
 
     const contains = (a: unknown, b: unknown) => {
@@ -753,12 +770,23 @@ export function MetaFlowPreview(props: {
   }
 
   const handleFooterClick = () => {
+    const clickId = ++clickSeqRef.current
     if (!requiredOk) return
     const actionName = String(footerAction?.name || '').toLowerCase()
     if (actionName === 'complete' || isTerminalScreen) {
       setCompleted(true)
       return
     }
+    try {
+      if (props.paths) {
+        const valuesForScreen = valuesByScreen[currentScreenId] || {}
+        const rules = props.paths.branchesByScreen?.[currentScreenId] || []
+        const byPaths = resolveNextByPaths()
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/1294d6ce-76f2-430d-96ab-3ae4d7527327',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'paths-preview',hypothesisId:'H1',location:'components/ui/MetaFlowPreview.tsx:handleFooterClick',message:'resolveNextByPaths debug',data:{currentScreenId,valuesKeys:Object.keys(valuesForScreen),valuesForScreenPreview:Object.fromEntries(Object.entries(valuesForScreen).slice(0,6)),rulesPreview:(rules||[]).slice(0,6).map((r:any)=>({field:r?.field,op:r?.op,value:r?.value,next:r?.next,currentValue:(valuesForScreen as any)?.[r?.field]})),resolvedByPaths:byPaths,fallback:props.paths.defaultNextByScreen?.[currentScreenId] ?? undefined},timestamp:Date.now()})}).catch(()=>{});
+        // #endregion agent log
+      }
+    } catch {}
     const nextId = resolveNextScreen()
     if (nextId === null) {
       setCompleted(true)
@@ -766,6 +794,11 @@ export function MetaFlowPreview(props: {
     }
     if (!nextId) return
     if (!screens.some((s) => s?.id === nextId)) return
+    try {
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/1294d6ce-76f2-430d-96ab-3ae4d7527327',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'paths-preview',hypothesisId:'H3',location:'components/ui/MetaFlowPreview.tsx:handleFooterClick',message:'navigating preview to nextId',data:{clickId,currentScreenId,nextId,selectedScreenId:props.selectedScreenId ?? null,stackDepth:screenStack.length,actionName},timestamp:Date.now()})}).catch(()=>{});
+      // #endregion agent log
+    } catch {}
     setScreenStack((prev) => [...prev, currentScreenId])
     setCurrentScreenId(nextId)
     setCompleted(false)
@@ -787,7 +820,7 @@ export function MetaFlowPreview(props: {
             className="h-9 w-9 rounded-full hover:bg-white/5 flex items-center justify-center text-zinc-200"
             onClick={handleGoBack}
           >
-            <X className="h-5 w-5" />
+            {canGoBack ? <ArrowLeft className="h-5 w-5" /> : <X className="h-5 w-5" />}
           </button>
           <div
             className={`text-[18px] font-semibold text-zinc-100 truncate ${

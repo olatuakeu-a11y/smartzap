@@ -281,6 +281,32 @@ function normalizeComponents(input: unknown): DynamicFlowComponent[] {
   return input.filter((item) => item && typeof item === 'object') as DynamicFlowComponent[]
 }
 
+function extractFieldNamesFromComponents(components: DynamicFlowComponent[]): string[] {
+  const out: string[] = []
+  const supported = new Set([
+    'TextInput',
+    'TextArea',
+    'Dropdown',
+    'RadioButtonsGroup',
+    'CheckboxGroup',
+    'DatePicker',
+    'CalendarPicker',
+    'OptIn',
+  ])
+  const walk = (nodes: DynamicFlowComponent[]) => {
+    for (const node of nodes || []) {
+      if (!node || typeof node !== 'object') continue
+      const type = safeString((node as any).type, '')
+      const name = safeString((node as any).name, '')
+      if (name && supported.has(type)) out.push(name)
+      const children = Array.isArray((node as any).children) ? ((node as any).children as DynamicFlowComponent[]) : null
+      if (children?.length) walk(children)
+    }
+  }
+  walk(components || [])
+  return out
+}
+
 function normalizeAction(input: unknown): DynamicFlowActionV1 | undefined {
   if (!isPlainObject(input)) return undefined
   const rawType = safeString(input.type, '')
@@ -288,7 +314,8 @@ function normalizeAction(input: unknown): DynamicFlowActionV1 | undefined {
   const type: DynamicFlowActionType = allowed.includes(rawType as DynamicFlowActionType)
     ? (rawType as DynamicFlowActionType)
     : 'navigate'
-  const payload = isPlainObject(input.payload) ? (input.payload as Record<string, unknown>) : undefined
+  // `payload` só é inválido para `navigate` (quebra publish na Meta).
+  const payload = type !== 'navigate' && isPlainObject(input.payload) ? (input.payload as Record<string, unknown>) : undefined
   const screen = safeString(input.screen, '')
   const label = safeString(input.label, '')
   return {
@@ -650,12 +677,17 @@ export function generateDynamicFlowJson(input: DynamicFlowSpecV1): Record<string
   const spec = normalizeDynamicFlowSpec(input)
   const usesDataExchange = spec.screens.some((s) => s?.action?.type === 'data_exchange')
   const usesBranching = Object.values(spec.branchesByScreen || {}).some((arr) => Array.isArray(arr) && arr.length > 0)
+  const allFieldNames = Array.from(new Set(spec.screens.flatMap((s) => extractFieldNamesFromComponents(s.components || [])))).slice(
+    0,
+    200,
+  )
   return {
     version: '7.3',
     ...((usesDataExchange || usesBranching) ? { data_api_version: '3.0' } : {}),
     ...((usesDataExchange || usesBranching) ? { routing_model: spec.routingModel } : {}),
     screens: spec.screens.map((screen) => {
       const baseComponents = screen.components || []
+      const screenFieldNames = extractFieldNamesFromComponents(baseComponents).slice(0, 200)
       const computedNext =
         screen.action?.type === 'navigate'
           ? screen.action.screen ||
@@ -663,7 +695,46 @@ export function generateDynamicFlowJson(input: DynamicFlowSpecV1): Record<string
             spec.routingModel?.[screen.id]?.[0] ||
             undefined
           : undefined
-      const action = screen.action?.type === 'navigate' ? { ...screen.action, ...(computedNext ? { screen: computedNext } : {}) } : screen.action
+      let action: DynamicFlowActionV1 | undefined =
+        screen.action?.type === 'navigate' ? { ...screen.action, ...(computedNext ? { screen: computedNext } : {}) } : screen.action
+
+      // Para fluxos "form-like": `navigate` deve carregar somente os campos DA TELA (igual o FlowForm multi-etapas),
+      // evitando payload com chaves que não existem naquela tela (Meta rejeita).
+      if (action?.type === 'navigate') {
+        const payload: Record<string, string> = {}
+        for (const n of screenFieldNames) payload[n] = `\${form.${n}}`
+        action = {
+          ...action,
+          ...(Object.keys(payload).length ? { payload } : {}),
+        }
+      }
+
+      // UX: respostas + confirmação dependem do payload no `complete`.
+      // A Meta rejeita payload em `navigate`, mas aceita em `complete`/`data_exchange`.
+      const isComplete = action?.type === 'complete' || !!screen.terminal
+      if (isComplete) {
+        const extra =
+          action?.payload && isPlainObject(action.payload) ? (action.payload as Record<string, unknown>) : {}
+        const selectedFromConfig = Array.isArray((extra as any).confirmation_fields)
+          ? ((extra as any).confirmation_fields as unknown[])
+              .filter((x) => typeof x === 'string')
+              .map((x) => String(x).trim())
+              .filter(Boolean)
+          : null
+        const selectedFieldNames =
+          selectedFromConfig && selectedFromConfig.length
+            ? selectedFromConfig.filter((n) => allFieldNames.includes(n))
+            : allFieldNames
+
+        const baseCompletePayload: Record<string, string> = {}
+        for (const n of selectedFieldNames) baseCompletePayload[n] = `\${form.${n}}`
+        const mergedPayload: Record<string, unknown> = { ...baseCompletePayload, ...extra }
+        action = {
+          type: 'complete',
+          label: action?.label || screen.action?.label || 'Concluir',
+          ...(Object.keys(mergedPayload).length ? { payload: mergedPayload } : {}),
+        }
+      }
       const children = injectEditorKeysIntoTree(screen.id, applyFooterAction(baseComponents, action))
       return {
         id: screen.id,
