@@ -58,6 +58,9 @@ export async function POST(request: NextRequest) {
 
     const flowRequest = decrypted.decryptedBody as unknown as FlowDataExchangeRequest
     console.log('[flow-endpoint] 🔓 Decrypted - Action:', flowRequest.action, 'Screen:', flowRequest.screen, 'Data:', JSON.stringify(flowRequest.data || {}))
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/1294d6ce-76f2-430d-96ab-3ae4d7527327',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H1',location:'app/api/flows/endpoint/route.ts:62',message:'flow endpoint decrypted request',data:{action:flowRequest.action,screen:flowRequest.screen ?? null,hasFlowToken:Boolean(flowRequest.flow_token),dataKeys:Array.isArray(flowRequest.data)?null:Object.keys(flowRequest.data || {})},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
 
     // Health check - DEVE ser criptografado como todas as outras respostas
     // Ref: https://developers.facebook.com/docs/whatsapp/flows/guides/implementingyourflowendpoint#health_check_request

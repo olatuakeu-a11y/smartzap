@@ -120,10 +120,6 @@ export interface CalendarBookingConfig {
   allowSimultaneous?: boolean;
   /** External webhook to receive flow submissions */
   externalWebhookUrl?: string;
-  /** Confirmation message title */
-  confirmationTitle?: string;
-  /** Confirmation message footer */
-  confirmationFooter?: string;
 }
 
 // =============================================================================

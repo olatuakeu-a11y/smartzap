@@ -454,6 +454,19 @@ export default function FlowBuilderEditorPage({
     return chosen?.id || null
   }, [previewDynamicSpec])
 
+  const resolveConfirmationBinding = React.useCallback((raw: unknown, screen: any) => {
+    const text = typeof raw === 'string' ? raw : ''
+    const match = text.match(/^\$\{data\.([a-zA-Z0-9_]+)\}$/)
+    if (!match) return text
+    if (!screen?.data || typeof screen.data !== 'object') return text
+    const dataNode = (screen.data as any)[match[1]]
+    if (dataNode && typeof dataNode === 'object' && '__example__' in dataNode) {
+      const example = (dataNode as any).__example__
+      return example != null ? String(example) : ''
+    }
+    return text
+  }, [])
+
   const confirmationState = React.useMemo(() => {
     const spec = previewDynamicSpec
     if (!spec || !finalScreenId) return null
@@ -463,15 +476,20 @@ export default function FlowBuilderEditorPage({
         ? (s.action.payload as any)
         : {}
     const sendDisabled = String(payload?.send_confirmation || '').toLowerCase() === 'false'
-    const title = typeof payload?.confirmation_title === 'string' ? payload.confirmation_title : ''
-    const footer = typeof payload?.confirmation_footer === 'string' ? payload.confirmation_footer : ''
+    const rawTitle = typeof payload?.confirmation_title === 'string' ? payload.confirmation_title : ''
+    const rawFooter = typeof payload?.confirmation_footer === 'string' ? payload.confirmation_footer : ''
+    const resolvedTitle = rawTitle ? resolveConfirmationBinding(rawTitle, s) : ''
+    const resolvedFooter = rawFooter ? resolveConfirmationBinding(rawFooter, s) : ''
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/1294d6ce-76f2-430d-96ab-3ae4d7527327',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H1',location:'app/(dashboard)/flows/builder/[id]/page.tsx:confirmationState',message:'confirmation bindings resolved',data:{rawTitle,rawFooter,resolvedTitle,resolvedFooter,usesBindingTitle:/^\$\{data\./.test(rawTitle),usesBindingFooter:/^\$\{data\./.test(rawFooter)},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
     const fields = Array.isArray(payload?.confirmation_fields) ? (payload.confirmation_fields as any[]).filter((x) => typeof x === 'string') : null
     const labels =
       payload?.confirmation_labels && typeof payload.confirmation_labels === 'object' && !Array.isArray(payload.confirmation_labels)
         ? (payload.confirmation_labels as Record<string, string>)
         : null
-    return { sendDisabled, title, footer, fields, labels }
-  }, [finalScreenId, previewDynamicSpec])
+    return { sendDisabled, title: resolvedTitle || rawTitle, footer: resolvedFooter || rawFooter, fields, labels }
+  }, [finalScreenId, previewDynamicSpec, resolveConfirmationBinding])
 
   const applyConfirmationPatch = React.useCallback(
     (patch: { enabled?: boolean; title?: string; footer?: string; fields?: string[] | null; labels?: Record<string, string> | null }) => {
@@ -491,13 +509,23 @@ export default function FlowBuilderEditorPage({
             else (basePayload as any).send_confirmation = 'false'
           }
           if (patch.title !== undefined) {
-            const v = String(patch.title || '').trim()
-            if (v) (basePayload as any).confirmation_title = v
+            const raw = String(patch.title || '')
+            const v = raw
+            const hasValue = raw.trim().length > 0
+            // #region agent log
+            fetch('http://127.0.0.1:7243/ingest/1294d6ce-76f2-430d-96ab-3ae4d7527327',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H2',location:'app/(dashboard)/flows/builder/[id]/page.tsx:applyConfirmationPatch:title',message:'confirmation title patch',data:{raw,rawLen:raw.length,hasValue},timestamp:Date.now()})}).catch(()=>{});
+            // #endregion
+            if (hasValue) (basePayload as any).confirmation_title = v
             else delete (basePayload as any).confirmation_title
           }
           if (patch.footer !== undefined) {
-            const v = String(patch.footer || '').trim()
-            if (v) (basePayload as any).confirmation_footer = v
+            const raw = String(patch.footer || '')
+            const v = raw
+            const hasValue = raw.trim().length > 0
+            // #region agent log
+            fetch('http://127.0.0.1:7243/ingest/1294d6ce-76f2-430d-96ab-3ae4d7527327',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H2',location:'app/(dashboard)/flows/builder/[id]/page.tsx:applyConfirmationPatch:footer',message:'confirmation footer patch',data:{raw,rawLen:raw.length,hasValue},timestamp:Date.now()})}).catch(()=>{});
+            // #endregion
+            if (hasValue) (basePayload as any).confirmation_footer = v
             else delete (basePayload as any).confirmation_footer
           }
           if (patch.fields !== undefined) {
@@ -510,9 +538,13 @@ export default function FlowBuilderEditorPage({
             const cleaned: Record<string, string> = {}
             for (const [k, v] of Object.entries(labels)) {
               const key = String(k || '').trim()
-              const val = String(v || '').trim()
-              if (key && val) cleaned[key] = val
+              const rawVal = String(v || '')
+              const hasValue = rawVal.trim().length > 0
+              if (key && hasValue) cleaned[key] = rawVal
             }
+            // #region agent log
+            fetch('http://127.0.0.1:7243/ingest/1294d6ce-76f2-430d-96ab-3ae4d7527327',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H9',location:'app/(dashboard)/flows/builder/[id]/page.tsx:applyConfirmationPatch:labels',message:'confirmation labels cleaned',data:{rawKeys:Object.keys(labels),cleanedKeys:Object.keys(cleaned),rawSample:Object.entries(labels).slice(0,2),cleanedSample:Object.entries(cleaned).slice(0,2)},timestamp:Date.now()})}).catch(()=>{});
+            // #endregion
             if (Object.keys(cleaned).length) (basePayload as any).confirmation_labels = cleaned
             else delete (basePayload as any).confirmation_labels
           }
@@ -884,7 +916,12 @@ export default function FlowBuilderEditorPage({
                           <label className="block text-xs uppercase tracking-widest text-gray-500 mb-2">Título (opcional)</label>
                           <Input
                             value={confirmationState?.title || ''}
-                            onChange={(e) => applyConfirmationPatch({ title: e.target.value })}
+                            onChange={(e) => {
+                              // #region agent log
+                              fetch('http://127.0.0.1:7243/ingest/1294d6ce-76f2-430d-96ab-3ae4d7527327',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H1',location:'app/(dashboard)/flows/builder/[id]/page.tsx:confirmTitleChange',message:'confirmation title input change',data:{rawValue:e.target.value},timestamp:Date.now()})}).catch(()=>{});
+                              // #endregion
+                              applyConfirmationPatch({ title: e.target.value })
+                            }}
                             placeholder="Resposta registrada ✅"
                           />
                         </div>
@@ -892,7 +929,12 @@ export default function FlowBuilderEditorPage({
                           <label className="block text-xs uppercase tracking-widest text-gray-500 mb-2">Rodapé (opcional)</label>
                           <Input
                             value={confirmationState?.footer || ''}
-                            onChange={(e) => applyConfirmationPatch({ footer: e.target.value })}
+                            onChange={(e) => {
+                              // #region agent log
+                              fetch('http://127.0.0.1:7243/ingest/1294d6ce-76f2-430d-96ab-3ae4d7527327',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H1',location:'app/(dashboard)/flows/builder/[id]/page.tsx:confirmFooterChange',message:'confirmation footer input change',data:{rawValue:e.target.value},timestamp:Date.now()})}).catch(()=>{});
+                              // #endregion
+                              applyConfirmationPatch({ footer: e.target.value })
+                            }}
                             placeholder="Qualquer ajuste, responda esta mensagem."
                           />
                         </div>
@@ -935,9 +977,14 @@ export default function FlowBuilderEditorPage({
                                     value={(customLabel || f.label) as string}
                                     onChange={(e) => {
                                       const base = confirmationState?.labels ? { ...confirmationState.labels } : {}
-                                      const nextValue = e.target.value.trim()
-                                      if (!nextValue || nextValue === f.label) delete base[f.name]
-                                      else base[f.name] = nextValue
+                                      const rawValue = e.target.value
+                                      const nextValue = rawValue
+                                      // #region agent log
+                                      fetch('http://127.0.0.1:7243/ingest/1294d6ce-76f2-430d-96ab-3ae4d7527327',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H9',location:'app/(dashboard)/flows/builder/[id]/page.tsx:labelChange',message:'confirmation label input change',data:{field:f.name,rawValue,trimmedValue:nextValue,rawLen:rawValue.length,trimmedLen:nextValue.length,defaultLabel:f.label},timestamp:Date.now()})}).catch(()=>{});
+                                      // #endregion
+                                      const hasValue = rawValue.trim().length > 0
+                                      if (!hasValue || rawValue === f.label) delete base[f.name]
+                                      else base[f.name] = rawValue
                                       applyConfirmationPatch({ labels: base })
                                     }}
                                     className="h-9"
@@ -1049,7 +1096,12 @@ export default function FlowBuilderEditorPage({
                             }
                           : undefined
                       }
-                      onSelectEditorKey={(key) => setPreviewSelectedEditorKey(key)}
+                      onSelectEditorKey={(key) => {
+                        // #region agent log
+                        fetch('http://127.0.0.1:7243/ingest/1294d6ce-76f2-430d-96ab-3ae4d7527327',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H11',location:'app/(dashboard)/flows/builder/[id]/page.tsx:onSelectEditorKey',message:'preview selected editor key change',data:{key},timestamp:Date.now()})}).catch(()=>{});
+                        // #endregion
+                        setPreviewSelectedEditorKey(key)
+                      }}
                     />
                   </div>
                 ) : (

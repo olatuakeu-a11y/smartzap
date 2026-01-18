@@ -1,8 +1,38 @@
 # Changelog
 
+## 15/01/2026
+
+### Corrigido
+- **Espaços na mensagem de confirmação**: O editor agora preserva espaços digitados em título/rodapé; `trim()` ficou apenas para detectar campo vazio.
+- **Espaços nos rótulos do resumo**: Os rótulos customizados do resumo agora preservam espaços digitados; só usam `trim()` para validação de vazio.
+- **Edição de serviços sem perder foco**: A lista de serviços usa chave estável para não perder o foco ao editar o id/título.
+- **Opções com espaços/underscore**: O campo de ID das opções não normaliza mais a cada tecla, preservando espaços e “_” durante a edição.
+- **Texto do botão com espaços**: O label do CTA agora preserva espaços digitados; `trim()` fica só para detectar vazio.
+- **CTA sem trim no normalize**: `normalizeAction` não remove mais espaços do `label` do botão.
+- **Confirmação sem duplicação**: Quando o template já retorna a mensagem completa, o webhook não reempilha os campos do resumo.
+- **Confirmação respeita tela Finalizar**: O webhook usa `confirmation_*` do Flow JSON para montar o texto conforme a seleção do usuário.
+- **Fallback de confirmação por nome**: Quando o flow_token não chega no webhook, o Flow JSON é buscado pelo nome do flow para aplicar a confirmação.
+- **Fallback por message_id**: O envio agora grava `flow_token` em `flow_submissions` e o webhook recupera por `message_id` quando a Meta não envia token.
+- **Diagnóstico do envio**: Loga erro do `flow_submissions` quando o seed falha para destravar a confirmação.
+- **Seed de submissões para teste**: Salva `response_json_raw` mínimo ao enviar, evitando falha de NOT NULL.
+- **Fallback por telefone**: Quando não há `flow_token`, o webhook tenta o último envio por `from_phone`.
+- **Flow JSON carregado no lookup**: Busca `flow_json` junto do flow para aplicar confirmação corretamente.
+- **Confirmação via spec**: Se o Flow JSON não tiver `confirmation_*`, usa a configuração salva no `spec`.
+- **Leitura direta do spec**: O webhook aplica `confirmation_*` do `spec` mesmo quando o Flow JSON está incompleto.
+- **Prioridade do token**: Webhook usa `meta_flow_id` do token para lookup quando há divergência com o `flow_id`.
+- **Webhook estável**: Corrigida falha do `isPlainObject` no parser do `spec` da confirmação.
+- **Confirmação com data**: Fallback de `selected_date` usando chave de data no payload e rótulos customizados no resumo.
+- **Quebras de linha na confirmação**: Espaço entre título, resumo e rodapé no WhatsApp.
+- **Acentos no template**: Textos do agendamento dinâmico com acentuação correta.
+- **Acentos no fluxo de agendamento**: Ajustes em textos de horário e observações.
+
 ## 17/01/2026
 
 ### Corrigido
+- **Serviços do flow de agendamento não apareciam**: Os serviços (Tipo de Atendimento) não eram carregados porque estavam apenas em `flow_json.__example__`, mas o código tentava ler de `spec.dynamicFlow.services`. Agora o sistema extrai serviços de ambos os locais: spec E flow_json.
+- **Sincronização de serviços na criação do flow**: Quando um flow de agendamento é criado a partir do template, os serviços agora são automaticamente salvos em `settingsDb.booking_services` para que o endpoint possa carregá-los.
+- **Envio de Flow dinâmico no teste (Meta)**: Removido `flow_action_payload` quando `flow_action` é `data_exchange`, conforme exigência da Meta (erro 131009).
+- **Mensagem de confirmação centralizada no template**: Removidos `confirmationTitle` e `confirmationFooter` das configurações de agendamento e a confirmação passa a usar o texto do template (`confirmation_title` no payload do Flow).
 - **Detecção automática de ngrok no publish**: Ao publicar um flow dinâmico em ambiente de dev, o sistema agora detecta automaticamente se há um túnel ngrok ativo e usa essa URL como `endpoint_uri` para a Meta, em vez de usar a URL de produção salva no banco.
 - **Build errors corrigidos**: Corrigidos 6 erros de TypeScript que impediam o build (duplex typing, FlowTemplateDTO.isDynamic, onClick handler, Zod error.issues, screenInfo typing, handleBack arguments). (docs)
 

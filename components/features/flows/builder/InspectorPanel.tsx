@@ -73,6 +73,11 @@ export function InspectorPanel(props: {
   onUpdateBookingServices?: (services: Array<{ id: string; title: string }>) => void
   onUpdateBookingDateComponent?: (mode: 'calendar' | 'dropdown') => void
 }) {
+  React.useEffect(() => {
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/1294d6ce-76f2-430d-96ab-3ae4d7527327',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H11',location:'components/features/flows/builder/InspectorPanel.tsx:effect',message:'selectedEditorKey changed',data:{selectedEditorKey:props.selectedEditorKey,hasBooking:Boolean(props.spec?.screens?.find?.((s:any)=>s?.id==='BOOKING_START'))},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
+  }, [props.selectedEditorKey, props.spec])
   const parsed = useMemo(() => parseEditorKey(props.selectedEditorKey), [props.selectedEditorKey])
   const screen = useMemo(() => props.spec.screens.find((s) => s.id === (parsed as any).screenId), [parsed, props.spec.screens])
 
@@ -111,13 +116,26 @@ export function InspectorPanel(props: {
                 <div className="text-xs uppercase tracking-widest text-gray-500 mb-2">Serviços</div>
                 <div className="space-y-2">
                   {bookingServices.map((s, idx) => (
-                    <div key={`${s.id}_${idx}`} className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-2 items-center">
+                    <div key={`service_${idx}`} className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-2 items-center">
                       <Input
                         value={s.id}
                         onChange={(e) => {
+                          // #region agent log
+                          fetch('http://127.0.0.1:7243/ingest/1294d6ce-76f2-430d-96ab-3ae4d7527327',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H11',location:'components/features/flows/builder/InspectorPanel.tsx:serviceIdChange',message:'booking service id change',data:{idx,rawValue:e.target.value,rawLen:e.target.value.length,prevId:s.id},timestamp:Date.now()})}).catch(()=>{});
+                          // #endregion
                           const next = [...bookingServices]
                           next[idx] = { ...next[idx], id: e.target.value }
                           props.onUpdateBookingServices?.(next)
+                        }}
+                        onFocus={() => {
+                          // #region agent log
+                          fetch('http://127.0.0.1:7243/ingest/1294d6ce-76f2-430d-96ab-3ae4d7527327',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H11',location:'components/features/flows/builder/InspectorPanel.tsx:serviceIdFocus',message:'booking service id focus',data:{idx,value:s.id},timestamp:Date.now()})}).catch(()=>{});
+                          // #endregion
+                        }}
+                        onBlur={() => {
+                          // #region agent log
+                          fetch('http://127.0.0.1:7243/ingest/1294d6ce-76f2-430d-96ab-3ae4d7527327',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H11',location:'components/features/flows/builder/InspectorPanel.tsx:serviceIdBlur',message:'booking service id blur',data:{idx,value:s.id},timestamp:Date.now()})}).catch(()=>{});
+                          // #endregion
                         }}
                         placeholder="id"
                         className="font-mono text-xs"
@@ -125,9 +143,22 @@ export function InspectorPanel(props: {
                       <Input
                         value={s.title}
                         onChange={(e) => {
+                          // #region agent log
+                          fetch('http://127.0.0.1:7243/ingest/1294d6ce-76f2-430d-96ab-3ae4d7527327',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H11',location:'components/features/flows/builder/InspectorPanel.tsx:serviceTitleChange',message:'booking service title change',data:{idx,rawValue:e.target.value,rawLen:e.target.value.length,prevTitle:s.title},timestamp:Date.now()})}).catch(()=>{});
+                          // #endregion
                           const next = [...bookingServices]
                           next[idx] = { ...next[idx], title: e.target.value }
                           props.onUpdateBookingServices?.(next)
+                        }}
+                        onFocus={() => {
+                          // #region agent log
+                          fetch('http://127.0.0.1:7243/ingest/1294d6ce-76f2-430d-96ab-3ae4d7527327',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H11',location:'components/features/flows/builder/InspectorPanel.tsx:serviceTitleFocus',message:'booking service title focus',data:{idx,value:s.title},timestamp:Date.now()})}).catch(()=>{});
+                          // #endregion
+                        }}
+                        onBlur={() => {
+                          // #region agent log
+                          fetch('http://127.0.0.1:7243/ingest/1294d6ce-76f2-430d-96ab-3ae4d7527327',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H11',location:'components/features/flows/builder/InspectorPanel.tsx:serviceTitleBlur',message:'booking service title blur',data:{idx,value:s.title},timestamp:Date.now()})}).catch(()=>{});
+                          // #endregion
                         }}
                         placeholder="Título"
                       />

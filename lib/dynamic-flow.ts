@@ -160,12 +160,12 @@ const DEFAULT_BOOKING_CONFIG: BookingFlowConfigV1 = {
     subtitle: 'Escolha o tipo de atendimento e a data desejada',
     serviceLabel: 'Tipo de Atendimento',
     dateLabel: 'Data',
-    ctaLabel: 'Ver Horarios',
+    ctaLabel: 'Ver Horários',
   },
   time: {
-    title: 'Escolha o Horario',
-    subtitle: 'Horarios disponiveis',
-    timeLabel: 'Horario',
+    title: 'Escolha o Horário',
+    subtitle: 'Horários disponíveis',
+    timeLabel: 'Horário',
     ctaLabel: 'Continuar',
   },
   customer: {
@@ -173,7 +173,7 @@ const DEFAULT_BOOKING_CONFIG: BookingFlowConfigV1 = {
     subtitle: 'Preencha seus dados',
     nameLabel: 'Seu Nome',
     phoneLabel: 'Telefone (opcional)',
-    notesLabel: 'Observacoes (opcional)',
+    notesLabel: 'Observações (opcional)',
     ctaLabel: 'Confirmar Agendamento',
   },
   success: {
@@ -393,7 +393,7 @@ function normalizeAction(input: unknown): DynamicFlowActionV1 | undefined {
   // `payload` só é inválido para `navigate` (quebra publish na Meta).
   const payload = type !== 'navigate' && isPlainObject(input.payload) ? (input.payload as Record<string, unknown>) : undefined
   const screen = safeString(input.screen, '')
-  const label = safeString(input.label, '')
+  const label = typeof input.label === 'string' ? input.label : ''
   return {
     type,
     ...(payload ? { payload } : {}),
@@ -642,6 +642,13 @@ function extractFooterAction(components: DynamicFlowComponent[]): DynamicFlowAct
           : undefined
       : undefined
   const label = typeof (footer as any).label === 'string' ? String((footer as any).label).trim() : ''
+  if (typeof (footer as any).label === 'string') {
+    const rawLabel = String((footer as any).label)
+    const trimmed = rawLabel.trim()
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/1294d6ce-76f2-430d-96ab-3ae4d7527327',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H10',location:'lib/dynamic-flow.ts:extractFooterAction',message:'footer label normalized',data:{rawLabel,trimmed,rawLen:rawLabel.length,trimmedLen:trimmed.length,changed:rawLabel!==trimmed},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
+  }
   return {
     type,
     ...(payload ? { payload } : {}),
@@ -1083,7 +1090,11 @@ export function generateBookingDynamicFlowJson(configInput?: Partial<BookingFlow
               __editor_key: 'success.closeLabel',
               'on-click-action': {
                 name: 'complete',
-                payload: { event_id: '${data.event_id}', status: 'confirmed' },
+                payload: {
+                  event_id: '${data.event_id}',
+                  status: 'confirmed',
+                  confirmation_title: '${data.message}',
+                },
               },
             })
             // #region agent log

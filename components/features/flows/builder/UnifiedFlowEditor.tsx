@@ -208,8 +208,9 @@ function guessActionType(screen: any): DynamicFlowActionType {
 }
 
 function guessCtaLabel(screen: any): string {
-  const label = String(screen?.action?.label || '').trim()
-  if (label) return label
+  const raw = String(screen?.action?.label || '')
+  const hasValue = raw.trim().length > 0
+  if (hasValue) return raw
   return screen?.terminal ? 'Concluir' : 'Continuar'
 }
 
@@ -417,11 +418,31 @@ export function UnifiedFlowEditor(props: {
   const updateSpec = (updater: (prev: DynamicFlowSpecV1) => DynamicFlowSpecV1) => {
     setSpec((prev) => {
       const nextDraft = updater(prev)
+      try {
+        const activeDraft = Array.isArray((nextDraft as any)?.screens)
+          ? (nextDraft as any).screens.find((s: any) => s?.id === activeScreenId)
+          : null
+        const draftLabel = typeof activeDraft?.action?.label === 'string' ? activeDraft.action.label : ''
+        const draftTrimmed = draftLabel.trim()
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/1294d6ce-76f2-430d-96ab-3ae4d7527327',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H10',location:'components/features/flows/builder/UnifiedFlowEditor.tsx:updateSpec',message:'cta label before normalize',data:{activeScreenId,label:draftLabel,trimmed:draftTrimmed,labelLen:draftLabel.length,trimmedLen:draftTrimmed.length,changed:draftLabel!==draftTrimmed},timestamp:Date.now()})}).catch(()=>{});
+        // #endregion
+      } catch {}
       // Mantém o spec sempre consistente (routing + defaults + branches).
       const normalized = normalizeDynamicFlowSpec(applyAutoFinalizeDestinations(nextDraft), props.flowName)
       const screens = Array.isArray(normalized?.screens) ? [...normalized.screens] : []
       const routingModel =
         (normalized as any)?.routingModel && typeof (normalized as any).routingModel === 'object' ? (normalized as any).routingModel : {}
+
+      try {
+        const active = screens.find((s: any) => s?.id === activeScreenId)
+        const actionLabel = active?.action?.label
+        const labelStr = typeof actionLabel === 'string' ? actionLabel : ''
+        const trimmed = labelStr.trim()
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/1294d6ce-76f2-430d-96ab-3ae4d7527327',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H10',location:'components/features/flows/builder/UnifiedFlowEditor.tsx:updateSpec',message:'cta label after normalize',data:{activeScreenId,label:labelStr,trimmed,labelLen:labelStr.length,trimmedLen:trimmed.length,changed:labelStr!==trimmed},timestamp:Date.now()})}).catch(()=>{});
+        // #endregion
+      } catch {}
 
       try {
         const terminalsWithNext = screens
@@ -762,6 +783,9 @@ export function UnifiedFlowEditor(props: {
   }
 
   const updateBookingServices = (services: Array<{ id: string; title: string }>) => {
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/1294d6ce-76f2-430d-96ab-3ae4d7527327',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H11',location:'components/features/flows/builder/UnifiedFlowEditor.tsx:updateBookingServices',message:'booking services update',data:{count:services.length,sample:services.slice(0,3),hasSpaces:services.some((s)=>/\s/.test(s.id)||/\s/.test(s.title))},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
     updateSpec((prev) => {
       const screens = [...prev.screens]
       const idx = screens.findIndex((s) => s.id === 'BOOKING_START')
@@ -900,6 +924,9 @@ export function UnifiedFlowEditor(props: {
   }
 
   const setCta = (patch: { type?: DynamicFlowActionType; label?: string; nextScreenId?: string }) => {
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/1294d6ce-76f2-430d-96ab-3ae4d7527327',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H10',location:'components/features/flows/builder/UnifiedFlowEditor.tsx:setCta',message:'setCta called',data:{label:patch.label ?? null,labelLen:typeof patch.label === 'string' ? patch.label.length : null,type:patch.type ?? null,nextScreenId:patch.nextScreenId ?? null},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
     updateSpec((prev) => {
       const screens = [...prev.screens]
       const idx = screens.findIndex((s) => s.id === activeScreenId)
@@ -1101,8 +1128,10 @@ export function UnifiedFlowEditor(props: {
           title: typeof opt?.title === 'string' ? opt.title : String(opt?.title ?? ''),
         }))
         .filter((opt) => opt.id.trim() && opt.title.trim())
+      const hasTrimmedId = nextOptions.some((opt: any) => typeof opt?.id === 'string' && opt.id.trim().length !== opt.id.length)
+      const hasTrimmedTitle = nextOptions.some((opt: any) => typeof opt?.title === 'string' && opt.title.trim().length !== opt.title.length)
       // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/1294d6ce-76f2-430d-96ab-3ae4d7527327',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'options-edit',hypothesisId:'H1',location:'components/features/flows/builder/UnifiedFlowEditor.tsx:updateBoundOptions',message:'apply dynamic options',data:{screenId:activeScreenId,dataSourceKey,rawCount:Array.isArray(nextOptions)?nextOptions.length:null,normalizedCount:normalizedOptions.length,hasResolvedList:!!resolvedList,isBoundList},timestamp:Date.now()})}).catch(()=>{});
+      fetch('http://127.0.0.1:7243/ingest/1294d6ce-76f2-430d-96ab-3ae4d7527327',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'options-edit',hypothesisId:'H12',location:'components/features/flows/builder/UnifiedFlowEditor.tsx:updateBoundOptions',message:'apply dynamic options',data:{screenId:activeScreenId,dataSourceKey,rawCount:Array.isArray(nextOptions)?nextOptions.length:null,normalizedCount:normalizedOptions.length,hasResolvedList:!!resolvedList,isBoundList,hasTrimmedId,hasTrimmedTitle,sampleRaw:nextOptions.slice(0,2),sampleNormalized:normalizedOptions.slice(0,2)},timestamp:Date.now()})}).catch(()=>{});
       // #endregion agent log
       updateSpec((prev) => {
         const screens = [...prev.screens]
@@ -1214,7 +1243,7 @@ export function UnifiedFlowEditor(props: {
                           fetch('http://127.0.0.1:7243/ingest/1294d6ce-76f2-430d-96ab-3ae4d7527327',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'options-edit',hypothesisId:'H5',location:'components/features/flows/builder/UnifiedFlowEditor.tsx:onChangeOptionId',message:'option id change',data:{screenId:activeScreenId,hasResolvedList:!!resolvedList,dataSourceKey,oidx,input:e.target.value,prevId:String(opt?.id||''),isBoundList},timestamp:Date.now()})}).catch(()=>{});
                           // #endregion agent log
                           const next = [...baseOptions]
-                          next[oidx] = { ...next[oidx], id: normalizeFlowFieldName(e.target.value) || next[oidx]?.id }
+                          next[oidx] = { ...next[oidx], id: e.target.value }
                           if (isBoundList) {
                             updateBoundOptions(next)
                           } else {
@@ -1418,7 +1447,16 @@ export function UnifiedFlowEditor(props: {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs uppercase tracking-widest text-gray-500 mb-2">Texto do botão</label>
-                <Input value={ctaLabel} onChange={(e) => setCta({ label: e.target.value })} placeholder="Continuar" />
+                <Input
+                  value={ctaLabel}
+                  onChange={(e) => {
+                    // #region agent log
+                    fetch('http://127.0.0.1:7243/ingest/1294d6ce-76f2-430d-96ab-3ae4d7527327',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H10',location:'components/features/flows/builder/UnifiedFlowEditor.tsx:ctaLabelChange',message:'cta label input change',data:{rawValue:e.target.value,rawLen:e.target.value.length},timestamp:Date.now()})}).catch(()=>{});
+                    // #endregion
+                    setCta({ label: e.target.value })
+                  }}
+                  placeholder="Continuar"
+                />
               </div>
               <div>
                 <label className="block text-xs uppercase tracking-widest text-gray-500 mb-2">Próxima tela</label>

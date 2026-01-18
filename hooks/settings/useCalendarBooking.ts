@@ -21,8 +21,6 @@ export const CALENDAR_BOOKING_FALLBACK: CalendarBookingConfig = {
   maxAdvanceDays: 14,      // Até 2 semanas no futuro
   allowSimultaneous: false, // Não permitir agendamentos simultâneos
   externalWebhookUrl: '', // Webhook externo opcional
-  confirmationTitle: '',
-  confirmationFooter: '',
 };
 
 export const MIN_ADVANCE_OPTIONS = [

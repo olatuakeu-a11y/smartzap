@@ -133,7 +133,11 @@ async function getBookingServices(fallback?: ServiceType[]): Promise<ServiceType
     // #region agent log
     console.log('[getBookingServices] normalized:', { count: normalized.length, first: normalized[0] })
     // #endregion
-    return normalized.length ? normalized : (fallback?.length ? fallback : DEFAULT_SERVICES)
+    const resolved = normalized.length ? normalized : (fallback?.length ? fallback : DEFAULT_SERVICES)
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/1294d6ce-76f2-430d-96ab-3ae4d7527327',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H4',location:'lib/whatsapp/flow-endpoint-handlers.ts:136',message:'booking services resolved',data:{source:normalized.length?'db':(fallback?.length?'fallback':'default'),count:resolved.length},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
+    return resolved
   } catch (e) {
     console.error('[getBookingServices] Parse error:', e)
     return fallback?.length ? fallback : DEFAULT_SERVICES
@@ -624,7 +628,7 @@ async function createBookingEvent(params: {
       description: [
         `Cliente: ${params.customerName}`,
         `Telefone: ${params.customerPhone}`,
-        params.notes ? `Observacoes: ${params.notes}` : null,
+        params.notes ? `Observações: ${params.notes}` : null,
         '',
         'Agendado via WhatsApp (SmartZap)',
       ]
@@ -655,6 +659,9 @@ export async function handleFlowAction(
   const { action, screen, data, flow_token: flowToken } = request
 
   console.log('[flow-handler] 📋 Processing:', { action, screen, dataKeys: data ? Object.keys(data) : [] })
+  // #region agent log
+  fetch('http://127.0.0.1:7243/ingest/1294d6ce-76f2-430d-96ab-3ae4d7527327',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H2',location:'lib/whatsapp/flow-endpoint-handlers.ts:658',message:'handleFlowAction entry',data:{action,screen:screen ?? null,hasFlowToken:Boolean(flowToken),dataKeys:Object.keys(data || {})},timestamp:Date.now()})}).catch(()=>{});
+  // #endregion
 
   // Notificacao de erro do client: apenas reconhecer o payload
   if (data && typeof data === 'object' && 'error' in data) {
@@ -669,6 +676,9 @@ export async function handleFlowAction(
   let result: Record<string, unknown>
   const flowJson = await loadFlowJsonFromToken(flowToken)
   const runtime = flowJson ? extractBookingRuntime(flowJson) : null
+  // #region agent log
+  fetch('http://127.0.0.1:7243/ingest/1294d6ce-76f2-430d-96ab-3ae4d7527327',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H3',location:'lib/whatsapp/flow-endpoint-handlers.ts:673',message:'runtime resolved',data:{hasFlowJson:Boolean(flowJson),hasRuntime:Boolean(runtime),startScreenId:runtime?.startScreenId ?? null,servicesKey:runtime?.dataKeys?.services ?? null,fallbackServicesCount:runtime?.fallbackServices?.length ?? 0},timestamp:Date.now()})}).catch(()=>{});
+  // #endregion
 
   switch (action) {
     case 'INIT':
@@ -723,6 +733,9 @@ async function handleInit(runtime?: BookingRuntimeKeys | null): Promise<Record<s
     // #region agent log
     const servicesKey = keys?.services || 'services'
     console.log('[handleInit] dataPayload services:', { key: servicesKey, count: (dataPayload[servicesKey] as any[])?.length })
+    // #endregion
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/1294d6ce-76f2-430d-96ab-3ae4d7527327',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H5',location:'lib/whatsapp/flow-endpoint-handlers.ts:726',message:'handleInit payload built',data:{servicesKey,servicesCount:(dataPayload[servicesKey] as any[])?.length ?? 0,datesCount:Array.isArray(dates)?dates.length:0},timestamp:Date.now()})}).catch(()=>{});
     // #endregion
 
     return createSuccessResponse(runtime?.startScreenId || 'BOOKING_START', dataPayload)
@@ -789,8 +802,8 @@ async function handleDataExchange(
           [serviceKey]: selectedService,
           [dateKey]: selectedDate,
           [keys?.slots || 'slots']: slots,
-          [keys?.timeTitle || 'title']: runtime?.examples?.timeTitle || 'Escolha o Horario',
-          [keys?.timeSubtitle || 'subtitle']: runtime?.examples?.timeSubtitle || `Horarios disponiveis para ${formattedDate}`,
+          [keys?.timeTitle || 'title']: runtime?.examples?.timeTitle || 'Escolha o Horário',
+          [keys?.timeSubtitle || 'subtitle']: runtime?.examples?.timeSubtitle || `Horários disponíveis para ${formattedDate}`,
         })
       }
 
@@ -898,8 +911,8 @@ async function handleBack(
         return createSuccessResponse('SELECT_TIME', {
           ...data,
           slots,
-          title: 'Escolha o Horario',
-          subtitle: `Horarios disponiveis para ${formattedDate}`,
+          title: 'Escolha o Horário',
+          subtitle: `Horários disponíveis para ${formattedDate}`,
         })
       }
       return handleInit()

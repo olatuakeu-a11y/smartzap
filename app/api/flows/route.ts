@@ -5,6 +5,7 @@ export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
 import { supabase } from '@/lib/supabase'
+import { settingsDb } from '@/lib/supabase-db'
 import { getFlowTemplateByKey } from '@/lib/flow-templates'
 
 function isMissingDbColumn(error: unknown): boolean {
@@ -162,6 +163,47 @@ export async function POST(request: Request) {
 
     const row = Array.isArray(data) ? data[0] : (data as any)
     if (!row) return NextResponse.json({ error: 'Falha ao criar flow' }, { status: 500 })
+
+    // Sincroniza services do template para settingsDb (usado pelo endpoint)
+    if (tpl?.flowJson) {
+      try {
+        const flowJsonObj = tpl.flowJson as Record<string, unknown>
+        const screens = Array.isArray(flowJsonObj?.screens) ? flowJsonObj.screens : []
+        const isBookingFlow = screens.some((s: any) => String(s?.id || '') === 'BOOKING_START')
+        
+        if (isBookingFlow) {
+          // Extrai services de __example__ no flow_json
+          let servicesFromTemplate: any[] | null = null
+          for (const screen of screens) {
+            const dataSchema = (screen as any)?.data
+            if (dataSchema && typeof dataSchema === 'object') {
+              const servicesSchema = (dataSchema as any).services
+              if (servicesSchema && Array.isArray(servicesSchema.__example__)) {
+                servicesFromTemplate = servicesSchema.__example__
+                break
+              }
+            }
+          }
+          
+          if (servicesFromTemplate && servicesFromTemplate.length > 0) {
+            const normalizedServices = servicesFromTemplate
+              .map((opt: any) => ({
+                id: typeof opt?.id === 'string' ? opt.id.trim() : String(opt?.id ?? '').trim(),
+                title: typeof opt?.title === 'string' ? opt.title.trim() : String(opt?.title ?? '').trim(),
+                ...(typeof opt?.durationMinutes === 'number' ? { durationMinutes: opt.durationMinutes } : {}),
+              }))
+              .filter((opt) => opt.id && opt.title)
+            
+            if (normalizedServices.length > 0) {
+              console.log('[flows/POST] Salvando booking_services do template:', normalizedServices.length, 'serviços')
+              await settingsDb.set('booking_services', JSON.stringify(normalizedServices))
+            }
+          }
+        }
+      } catch (err) {
+        console.error('[flows/POST] Erro ao sincronizar services:', err)
+      }
+    }
 
     return NextResponse.json(row, { status: 201 })
   } catch (error) {

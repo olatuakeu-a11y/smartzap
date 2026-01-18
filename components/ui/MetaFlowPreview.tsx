@@ -112,7 +112,13 @@ function stripMarkdown(text: string): string {
 function getFooter(children: FlowComponent[], resolveText: (text: string) => string): { label: string } {
   const footer = children.find((c) => c && c.type === 'Footer')
   const raw = footer ? s(footer.label, '') : ''
-  const label = resolveText(raw).trim() || 'Continue'
+  const resolved = resolveText(raw)
+  const label = resolved.trim() || 'Continue'
+  if (resolved !== label) {
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/1294d6ce-76f2-430d-96ab-3ae4d7527327',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H10',location:'components/ui/MetaFlowPreview.tsx:getFooter',message:'footer label trimmed',data:{raw,resolved,trimmed:label,rawLen:raw.length,resolvedLen:resolved.length,trimmedLen:label.length},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
+  }
   return { label }
 }
 

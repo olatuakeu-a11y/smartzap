@@ -29,8 +29,6 @@ export interface CalendarBookingConfig {
   maxAdvanceDays?: number
   allowSimultaneous?: boolean
   externalWebhookUrl?: string
-  confirmationTitle?: string
-  confirmationFooter?: string
 }
 
 const DEFAULT_CONFIG: CalendarBookingConfig = {
@@ -91,17 +89,9 @@ function normalizeWebhookUrl(value: unknown): string | undefined {
   }
 }
 
-function normalizeConfirmationText(value: unknown): string | undefined {
-  if (typeof value !== 'string') return undefined
-  const trimmed = value.trim()
-  return trimmed ? trimmed : undefined
-}
-
 function normalizeConfig(input?: Partial<CalendarBookingConfig>): CalendarBookingConfig {
   const workingHoursInput = Array.isArray(input?.workingHours) ? input?.workingHours : []
   const externalWebhookUrl = normalizeWebhookUrl(input?.externalWebhookUrl)
-  const confirmationTitle = normalizeConfirmationText(input?.confirmationTitle)
-  const confirmationFooter = normalizeConfirmationText(input?.confirmationFooter)
   const byDay = new Map<Weekday, Partial<WorkingHoursDay>>()
   for (const entry of workingHoursInput) {
     if (!entry || typeof entry !== 'object') continue
@@ -132,8 +122,6 @@ function normalizeConfig(input?: Partial<CalendarBookingConfig>): CalendarBookin
     maxAdvanceDays: clampInt(input?.maxAdvanceDays, 1, 90, DEFAULT_CONFIG.maxAdvanceDays!),
     allowSimultaneous: boolFromUnknown(input?.allowSimultaneous, DEFAULT_CONFIG.allowSimultaneous!),
     ...(externalWebhookUrl ? { externalWebhookUrl } : {}),
-    ...(confirmationTitle ? { confirmationTitle } : {}),
-    ...(confirmationFooter ? { confirmationFooter } : {}),
   }
 }
 

@@ -47,8 +47,6 @@ import { getVerifyToken } from '@/lib/verify-token'
 async function getCalendarBookingSettings(): Promise<{
   timezone: string | null
   externalWebhookUrl: string | null
-  confirmationTitle: string | null
-  confirmationFooter: string | null
 }> {
   try {
     const raw = await settingsDb.get('calendar_booking_config')
@@ -56,23 +54,17 @@ async function getCalendarBookingSettings(): Promise<{
       return {
         timezone: null,
         externalWebhookUrl: null,
-        confirmationTitle: null,
-        confirmationFooter: null,
       }
     }
     const parsed = JSON.parse(raw)
     return {
       timezone: typeof parsed?.timezone === 'string' ? parsed.timezone : null,
       externalWebhookUrl: typeof parsed?.externalWebhookUrl === 'string' ? parsed.externalWebhookUrl : null,
-      confirmationTitle: typeof parsed?.confirmationTitle === 'string' ? parsed.confirmationTitle : null,
-      confirmationFooter: typeof parsed?.confirmationFooter === 'string' ? parsed.confirmationFooter : null,
     }
   } catch {
     return {
       timezone: null,
       externalWebhookUrl: null,
-      confirmationTitle: null,
-      confirmationFooter: null,
     }
   }
 }
@@ -226,6 +218,10 @@ function safeParseJson(raw: unknown): unknown | null {
   }
 }
 
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === 'object' && !Array.isArray(value)
+}
+
 function buildOptionTitleMapFromFlowJson(flowJson: unknown): Record<string, Record<string, string>> {
   const root = safeParseJson(flowJson)
   const out: Record<string, Record<string, string>> = {}
@@ -308,6 +304,90 @@ function buildFieldLabelMapFromFlowJson(flowJson: unknown): Record<string, strin
   }
 
   return out
+}
+
+function extractConfirmationConfigFromFlowJson(flowJson: unknown): {
+  title?: string
+  footer?: string
+  fields?: string[]
+  labels?: Record<string, string>
+} {
+  const root = safeParseJson(flowJson)
+  if (!root || typeof root !== 'object') return {}
+  const screens = Array.isArray((root as any).screens) ? ((root as any).screens as any[]) : []
+  const findFooterPayload = (nodes: any[]): Record<string, unknown> | null => {
+    for (const node of nodes || []) {
+      if (!node || typeof node !== 'object') continue
+      if (String((node as any).type || '') === 'Footer') {
+        const action = (node as any)['on-click-action']
+        if (isPlainObject(action) && isPlainObject((action as any).payload)) {
+          return (action as any).payload as Record<string, unknown>
+        }
+      }
+      const children = Array.isArray((node as any).children) ? ((node as any).children as any[]) : null
+      if (children?.length) {
+        const nested = findFooterPayload(children)
+        if (nested) return nested
+      }
+    }
+    return null
+  }
+
+  for (const s of screens) {
+    const layoutChildren = Array.isArray(s?.layout?.children) ? (s.layout.children as any[]) : []
+    const payload = layoutChildren.length ? findFooterPayload(layoutChildren) : null
+    if (!payload) continue
+    const rawTitle = typeof payload.confirmation_title === 'string' ? payload.confirmation_title : undefined
+    const rawFooter = typeof payload.confirmation_footer === 'string' ? payload.confirmation_footer : undefined
+    const rawFields = Array.isArray(payload.confirmation_fields)
+      ? (payload.confirmation_fields as unknown[]).filter((x) => typeof x === 'string').map((x) => String(x))
+      : undefined
+    const rawLabels =
+      payload.confirmation_labels && typeof payload.confirmation_labels === 'object' && !Array.isArray(payload.confirmation_labels)
+        ? (payload.confirmation_labels as Record<string, string>)
+        : undefined
+    if (rawTitle || rawFooter || (rawFields && rawFields.length) || rawLabels) {
+      return { title: rawTitle, footer: rawFooter, fields: rawFields, labels: rawLabels }
+    }
+  }
+  return {}
+}
+
+function extractConfirmationConfigFromSpec(spec: unknown): {
+  title?: string
+  footer?: string
+  fields?: string[]
+  labels?: Record<string, string>
+} {
+  const root = safeParseJson(spec)
+  if (!root || typeof root !== 'object') return {}
+  const dynamic = (root as any).dynamicFlow && typeof (root as any).dynamicFlow === 'object' ? (root as any).dynamicFlow : root
+  const screens = Array.isArray((dynamic as any).screens) ? ((dynamic as any).screens as any[]) : []
+  let screenIndex = 0
+  for (const screen of screens) {
+    if (!screen || typeof screen !== 'object') continue
+    const currentIndex = screenIndex
+    screenIndex += 1
+    const screenObj = screen as any
+    const action = screenObj.action
+    const footerAction =
+      screenObj.footer && typeof screenObj.footer === 'object' ? (screenObj.footer as any).action : null
+    const payload = action && typeof action === 'object' && isPlainObject((action as any).payload) ? ((action as any).payload as Record<string, unknown>) : null
+    if (!payload) continue
+    const rawTitle = typeof payload.confirmation_title === 'string' ? payload.confirmation_title : undefined
+    const rawFooter = typeof payload.confirmation_footer === 'string' ? payload.confirmation_footer : undefined
+    const rawFields = Array.isArray(payload.confirmation_fields)
+      ? (payload.confirmation_fields as unknown[]).filter((x) => typeof x === 'string').map((x) => String(x))
+      : undefined
+    const rawLabels =
+      payload.confirmation_labels && typeof payload.confirmation_labels === 'object' && !Array.isArray(payload.confirmation_labels)
+        ? (payload.confirmation_labels as Record<string, string>)
+        : undefined
+    if (rawTitle || rawFooter || (rawFields && rawFields.length) || rawLabels) {
+      return { title: rawTitle, footer: rawFooter, fields: rawFields, labels: rawLabels }
+    }
+  }
+  return {}
 }
 
 function extractMetaFlowIdFromSmartzapToken(flowToken: string | null): string | null {
@@ -934,9 +1014,42 @@ export async function POST(request: NextRequest) {
               const messageTimestamp = tryParseWebhookTimestampSeconds(message?.timestamp).iso
 
               // IMPORTANTE: Meta WhatsApp retorna flow_token DENTRO do response_json, não no nfm diretamente
-              const flowId = (nfm?.flow_id || nfm?.flowId || (responseJson as any)?.flow_id || null) as string | null
+              let flowId = (nfm?.flow_id || nfm?.flowId || (responseJson as any)?.flow_id || null) as string | null
               const flowName = (nfm?.name || null) as string | null
-              const flowToken = (nfm?.flow_token || nfm?.flowToken || (responseJson as any)?.flow_token || null) as string | null
+              let flowToken = (nfm?.flow_token || nfm?.flowToken || (responseJson as any)?.flow_token || null) as string | null
+              if (!flowToken && messageId) {
+                try {
+                  const { data: rows } = await supabase
+                    .from('flow_submissions')
+                    .select('flow_token,flow_id')
+                    .eq('message_id', messageId)
+                    .limit(1)
+                  const row = Array.isArray(rows) ? rows[0] : (rows as any)
+                    if (row?.flow_token && typeof row.flow_token === 'string') {
+                      flowToken = row.flow_token
+                    }
+                  if (!flowId && row?.flow_id) {
+                    flowId = row.flow_id
+                  }
+                } catch {}
+              }
+              if (!flowToken && normalizedFrom) {
+                try {
+                  const { data: rows } = await supabase
+                    .from('flow_submissions')
+                    .select('flow_token,flow_id,created_at')
+                    .eq('from_phone', normalizedFrom)
+                    .order('created_at', { ascending: false })
+                    .limit(1)
+                  const row = Array.isArray(rows) ? rows[0] : (rows as any)
+                  if (row?.flow_token && typeof row.flow_token === 'string') {
+                    flowToken = row.flow_token
+                  }
+                  if (!flowId && row?.flow_id) {
+                    flowId = row.flow_id
+                  }
+                } catch {}
+              }
               const campaignId = extractCampaignIdFromFlowToken(flowToken)
 
               // Best-effort: mapping para campos do SmartZap
@@ -946,19 +1059,26 @@ export async function POST(request: NextRequest) {
               let flowJsonForChoiceMap: unknown | null = null
               let choiceTitleMap: Record<string, Record<string, string>> | null = null
               let fieldLabelMap: Record<string, string> | null = null
+              let confirmationConfig: {
+                title?: string
+                footer?: string
+                fields?: string[]
+                labels?: Record<string, string>
+              } | null = null
 
               const metaFlowIdFromToken = extractMetaFlowIdFromSmartzapToken(flowToken)
-              const metaFlowIdForLookup = flowId || metaFlowIdFromToken
-
+              const metaFlowIdMismatch = !!(flowId && metaFlowIdFromToken && flowId !== metaFlowIdFromToken)
+              const metaFlowIdForLookup = metaFlowIdFromToken || flowId
               if (metaFlowIdForLookup && responseJson && typeof responseJson === 'object') {
                 try {
                   const { data: flowRows } = await supabase
                     .from('flows')
-                    .select('id,mapping')
+                    .select('id,mapping,flow_json,spec')
                     .eq('meta_flow_id', metaFlowIdForLookup)
                     .limit(1)
 
                   const flowRow = Array.isArray(flowRows) ? flowRows[0] : (flowRows as any)
+                  const specConfig = extractConfirmationConfigFromSpec(flowRow?.spec ?? null)
                   if (flowRow?.id && flowRow?.mapping) {
                     flowLocalId = String(flowRow.id)
                     const applied = await applyFlowMappingToContact({
@@ -976,21 +1096,52 @@ export async function POST(request: NextRequest) {
                   // Best-effort: tenta carregar flow_json para mapear IDs -> títulos em campos de opção.
                   if (flowRow?.id) {
                     try {
-                      const { data: jsonRows } = await supabase
-                        .from('flows')
-                        .select('flow_json')
-                        .eq('id', String(flowRow.id))
-                        .limit(1)
-                      const row = Array.isArray(jsonRows) ? jsonRows[0] : (jsonRows as any)
-                      flowJsonForChoiceMap = row?.flow_json ?? null
+                      flowJsonForChoiceMap = flowRow?.flow_json ?? null
+                      if (!flowJsonForChoiceMap) {
+                        const { data: jsonRows } = await supabase
+                          .from('flows')
+                          .select('flow_json')
+                          .eq('id', String(flowRow.id))
+                          .limit(1)
+                        const row = Array.isArray(jsonRows) ? jsonRows[0] : (jsonRows as any)
+                        flowJsonForChoiceMap = row?.flow_json ?? null
+                      }
                       choiceTitleMap = buildOptionTitleMapFromFlowJson(flowJsonForChoiceMap)
                       fieldLabelMap = buildFieldLabelMapFromFlowJson(flowJsonForChoiceMap)
+                      confirmationConfig = extractConfirmationConfigFromFlowJson(flowJsonForChoiceMap)
+                      if (!confirmationConfig.title && !confirmationConfig.footer && !confirmationConfig.fields && !confirmationConfig.labels) {
+                        confirmationConfig = specConfig
+                      }
                     } catch (e) {
                       // ignore (best-effort)
                     }
                   }
                 } catch (e) {
                   console.warn('[Webhook] Falha ao aplicar mapping do Flow (best-effort):', e)
+                }
+              }
+
+              if (!flowLocalId && flowName && typeof flowName === 'string') {
+                try {
+                  const { data: flowRowsByName } = await supabase
+                    .from('flows')
+                    .select('id,flow_json,spec')
+                    .eq('name', flowName)
+                    .order('updated_at', { ascending: false })
+                    .limit(1)
+                  const rowByName = Array.isArray(flowRowsByName) ? flowRowsByName[0] : (flowRowsByName as any)
+                  if (rowByName?.id) {
+                    flowLocalId = String(rowByName.id)
+                    flowJsonForChoiceMap = rowByName.flow_json ?? null
+                    choiceTitleMap = buildOptionTitleMapFromFlowJson(flowJsonForChoiceMap)
+                    fieldLabelMap = buildFieldLabelMapFromFlowJson(flowJsonForChoiceMap)
+                    confirmationConfig = extractConfirmationConfigFromFlowJson(flowJsonForChoiceMap)
+                    if (!confirmationConfig.title && !confirmationConfig.footer && !confirmationConfig.fields && !confirmationConfig.labels) {
+                      confirmationConfig = extractConfirmationConfigFromSpec(rowByName?.spec ?? null)
+                    }
+                  }
+                } catch (e) {
+                  // ignore (best-effort)
                 }
               }
 
@@ -1118,10 +1269,6 @@ export async function POST(request: NextRequest) {
                 if (token && phoneNumberId && normalizedFrom) {
                   const settings = await getCalendarBookingSettings()
                   const timezone = settings?.timezone || 'America/Sao_Paulo'
-                  const confirmationTitle =
-                    settings?.confirmationTitle?.trim() || 'Agendamento confirmado ✅'
-                  const confirmationFooter =
-                    settings?.confirmationFooter?.trim() || 'Qualquer ajuste, responda esta mensagem.'
                   const responseObj =
                     responseJson && typeof responseJson === 'object' ? (responseJson as any) : {}
                   const sendConfirmationFlag =
@@ -1136,25 +1283,79 @@ export async function POST(request: NextRequest) {
                   } catch {}
 
                   if (shouldSendConfirmation) {
+                    const configTitle = typeof confirmationConfig?.title === 'string' ? confirmationConfig.title.trim() : ''
+                    const configFooter = typeof confirmationConfig?.footer === 'string' ? confirmationConfig.footer.trim() : ''
                     const flowTitleOverride =
-                      typeof responseObj.confirmation_title === 'string'
+                      configTitle ||
+                      (typeof responseObj.confirmation_title === 'string'
                         ? responseObj.confirmation_title.trim()
-                        : ''
+                        : '')
                     const flowFooterOverride =
-                      typeof responseObj.confirmation_footer === 'string'
+                      configFooter ||
+                      (typeof responseObj.confirmation_footer === 'string'
                         ? responseObj.confirmation_footer.trim()
-                        : ''
-                    const selectedDate = typeof responseObj.selected_date === 'string' ? responseObj.selected_date : null
+                        : '')
+                    const confirmationTitle =
+                      flowTitleOverride ||
+                      (typeof responseObj.message === 'string' ? responseObj.message.trim() : '') ||
+                      'Agendamento confirmado ✅'
+                    const confirmationFooter =
+                      flowFooterOverride || 'Qualquer ajuste, responda esta mensagem.'
+                    const selectedKeys =
+                      Array.isArray(confirmationConfig?.fields) && confirmationConfig?.fields?.length
+                        ? new Set(
+                            confirmationConfig.fields
+                              .filter((x) => typeof x === 'string')
+                              .map((x) => String(x).trim())
+                              .filter(Boolean),
+                          )
+                        : Array.isArray((responseObj as any).confirmation_fields)
+                          ? new Set(
+                              ((responseObj as any).confirmation_fields as unknown[])
+                                .filter((x) => typeof x === 'string')
+                                .map((x) => String(x).trim())
+                                .filter(Boolean),
+                            )
+                          : null
+                    const labelsFromConfig =
+                      confirmationConfig?.labels && typeof confirmationConfig.labels === 'object'
+                        ? confirmationConfig.labels
+                        : null
+                    let selectedDate = typeof responseObj.selected_date === 'string' ? responseObj.selected_date : null
                     const selectedSlot = typeof responseObj.selected_slot === 'string' ? responseObj.selected_slot : null
                     const service = typeof responseObj.selected_service === 'string' ? responseObj.selected_service : null
                     const customerName = typeof responseObj.customer_name === 'string' ? responseObj.customer_name : null
                     const customerPhone = typeof responseObj.customer_phone === 'string' ? responseObj.customer_phone : null
                     const notes = typeof responseObj.notes === 'string' ? responseObj.notes : null
+                    if (!selectedDate && responseObj && typeof responseObj === 'object') {
+                      const dateKey = Object.keys(responseObj as any).find((key) => /^\d{4}-\d{2}-\d{2}$/.test(key))
+                      if (dateKey) selectedDate = dateKey
+                    }
                     const hasBookingFields = Boolean(selectedDate || selectedSlot || service)
+                    const rawMessage = typeof responseObj.message === 'string' ? responseObj.message : ''
+                    const hasStructuredMessage =
+                      !!rawMessage &&
+                      (rawMessage.includes('\n') ||
+                        /(?:Servico:|Hor[áa]rio:|Nome:|Telefone:|Observa[çc][õo]es:)/i.test(rawMessage))
 
                     let parts: string[] = []
 
-                    if (hasBookingFields) {
+                    const useStructuredMessage =
+                      hasStructuredMessage && !configTitle && !configFooter && !selectedKeys && !labelsFromConfig
+
+                    if (useStructuredMessage) {
+                      const footerToAppend =
+                        confirmationFooter && !rawMessage.includes(confirmationFooter) ? confirmationFooter : null
+                      parts = [rawMessage.trim(), footerToAppend].filter(Boolean) as string[]
+                    } else if (hasBookingFields) {
+                      const labelFor = (key: string, fallback: string) => {
+                        const fromConfig =
+                          labelsFromConfig && typeof labelsFromConfig[key] === 'string' ? String(labelsFromConfig[key]).trim() : ''
+                        const fromMap =
+                          fieldLabelMap && typeof fieldLabelMap[key] === 'string' ? fieldLabelMap[key].trim() : ''
+                        return fromConfig || fromMap || fallback
+                      }
+                      const includeKey = (key: string) => !selectedKeys || selectedKeys.has(key)
                       const formattedDate = selectedDate
                         ? selectedDate.split('-').reverse().join('/')
                         : null
@@ -1173,16 +1374,24 @@ export async function POST(request: NextRequest) {
 
                       parts = [
                         confirmationTitle,
-                        service ? `Servico: ${service}` : null,
-                        formattedDate
-                          ? `Data: ${formattedDate}${formattedWeekday ? ` (${formattedWeekday})` : ''}`
+                        confirmationTitle ? '' : null,
+                        includeKey('selected_service') && service ? `${labelFor('selected_service', 'Serviço')}: ${service}` : null,
+                        includeKey('selected_date') && formattedDate
+                          ? `${labelFor('selected_date', 'Data')}: ${formattedDate}${formattedWeekday ? ` (${formattedWeekday})` : ''}`
                           : null,
-                        formattedTime ? `Horario: ${formattedTime}` : null,
-                        customerName ? `Nome: ${customerName}` : null,
-                        customerPhone ? `Telefone: ${customerPhone}` : null,
-                        notes ? `Observacoes: ${notes}` : null,
+                        includeKey('selected_slot') && formattedTime
+                          ? `${labelFor('selected_slot', 'Horário')}: ${formattedTime}`
+                          : null,
+                        includeKey('customer_name') && customerName
+                          ? `${labelFor('customer_name', 'Nome')}: ${customerName}`
+                          : null,
+                        includeKey('customer_phone') && customerPhone
+                          ? `${labelFor('customer_phone', 'Telefone')}: ${customerPhone}`
+                          : null,
+                        includeKey('notes') && notes ? `${labelFor('notes', 'Observações')}: ${notes}` : null,
+                        confirmationFooter ? '' : null,
                         confirmationFooter,
-                      ].filter(Boolean) as string[]
+                      ].filter((value) => value !== null) as string[]
                     } else {
                       const ignoredKeys = new Set([
                         'flow_id',
@@ -1200,16 +1409,6 @@ export async function POST(request: NextRequest) {
                       ])
                       const ignoredKeysLower = new Set(Array.from(ignoredKeys).map((k) => k.toLowerCase()))
 
-                      const selectedKeys =
-                        Array.isArray((responseObj as any).confirmation_fields)
-                          ? new Set(
-                              ((responseObj as any).confirmation_fields as unknown[])
-                                .filter((x) => typeof x === 'string')
-                                .map((x) => String(x).trim())
-                                .filter(Boolean),
-                            )
-                          : null
-
                       const entries = Object.entries(responseObj || {}).filter(([key, value]) => {
                         const keyNorm = String(key || '').toLowerCase()
                         if (ignoredKeysLower.has(keyNorm)) {
@@ -1223,9 +1422,10 @@ export async function POST(request: NextRequest) {
 
                       const lines = entries.map(([key, value]) => {
                         const responseLabelMap =
-                          responseObj && typeof responseObj.confirmation_labels === 'object' && !Array.isArray(responseObj.confirmation_labels)
+                          labelsFromConfig ||
+                          (responseObj && typeof responseObj.confirmation_labels === 'object' && !Array.isArray(responseObj.confirmation_labels)
                             ? (responseObj.confirmation_labels as Record<string, unknown>)
-                            : null
+                            : null)
                         const labelFromResponse =
                           responseLabelMap && typeof responseLabelMap[key] === 'string' ? String(responseLabelMap[key]).trim() : ''
                         const labelFromMap =

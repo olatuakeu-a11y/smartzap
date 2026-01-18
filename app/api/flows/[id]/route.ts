@@ -55,10 +55,25 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     const patch = PatchFlowSchema.parse(json)
     const now = new Date().toISOString()
     const flowJsonObj = patch.flowJson && typeof patch.flowJson === 'object' ? (patch.flowJson as Record<string, unknown>) : null
-    // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/1294d6ce-76f2-430d-96ab-3ae4d7527327',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H3',location:'app/api/flows/[id]/route.ts:55',message:'flow PATCH received',data:{flowId:id,hasFlowJson:Boolean(patch.flowJson),flowJsonVersion:flowJsonObj?.version ?? null,flowJsonDataApiVersion:flowJsonObj?.data_api_version ?? null,hasSpec:Boolean(patch.spec),hasTemplateKey:Boolean(patch.templateKey)},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion agent log
-
+    let specScreensCount: number | null = null
+    let specHasConfirmationKeys = false
+    let flowJsonHasConfirmationKeys = false
+    try {
+      const specString =
+        typeof patch.spec === 'string' ? patch.spec : patch.spec && typeof patch.spec === 'object' ? JSON.stringify(patch.spec) : ''
+      const flowJsonString = flowJsonObj ? JSON.stringify(flowJsonObj) : ''
+      specHasConfirmationKeys = Boolean(specString && specString.includes('confirmation_'))
+      flowJsonHasConfirmationKeys = Boolean(flowJsonString && flowJsonString.includes('confirmation_'))
+      if (patch.spec && typeof patch.spec === 'object') {
+        const specRoot = patch.spec as any
+        const dynamic = specRoot.dynamicFlow && typeof specRoot.dynamicFlow === 'object' ? specRoot.dynamicFlow : specRoot
+        specScreensCount = Array.isArray(dynamic?.screens) ? dynamic.screens.length : null
+      } else if (typeof patch.spec === 'string') {
+        const parsed = JSON.parse(patch.spec)
+        const dynamic = parsed?.dynamicFlow && typeof parsed.dynamicFlow === 'object' ? parsed.dynamicFlow : parsed
+        specScreensCount = Array.isArray(dynamic?.screens) ? dynamic.screens.length : null
+      }
+    } catch {}
     const update: Record<string, unknown> = { updated_at: now }
 
     // Se o Flow já foi publicado na Meta, ele não pode ser alterado.
@@ -136,11 +151,33 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
 
     try {
       const spec = patch.spec && typeof patch.spec === 'object' ? (patch.spec as any) : null
-      const servicesFromSpec = Array.isArray(spec?.dynamicFlow?.services)
+      
+      // Tenta extrair serviços de múltiplos locais possíveis:
+      // 1. spec.dynamicFlow.services (editor unificado)
+      // 2. spec.booking.services (legado)
+      // 3. flow_json.screens[].data.services.__example__ (template inicial)
+      let servicesFromSpec = Array.isArray(spec?.dynamicFlow?.services)
         ? spec.dynamicFlow.services
         : Array.isArray(spec?.booking?.services)
           ? spec.booking.services
           : null
+      
+      // Se não encontrou no spec, tenta extrair do flow_json (__example__)
+      if (!servicesFromSpec && flowJsonObj) {
+        const screens = Array.isArray((flowJsonObj as any)?.screens) ? (flowJsonObj as any).screens : []
+        for (const screen of screens) {
+          const dataSchema = screen?.data
+          if (dataSchema && typeof dataSchema === 'object') {
+            const servicesSchema = (dataSchema as any).services
+            if (servicesSchema && Array.isArray(servicesSchema.__example__)) {
+              servicesFromSpec = servicesSchema.__example__
+              console.log('[flows/[id]] Extraindo services de flow_json.__example__:', servicesFromSpec?.length)
+              break
+            }
+          }
+        }
+      }
+      
       const normalizedServices = Array.isArray(servicesFromSpec)
         ? servicesFromSpec
             .map((opt: any) => ({
@@ -154,17 +191,13 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
         ? (flowJsonObj as any).screens.some((s: any) => String(s?.id || '') === 'BOOKING_START')
         : false
       if (isBookingFlow && normalizedServices.length > 0) {
-        // #region agent log
-        fetch('http://127.0.0.1:7243/ingest/1294d6ce-76f2-430d-96ab-3ae4d7527327',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'flows/[id]/route.ts:saveServices',message:'S1-sync-services',data:{flowId:id,servicesCount:normalizedServices.length,firstService:normalizedServices[0]},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H7'})}).catch(()=>{});
-        // #endregion
+        console.log('[flows/[id]] Salvando booking_services:', normalizedServices.length, 'serviços')
         await settingsDb.set('booking_services', JSON.stringify(normalizedServices))
       } else if (isBookingFlow) {
-        // #region agent log
-        fetch('http://127.0.0.1:7243/ingest/1294d6ce-76f2-430d-96ab-3ae4d7527327',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'flows/[id]/route.ts:saveServices',message:'S2-no-services',data:{flowId:id,isBookingFlow,hasServicesInSpec:!!servicesFromSpec,servicesFromSpecLength:Array.isArray(servicesFromSpec)?servicesFromSpec.length:null},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H7'})}).catch(()=>{});
-        // #endregion
+        console.log('[flows/[id]] Booking flow sem serviços para salvar')
       }
-    } catch {
-      // ignore settings sync errors
+    } catch (err) {
+      console.error('[flows/[id]] Erro ao sincronizar services:', err)
     }
 
     const row = Array.isArray(data) ? data[0] : (data as any)

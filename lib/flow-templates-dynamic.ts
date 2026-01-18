@@ -1,18 +1,18 @@
 /**
- * Templates de WhatsApp Flows Dinamicos
+ * Templates de WhatsApp Flows Dinâmicos
  *
  * Flows que usam data_exchange para buscar dados em tempo real.
  * Requer endpoint configurado com criptografia RSA/AES.
  */
 
 /**
- * Flow JSON para agendamento dinamico
+ * Flow JSON para agendamento dinâmico
  *
  * Fluxo:
- * 1. BOOKING_START - Usuario escolhe servico e data
- * 2. SELECT_TIME - Usuario escolhe horario (buscado do Calendar)
- * 3. CUSTOMER_INFO - Usuario preenche dados
- * 4. SUCCESS - Confirmacao
+ * 1. BOOKING_START - Usuário escolhe serviço e data
+ * 2. SELECT_TIME - Usuário escolhe horário (buscado do Calendar)
+ * 3. CUSTOMER_INFO - Usuário preenche dados
+ * 4. SUCCESS - Confirmação
  */
 export const DYNAMIC_BOOKING_FLOW_JSON = {
   version: '6.0',
@@ -24,13 +24,13 @@ export const DYNAMIC_BOOKING_FLOW_JSON = {
     SUCCESS: [],
   },
   screens: [
-    // Tela 1: Selecao de servico e data
+    // Tela 1: Selecao de serviço e data
     {
       id: 'BOOKING_START',
       title: '${data.title}',
       data: {
         title: { type: 'string', __example__: 'Agendar Atendimento' },
-        subtitle: { type: 'string', __example__: 'Escolha o servico e a data' },
+        subtitle: { type: 'string', __example__: 'Escolha o serviço e a data' },
         services: {
           type: 'array',
           items: {
@@ -94,7 +94,7 @@ export const DYNAMIC_BOOKING_FLOW_JSON = {
               },
               {
                 type: 'Footer',
-                label: 'Ver Horarios',
+                label: 'Ver Horários',
                 'on-click-action': {
                   name: 'data_exchange',
                   payload: {
@@ -108,13 +108,13 @@ export const DYNAMIC_BOOKING_FLOW_JSON = {
         ],
       },
     },
-    // Tela 2: Selecao de horario
+    // Tela 2: Selecao de horário
     {
       id: 'SELECT_TIME',
       title: '${data.title}',
       data: {
-        title: { type: 'string', __example__: 'Escolha o Horario' },
-        subtitle: { type: 'string', __example__: 'Horarios disponiveis' },
+        title: { type: 'string', __example__: 'Escolha o Horário' },
+        subtitle: { type: 'string', __example__: 'Horários disponíveis' },
         selected_service: { type: 'string', __example__: 'consulta' },
         selected_date: { type: 'string', __example__: '2024-01-15' },
         slots: {
@@ -146,7 +146,7 @@ export const DYNAMIC_BOOKING_FLOW_JSON = {
               {
                 type: 'Dropdown',
                 name: 'selected_slot',
-                label: 'Horario',
+                label: 'Horário',
                 required: true,
                 'data-source': '${data.slots}',
               },
@@ -207,7 +207,7 @@ export const DYNAMIC_BOOKING_FLOW_JSON = {
               {
                 type: 'TextArea',
                 name: 'notes',
-                label: 'Observacoes (opcional)',
+                label: 'Observações (opcional)',
                 required: false,
               },
               {
@@ -230,7 +230,7 @@ export const DYNAMIC_BOOKING_FLOW_JSON = {
         ],
       },
     },
-    // Tela 4: Confirmacao (terminal)
+    // Tela 4: Confirmação (terminal)
     {
       id: 'SUCCESS',
       title: 'Confirmado!',
@@ -255,6 +255,7 @@ export const DYNAMIC_BOOKING_FLOW_JSON = {
               payload: {
                 event_id: '${data.event_id}',
                 status: 'confirmed',
+                confirmation_title: '${data.message}',
               },
             },
           },
@@ -275,8 +276,8 @@ if (typeof window !== 'undefined') {
 // #endregion
 export const dynamicBookingTemplate = {
   key: 'agendamento_dinamico_v1',
-  name: 'Agendamento Dinamico (Google Calendar)',
-  description: 'Agendamento em tempo real com integracao ao Google Calendar. Requer endpoint configurado.',
+  name: 'Agendamento Dinâmico (Google Calendar)',
+  description: 'Agendamento em tempo real com integração ao Google Calendar. Requer endpoint configurado.',
   category: 'booking',
   requiresEndpoint: true,
   flow_json: DYNAMIC_BOOKING_FLOW_JSON,

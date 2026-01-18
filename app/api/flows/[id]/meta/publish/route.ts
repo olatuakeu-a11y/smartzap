@@ -66,6 +66,9 @@ async function getActiveNgrokUrl(): Promise<string | null> {
     const tunnel = data?.tunnels?.find(t => 
       t.config?.addr?.includes(':3000') || t.config?.addr?.includes('localhost')
     ) || data?.tunnels?.[0]
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/1294d6ce-76f2-430d-96ab-3ae4d7527327',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H1',location:'app/api/flows/[id]/meta/publish/route.ts:68',message:'ngrok tunnel lookup',data:{hasTunnels:Array.isArray(data?.tunnels) && data.tunnels.length>0,publicUrl:tunnel?.public_url ?? null},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
     return tunnel?.public_url || null
   } catch {
     return null
@@ -99,6 +102,9 @@ async function getFlowEndpointUrl(): Promise<string | null> {
   // 3. Fallback: URL salva no banco
   const storedEndpointUrl = await settingsDb.get(ENDPOINT_URL_SETTING)
   const resolved = envEndpointUrl || storedEndpointUrl || null
+  // #region agent log
+  fetch('http://127.0.0.1:7243/ingest/1294d6ce-76f2-430d-96ab-3ae4d7527327',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H2',location:'app/api/flows/[id]/meta/publish/route.ts:103',message:'endpoint url resolved',data:{resolved,hasNgrok:Boolean(ngrokUrl),hasEnv:Boolean(envEndpointUrl),hasStored:Boolean(storedEndpointUrl)},timestamp:Date.now()})}).catch(()=>{});
+  // #endregion
   console.log('[publish] 📍 Endpoint URL resolvida:', resolved, '(ngrok:', ngrokUrl, ', env:', envEndpointUrl, ', stored:', storedEndpointUrl, ')')
   return resolved
 }
@@ -545,6 +551,9 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
           )
         }
         endpointUri = url
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/1294d6ce-76f2-430d-96ab-3ae4d7527327',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H3',location:'app/api/flows/[id]/meta/publish/route.ts:548',message:'endpoint uri selected',data:{flowId:id,endpointUri},timestamp:Date.now()})}).catch(()=>{});
+        // #endregion
       }
 
       if (requiresEndpoint) {
