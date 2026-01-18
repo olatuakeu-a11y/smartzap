@@ -86,6 +86,223 @@ function calcSendDuration(campaign: Campaign): string {
   return formatDuration(end - start)
 }
 
+// =============================================================================
+// MEMOIZED TABLE ROW - Prevents re-renders when parent updates
+// =============================================================================
+
+interface CampaignTableRowProps {
+  campaign: Campaign;
+  onRowClick: (id: string) => void;
+  onDelete: (id: string) => void;
+  onDuplicate?: (id: string) => void;
+  onPause?: (id: string) => void;
+  onResume?: (id: string) => void;
+  onStart?: (id: string) => void;
+  isPausing?: boolean;
+  isResuming?: boolean;
+  isStarting?: boolean;
+  deletingId?: string;
+  duplicatingId?: string;
+}
+
+const CampaignTableRow = React.memo(
+  function CampaignTableRow({
+    campaign,
+    onRowClick,
+    onDelete,
+    onDuplicate,
+    onPause,
+    onResume,
+    onStart,
+    isPausing,
+    isResuming,
+    isStarting,
+    deletingId,
+    duplicatingId,
+  }: CampaignTableRowProps) {
+    const isDeleting = deletingId === campaign.id;
+    const isDuplicating = duplicatingId === campaign.id;
+
+    // Cálculos de delivery
+    const recipients = campaign.recipients ?? 0;
+    const delivered = campaign.delivered ?? 0;
+    const read = campaign.read ?? 0;
+    const deliveredEffective = Math.max(delivered, read);
+    const deliveryPct = recipients > 0 ? (deliveredEffective / Math.max(1, recipients)) * 100 : 0;
+    const deliveryPctRounded = recipients > 0 ? Math.round((deliveredEffective / Math.max(1, recipients)) * 100) : 0;
+
+    return (
+      <tr
+        onClick={() => onRowClick(campaign.id)}
+        className="hover:bg-white/5 transition-all duration-200 group cursor-pointer hover:shadow-[0_0_20px_rgba(16,185,129,0.1)]"
+      >
+        <td className="px-6 py-4">
+          <p className="font-medium text-white group-hover:text-primary-400 transition-colors">{campaign.name}</p>
+          <p className="text-xs text-gray-500 mt-1 font-mono">{campaign.templateName}</p>
+          {campaign.scheduledAt && campaign.status === CampaignStatus.SCHEDULED && (
+            <p className="text-xs text-purple-400 mt-1 flex items-center gap-1">
+              <Calendar size={10} />
+              {new Date(campaign.scheduledAt).toLocaleString('pt-BR', {
+                dateStyle: 'short',
+                timeStyle: 'short'
+              })}
+            </p>
+          )}
+        </td>
+        <td className="px-6 py-4">
+          <StatusBadge status={campaign.status} />
+        </td>
+        <td className="px-6 py-4 text-gray-400 font-mono">
+          {recipients.toLocaleString('pt-BR')}
+        </td>
+        <td className="px-6 py-4">
+          <div className="flex items-center gap-3">
+            <div className="flex-1 w-24 bg-zinc-800 rounded-full h-1">
+              <div
+                className="bg-primary-500 h-1 rounded-full shadow-[0_0_10px_rgba(16,185,129,0.5)]"
+                style={{ width: `${deliveryPct}%` }}
+              />
+            </div>
+            <span className="text-xs text-gray-400 font-mono">{deliveryPctRounded}%</span>
+          </div>
+        </td>
+        <td className="px-6 py-4 text-gray-400 font-mono">
+          <span
+            className="text-xs"
+            title={(campaign.firstDispatchAt || campaign.startedAt) && campaign.lastSentAt
+              ? `De ${new Date(campaign.firstDispatchAt || campaign.startedAt!).toLocaleString('pt-BR')} até ${new Date(campaign.lastSentAt).toLocaleString('pt-BR')}`
+              : 'Duração do disparo (somente status sent).'}
+          >
+            {calcSendDuration(campaign)}
+          </span>
+        </td>
+        <td className="px-6 py-4 text-gray-500 font-mono text-xs">
+          {new Date(campaign.createdAt).toLocaleDateString('pt-BR')}
+        </td>
+        <td className="px-6 py-4 text-right">
+          <div className="flex items-center justify-end gap-2">
+            {/* Quick action: Clone campaign */}
+            {onDuplicate && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onDuplicate(campaign.id); }}
+                    aria-label={`Clonar campanha ${campaign.name}`}
+                    disabled={isDuplicating}
+                    className="p-2 rounded-lg text-gray-400 hover:text-primary-400 hover:bg-primary-500/10 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2 transition-all"
+                  >
+                    {isDuplicating ? (
+                      <Loader2 size={16} className="animate-spin text-primary-400" aria-hidden="true" />
+                    ) : (
+                      <Copy size={16} aria-hidden="true" />
+                    )}
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Clonar campanha</p>
+                </TooltipContent>
+              </Tooltip>
+            )}
+
+            {/* Quick action: Start scheduled campaign */}
+            {(campaign.status === CampaignStatus.SCHEDULED || campaign.status === CampaignStatus.DRAFT) && onStart && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onStart(campaign.id); }}
+                    aria-label={`Iniciar campanha ${campaign.name} agora`}
+                    disabled={isStarting}
+                    className="p-2 rounded-lg text-gray-400 hover:text-primary-400 hover:bg-primary-500/10 disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2 transition-all"
+                  >
+                    <Play size={16} aria-hidden="true" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Iniciar agora</p>
+                </TooltipContent>
+              </Tooltip>
+            )}
+
+            {/* Quick action: Pause sending campaign */}
+            {campaign.status === CampaignStatus.SENDING && onPause && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onPause(campaign.id); }}
+                    aria-label={`Pausar envio da campanha ${campaign.name}`}
+                    disabled={isPausing}
+                    className="p-2 rounded-lg text-gray-400 hover:text-amber-400 hover:bg-amber-500/10 disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-500 focus-visible:outline-offset-2 transition-all"
+                  >
+                    <Pause size={16} aria-hidden="true" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Pausar envio</p>
+                </TooltipContent>
+              </Tooltip>
+            )}
+
+            {/* Quick action: Resume paused campaign */}
+            {campaign.status === CampaignStatus.PAUSED && onResume && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onResume(campaign.id); }}
+                    aria-label={`Retomar envio da campanha ${campaign.name}`}
+                    disabled={isResuming}
+                    className="p-2 rounded-lg text-gray-400 hover:text-primary-400 hover:bg-primary-500/10 disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2 transition-all"
+                  >
+                    <Play size={16} aria-hidden="true" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Retomar envio</p>
+                </TooltipContent>
+              </Tooltip>
+            )}
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={(e) => { e.stopPropagation(); onDelete(campaign.id); }}
+                  aria-label={`Excluir campanha ${campaign.name}`}
+                  disabled={isDeleting}
+                  className="p-2 rounded-lg text-gray-400 hover:text-red-400 hover:bg-red-500/10 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-red-500 focus-visible:outline-offset-2 transition-all"
+                >
+                  {isDeleting ? (
+                    <Loader2 size={16} className="animate-spin text-red-400" aria-hidden="true" />
+                  ) : (
+                    <Trash2 size={16} aria-hidden="true" />
+                  )}
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Excluir campanha</p>
+              </TooltipContent>
+            </Tooltip>
+          </div>
+        </td>
+      </tr>
+    );
+  },
+  // Custom comparison function - only re-render when relevant data changes
+  (prev, next) => (
+    prev.campaign.id === next.campaign.id &&
+    prev.campaign.status === next.campaign.status &&
+    prev.campaign.name === next.campaign.name &&
+    prev.campaign.recipients === next.campaign.recipients &&
+    prev.campaign.delivered === next.campaign.delivered &&
+    prev.campaign.read === next.campaign.read &&
+    prev.campaign.sent === next.campaign.sent &&
+    prev.campaign.lastSentAt === next.campaign.lastSentAt &&
+    prev.deletingId === next.deletingId &&
+    prev.duplicatingId === next.duplicatingId &&
+    prev.isPausing === next.isPausing &&
+    prev.isResuming === next.isResuming &&
+    prev.isStarting === next.isStarting
+  )
+);
+
 export const CampaignListView: React.FC<CampaignListViewProps> = ({
   campaigns,
   isLoading,
@@ -207,180 +424,21 @@ export const CampaignListView: React.FC<CampaignListViewProps> = ({
                 </tr>
               ) : (
                 campaigns.map((campaign) => (
-                  <tr
+                  <CampaignTableRow
                     key={campaign.id}
-                    onClick={() => onRowClick(campaign.id)}
-                    className="hover:bg-white/5 transition-all duration-200 group cursor-pointer hover:shadow-[0_0_20px_rgba(16,185,129,0.1)]"
-                  >
-                    <td className="px-6 py-4">
-                      <p className="font-medium text-white group-hover:text-primary-400 transition-colors">{campaign.name}</p>
-                      <p className="text-xs text-gray-500 mt-1 font-mono">{campaign.templateName}</p>
-                      {campaign.scheduledAt && campaign.status === CampaignStatus.SCHEDULED && (
-                        <p className="text-xs text-purple-400 mt-1 flex items-center gap-1">
-                          <Calendar size={10} />
-                          {new Date(campaign.scheduledAt).toLocaleString('pt-BR', {
-                            dateStyle: 'short',
-                            timeStyle: 'short'
-                          })}
-                        </p>
-                      )}
-                    </td>
-                    <td className="px-6 py-4">
-                      <StatusBadge status={campaign.status} />
-                    </td>
-                    <td className="px-6 py-4 text-gray-400 font-mono">
-                      {(campaign.recipients ?? 0).toLocaleString('pt-BR')}
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="flex-1 w-24 bg-zinc-800 rounded-full h-1">
-                          {(() => {
-                            // READ implica entrega. Em cenários onde a Meta manda READ sem DELIVERED
-                            // (ou quando o contador agregado ainda não reconciliou), garantimos
-                            // um valor de entrega coerente na lista.
-                            const recipients = campaign.recipients ?? 0
-                            const delivered = campaign.delivered ?? 0
-                            const read = campaign.read ?? 0
-                            const deliveredEffective = Math.max(delivered, read)
-                            const pct = recipients > 0 ? (deliveredEffective / Math.max(1, recipients)) * 100 : 0
-
-                            return (
-                              <div
-                                className="bg-primary-500 h-1 rounded-full shadow-[0_0_10px_rgba(16,185,129,0.5)]"
-                                style={{ width: `${pct}%` }}
-                              />
-                            )
-                          })()}
-                        </div>
-                        <span className="text-xs text-gray-400 font-mono">
-                          {(() => {
-                            const recipients = campaign.recipients ?? 0
-                            const delivered = campaign.delivered ?? 0
-                            const read = campaign.read ?? 0
-                            const deliveredEffective = Math.max(delivered, read)
-                            return recipients > 0 ? Math.round((deliveredEffective / Math.max(1, recipients)) * 100) : 0
-                          })()}%
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-gray-400 font-mono">
-                      <span
-                        className="text-xs"
-                        title={(campaign.firstDispatchAt || campaign.startedAt) && campaign.lastSentAt
-                          ? `De ${new Date(campaign.firstDispatchAt || campaign.startedAt!).toLocaleString('pt-BR')} até ${new Date(campaign.lastSentAt).toLocaleString('pt-BR')}`
-                          : 'Duração do disparo (somente status sent).'}
-                      >
-                        {calcSendDuration(campaign)}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-gray-500 font-mono text-xs">
-                      {new Date(campaign.createdAt).toLocaleDateString('pt-BR')}
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        {/* Quick action: Clone campaign */}
-                        {onDuplicate && (
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <button
-                                onClick={(e) => { e.stopPropagation(); onDuplicate(campaign.id); }}
-                                aria-label={`Clonar campanha ${campaign.name}`}
-                                disabled={duplicatingId === campaign.id}
-                                className="p-2 rounded-lg text-gray-400 hover:text-primary-400 hover:bg-primary-500/10 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2 transition-all"
-                              >
-                                {duplicatingId === campaign.id ? (
-                                  <Loader2 size={16} className="animate-spin text-primary-400" aria-hidden="true" />
-                                ) : (
-                                  <Copy size={16} aria-hidden="true" />
-                                )}
-                              </button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Clonar campanha</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        )}
-
-                        {/* Quick action: Start scheduled campaign */}
-                        {(campaign.status === CampaignStatus.SCHEDULED || campaign.status === CampaignStatus.DRAFT) && onStart && (
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <button
-                                onClick={(e) => { e.stopPropagation(); onStart(campaign.id); }}
-                                aria-label={`Iniciar campanha ${campaign.name} agora`}
-                                disabled={isStarting}
-                                className="p-2 rounded-lg text-gray-400 hover:text-primary-400 hover:bg-primary-500/10 disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2 transition-all"
-                              >
-                                <Play size={16} aria-hidden="true" />
-                              </button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Iniciar agora</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        )}
-
-                        {/* Quick action: Pause sending campaign */}
-                        {campaign.status === CampaignStatus.SENDING && onPause && (
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <button
-                                onClick={(e) => { e.stopPropagation(); onPause(campaign.id); }}
-                                aria-label={`Pausar envio da campanha ${campaign.name}`}
-                                disabled={isPausing}
-                                className="p-2 rounded-lg text-gray-400 hover:text-amber-400 hover:bg-amber-500/10 disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-500 focus-visible:outline-offset-2 transition-all"
-                              >
-                                <Pause size={16} aria-hidden="true" />
-                              </button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Pausar envio</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        )}
-
-                        {/* Quick action: Resume paused campaign */}
-                        {campaign.status === CampaignStatus.PAUSED && onResume && (
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <button
-                                onClick={(e) => { e.stopPropagation(); onResume(campaign.id); }}
-                                aria-label={`Retomar envio da campanha ${campaign.name}`}
-                                disabled={isResuming}
-                                className="p-2 rounded-lg text-gray-400 hover:text-primary-400 hover:bg-primary-500/10 disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2 transition-all"
-                              >
-                                <Play size={16} aria-hidden="true" />
-                              </button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Retomar envio</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        )}
-
-
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <button
-                              onClick={(e) => { e.stopPropagation(); onDelete(campaign.id); }}
-                              aria-label={`Excluir campanha ${campaign.name}`}
-                              disabled={deletingId === campaign.id}
-                              className="p-2 rounded-lg text-gray-400 hover:text-red-400 hover:bg-red-500/10 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-red-500 focus-visible:outline-offset-2 transition-all"
-                            >
-                              {deletingId === campaign.id ? (
-                                <Loader2 size={16} className="animate-spin text-red-400" aria-hidden="true" />
-                              ) : (
-                                <Trash2 size={16} aria-hidden="true" />
-                              )}
-                            </button>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>Excluir campanha</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </div>
-                    </td>
-                  </tr>
+                    campaign={campaign}
+                    onRowClick={onRowClick}
+                    onDelete={onDelete}
+                    onDuplicate={onDuplicate}
+                    onPause={onPause}
+                    onResume={onResume}
+                    onStart={onStart}
+                    isPausing={isPausing}
+                    isResuming={isResuming}
+                    isStarting={isStarting}
+                    deletingId={deletingId}
+                    duplicatingId={duplicatingId}
+                  />
                 ))
               )}
             </tbody>

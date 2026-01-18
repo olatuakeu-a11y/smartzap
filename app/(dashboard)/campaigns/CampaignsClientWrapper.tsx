@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useCampaignsController } from '@/hooks/useCampaigns'
 import { CampaignListView } from '@/components/features/campaigns/CampaignListView'
@@ -28,9 +28,10 @@ export function CampaignsClientWrapper({ initialData }: { initialData?: Campaign
         clearLastDuplicatedCampaignId,
     } = useCampaignsController(initialData)
 
-    const handleRowClick = (id: string) => {
+    // Memoiza handler para evitar re-renders desnecessários no CampaignTableRow
+    const handleRowClick = useCallback((id: string) => {
         router.push(`/campaigns/${id}`)
-    }
+    }, [router])
 
     // Após clonar, navegar automaticamente para a campanha recém-criada.
     useEffect(() => {

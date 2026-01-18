@@ -2,6 +2,7 @@
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { RealtimeProvider } from '@/components/providers/RealtimeProvider'
+import { CentralizedRealtimeProvider } from '@/components/providers/CentralizedRealtimeProvider'
 import { useState } from 'react'
 
 export function Providers({ children }: { children: React.ReactNode }) {
@@ -25,7 +26,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
       <RealtimeProvider>
-        {children}
+        <CentralizedRealtimeProvider>
+          {children}
+        </CentralizedRealtimeProvider>
       </RealtimeProvider>
     </QueryClientProvider>
   )

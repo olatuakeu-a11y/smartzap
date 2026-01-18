@@ -349,12 +349,10 @@ export const campaignService = {
 
     const campaign = await updateResponse.json();
 
-    // Notify backend to pause queue processing
-    try {
-      await fetch(`/api/campaign/${id}/pause`, { method: 'POST' });
-    } catch (error) {
-      console.error('Failed to pause campaign on backend:', error);
-    }
+    // Fire-and-forget: notify backend to pause queue processing
+    // Não bloqueia a UI enquanto o backend processa
+    fetch(`/api/campaign/${id}/pause`, { method: 'POST' })
+      .catch((error) => console.error('Failed to pause campaign on backend:', error));
 
     return campaign;
   },
@@ -382,12 +380,10 @@ export const campaignService = {
 
     const updatedCampaign = await updateResponse.json();
 
-    // Notify backend to resume processing
-    try {
-      await fetch(`/api/campaign/${id}/resume`, { method: 'POST' });
-    } catch (error) {
-      console.error('Failed to resume campaign on backend:', error);
-    }
+    // Fire-and-forget: notify backend to resume processing
+    // Não bloqueia a UI enquanto o backend processa
+    fetch(`/api/campaign/${id}/resume`, { method: 'POST' })
+      .catch((error) => console.error('Failed to resume campaign on backend:', error));
 
     return updatedCampaign;
   },
