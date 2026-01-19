@@ -1,8 +1,8 @@
 'use client'
 
 import React from 'react'
+import { Container } from '@/components/ui/container'
 import { Spec } from './types'
-import { PANEL_CLASS, PANEL_COMPACT_PADDING } from './constants'
 import { LimitedTimeOfferPanel } from './panels/LimitedTimeOfferPanel'
 import { AuthenticationPanel } from './panels/AuthenticationPanel'
 import { CarouselPanel } from './panels/CarouselPanel'
@@ -30,7 +30,7 @@ export function AdvancedPanel({
   const isAuthentication = spec.category === 'AUTHENTICATION'
 
   return (
-    <div className={`${PANEL_CLASS} ${PANEL_COMPACT_PADDING}`}>
+    <Container variant="default" padding="md">
       <details>
         <summary className="cursor-pointer list-none select-none flex items-center justify-between">
           <div>
@@ -69,6 +69,6 @@ export function AdvancedPanel({
           />
         </div>
       </details>
-    </div>
+    </Container>
   )
 }

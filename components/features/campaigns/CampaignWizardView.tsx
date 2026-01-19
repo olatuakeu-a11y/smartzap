@@ -3,6 +3,7 @@ import { useRouter } from 'next/navigation';
 
 // UI Components
 import { CustomFieldsSheet } from '../contacts/CustomFieldsSheet';
+import { Container } from '@/components/ui/container';
 
 // Wizard Components
 import {
@@ -258,7 +259,7 @@ export const CampaignWizardView: React.FC<CampaignWizardViewProps> = (props) => 
       {/* Main Content */}
       <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-8">
         <div className="flex flex-col min-h-0 lg:col-span-9">
-          <div className="glass-panel rounded-2xl flex-1 min-h-0 flex flex-col relative overflow-hidden">
+          <Container variant="glass" padding="none" className="flex-1 min-h-0 flex flex-col relative overflow-hidden">
             {step === 1 && (
               <StepTemplateConfig
                 name={name} setName={setName}
@@ -343,7 +344,7 @@ export const CampaignWizardView: React.FC<CampaignWizardViewProps> = (props) => 
               scheduledTime={uiState.scheduledTime}
               onBack={handleBack} onNext={handleNext} onSend={handleSend} variant="mobile"
             />
-          </div>
+          </Container>
         </div>
 
         <WizardPreviewPanel

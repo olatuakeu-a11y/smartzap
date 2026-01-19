@@ -668,6 +668,34 @@ export const useTemplatesController = () => {
     setSelectedManualDraftIds(clearSelection())
   }
 
+  // Calculate status counts for filter pills
+  const statusCounts = useMemo(() => {
+    const allTemplates = templatesQuery.data || []
+    // Aplica apenas filtro de categoria e busca, não status
+    const filteredByCategoryAndSearch = allTemplates.filter(t => {
+      if (searchTerm && !t.name.toLowerCase().includes(searchTerm.toLowerCase())) return false
+      if (categoryFilter !== 'ALL' && t.category !== categoryFilter) return false
+      return true
+    })
+
+    const counts = {
+      APPROVED: 0,
+      PENDING: 0,
+      REJECTED: 0,
+      DRAFT: 0,
+      ALL: filteredByCategoryAndSearch.length,
+    }
+
+    for (const t of filteredByCategoryAndSearch) {
+      if (t.status === 'APPROVED') counts.APPROVED++
+      else if (t.status === 'PENDING') counts.PENDING++
+      else if (t.status === 'REJECTED') counts.REJECTED++
+      else if (t.status === 'DRAFT' || manualDraftIds.has(t.id)) counts.DRAFT++
+    }
+
+    return counts
+  }, [templatesQuery.data, searchTerm, categoryFilter, manualDraftIds])
+
   return {
     templates: filteredTemplates,
     isLoading: templatesQuery.isLoading,
@@ -678,6 +706,7 @@ export const useTemplatesController = () => {
     setCategoryFilter,
     statusFilter,
     setStatusFilter,
+    statusCounts,
     onSync: () => syncMutation.mutate(),
 
     // Manual drafts (identificação + ações)

@@ -1,13 +1,12 @@
 'use client'
 
 import React from 'react'
+import { Container } from '@/components/ui/container'
 import {
   ButtonType,
   ButtonCounts,
   Flow,
   Spec,
-  PANEL_CLASS,
-  PANEL_PADDING,
   AddButtonDropdown,
   QuickReplyButtonList,
   CTAButtonList,
@@ -76,7 +75,7 @@ export function StepButtons({
   return (
     <>
       {/* Main Buttons Panel */}
-      <div className={`${PANEL_CLASS} ${PANEL_PADDING} space-y-4`}>
+      <Container variant="default" padding="lg" className="space-y-4">
         {/* Header */}
         <div className="flex items-center justify-between gap-4">
           <div>
@@ -137,7 +136,7 @@ export function StepButtons({
             ))}
           </div>
         )}
-      </div>
+      </Container>
 
       {/* Advanced Panel */}
       <AdvancedPanel

@@ -3,6 +3,7 @@
 import React from 'react'
 import Image from 'next/image'
 import { Button } from '@/components/ui/button'
+import { Container } from '@/components/ui/container'
 import {
   Dialog,
   DialogContent,
@@ -122,8 +123,6 @@ export interface StepContentProps {
   confirmNamedVariable: () => void
 }
 
-const panelClass = 'rounded-2xl border border-white/10 bg-zinc-900/60 shadow-[0_12px_30px_rgba(0,0,0,0.35)]'
-
 export function StepContent({
   spec,
   header,
@@ -192,7 +191,7 @@ export function StepContent({
 }: StepContentProps) {
   return (
     <>
-      <div className={`${panelClass} p-5 space-y-2 min-h-140`}>
+      <Container variant="default" padding="lg" className="space-y-2 min-h-140">
         <div>
           <div className="text-base font-semibold text-white">Conteudo</div>
           <div className="text-xs text-gray-400 mt-1">
@@ -635,7 +634,7 @@ export function StepContent({
             ) : null}
           </div>
         </div>
-      </div>
+      </Container>
 
       {/* Named Variable Dialog */}
       <Dialog open={namedVarDialogOpen} onOpenChange={setNamedVarDialogOpen}>

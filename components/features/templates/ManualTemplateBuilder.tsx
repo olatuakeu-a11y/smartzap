@@ -12,6 +12,8 @@ import { StepConfig } from './builder/StepConfig'
 import { StepContent } from './builder/StepContent'
 import { StepButtons } from './builder/StepButtons'
 import { StepNavigation } from './builder/StepNavigation'
+import { PreviewDrawer } from './builder/PreviewDrawer'
+import { FloatingPreviewButton } from './builder/FloatingPreviewButton'
 
 // Utility functions and types
 import {
@@ -19,8 +21,6 @@ import {
   type HeaderFormat,
   type HeaderMediaPreview,
   type ButtonType,
-  panelClass,
-  panelCompactPadding,
   normalizeButtons,
   countButtonsByType,
   newButtonForType,
@@ -46,6 +46,7 @@ import {
   joinPhone,
 } from './utils/templateBuilderUtils'
 import { Input } from '@/components/ui/input'
+import { Container } from '@/components/ui/container'
 
 export function ManualTemplateBuilder({
   id,
@@ -66,6 +67,7 @@ export function ManualTemplateBuilder({
   const [spec, setSpec] = React.useState<Spec>(() => ensureBaseSpec(initialSpec))
   const [showDebug, setShowDebug] = React.useState(false)
   const [step, setStep] = React.useState(1)
+  const [isPreviewDrawerOpen, setIsPreviewDrawerOpen] = React.useState(false)
 
   const [headerMediaPreview, setHeaderMediaPreview] = React.useState<HeaderMediaPreview | null>(null)
   const headerMediaFileInputRef = React.useRef<HTMLInputElement | null>(null)
@@ -731,11 +733,11 @@ export function ManualTemplateBuilder({
         />
       </div>
 
-      {/* Right sidebar */}
-      <div className="space-y-6 lg:sticky lg:top-6 self-start">
+      {/* Right sidebar - hidden on mobile, visible on lg+ */}
+      <div className="hidden lg:block space-y-6 lg:sticky lg:top-6 self-start">
         <TemplatePreview spec={spec} headerMediaPreview={headerMediaPreview} />
 
-        <div className={`${panelClass} ${panelCompactPadding}`}>
+        <Container variant="default" padding="md">
           <details>
             <summary className="cursor-pointer list-none select-none flex items-center justify-between">
               <div className="text-sm font-semibold text-white">Avancado</div>
@@ -774,8 +776,19 @@ export function ManualTemplateBuilder({
               ) : null}
             </div>
           </details>
-        </div>
+        </Container>
       </div>
+
+      {/* Floating preview button - visible only on mobile */}
+      <FloatingPreviewButton onClick={() => setIsPreviewDrawerOpen(true)} />
+
+      {/* Preview drawer for mobile */}
+      <PreviewDrawer
+        open={isPreviewDrawerOpen}
+        onOpenChange={setIsPreviewDrawerOpen}
+        spec={spec}
+        headerMediaPreview={headerMediaPreview}
+      />
     </div>
   )
 }

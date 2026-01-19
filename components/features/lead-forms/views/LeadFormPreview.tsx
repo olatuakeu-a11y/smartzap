@@ -4,6 +4,7 @@ import type { LeadFormField } from '@/types'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
+import { Container } from '@/components/ui/container'
 import { InternationalPhoneInput } from '@/components/ui/international-phone-input'
 
 export interface LeadFormPreviewProps {
@@ -14,13 +15,13 @@ export interface LeadFormPreviewProps {
 
 export function LeadFormPreview({ title, collectEmail, fields }: LeadFormPreviewProps) {
   return (
-    <div className="rounded-xl border border-zinc-800 bg-zinc-950/40 p-4">
+    <Container variant="subtle" padding="md">
       <div className="mb-3">
         <p className="text-sm font-medium text-white">Pre-visualizacao</p>
         <p className="text-xs text-zinc-500">Assim vai aparecer para a pessoa que abrir o link publico.</p>
       </div>
 
-      <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-4">
+      <Container variant="default" padding="md">
         <div className="mb-4">
           <p className="text-lg font-semibold text-white">{title || 'Formulario'}</p>
           <p className="text-xs text-zinc-400">Preencha seus dados para ser adicionado automaticamente na lista.</p>
@@ -96,7 +97,7 @@ export function LeadFormPreview({ title, collectEmail, fields }: LeadFormPreview
             Enviar (preview)
           </Button>
         </div>
-      </div>
-    </div>
+      </Container>
+    </Container>
   )
 }

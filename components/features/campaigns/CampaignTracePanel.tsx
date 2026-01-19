@@ -1,6 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { ChevronDown, Copy, Loader2, RefreshCw, Search } from 'lucide-react'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
+import { Container } from '@/components/ui/container'
+import { StatusBadge } from '@/components/ui/status-badge'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { campaignService } from '@/services/campaignService'
 
 type TraceListItem = {
@@ -159,10 +162,10 @@ export function CampaignTracePanel({
   const shouldShowTracesList = showAllTraces || traces.length > 1
 
   return (
+    <Container variant="glass" padding="lg" className="mt-4">
     <Collapsible
       open={open}
       onOpenChange={setOpen}
-      className="mt-4 glass-panel rounded-2xl p-5 border border-white/5"
     >
       <CollapsibleTrigger asChild>
         <button
@@ -173,19 +176,19 @@ export function CampaignTracePanel({
           <div>
             <h3 className="text-white font-bold">Debug • Execuções (Trace)</h3>
             <p className="text-xs text-gray-500">
-              Responde rápido “disparou?” e “travou onde?” via timeline por <span className="font-mono">trace_id</span>.
+              Responde rápido "disparou?" e "travou onde?" via timeline por <span className="font-mono">trace_id</span>.
             </p>
           </div>
 
           <div className="flex items-center gap-2">
             {selectedTraceId ? (
-              <span className="text-[10px] uppercase tracking-wider rounded-full px-2 py-1 border text-emerald-200 bg-emerald-500/10 border-emerald-500/20">
+              <StatusBadge status="success" size="sm">
                 trace: {selectedTraceId.slice(0, 10)}…
-              </span>
+              </StatusBadge>
             ) : (
-              <span className="text-[10px] uppercase tracking-wider rounded-full px-2 py-1 border text-gray-400 bg-zinc-900/60 border-white/10">
+              <StatusBadge status="default" size="sm">
                 sem trace
-              </span>
+              </StatusBadge>
             )}
 
             <ChevronDown
@@ -233,14 +236,14 @@ export function CampaignTracePanel({
           </div>
 
           {error && (
-            <div className="text-xs text-red-300 bg-red-500/10 border border-red-500/20 rounded-lg p-3">
-              {error}
-            </div>
+            <Alert variant="error">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
           )}
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
             {shouldShowTracesList ? (
-              <div className="lg:col-span-1 bg-zinc-900/40 border border-white/10 rounded-xl overflow-hidden">
+              <Container variant="default" padding="none" className="lg:col-span-1 overflow-hidden">
               <div className="px-3 py-2 border-b border-white/10 text-xs text-gray-400 flex items-center justify-between">
                 <span>Execuções</span>
                 <span className="font-mono">{filteredTraces.length}</span>
@@ -295,10 +298,10 @@ export function CampaignTracePanel({
                   })
                 )}
               </div>
-              </div>
+              </Container>
             ) : null}
 
-            <div className={`${shouldShowTracesList ? 'lg:col-span-2' : 'lg:col-span-3'} bg-zinc-900/40 border border-white/10 rounded-xl overflow-hidden`}>
+            <Container variant="default" padding="none" className={`${shouldShowTracesList ? 'lg:col-span-2' : 'lg:col-span-3'} overflow-hidden`}>
               <div className="px-3 py-2 border-b border-white/10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                 <div className="text-xs text-gray-400">
                   Timeline{' '}
@@ -434,11 +437,12 @@ export function CampaignTracePanel({
                   ) : null}
                 </div>
               )}
-            </div>
+            </Container>
           </div>
         </div>
       </CollapsibleContent>
     </Collapsible>
+    </Container>
   )
 }
 

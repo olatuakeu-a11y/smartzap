@@ -2,6 +2,7 @@
 
 import React from 'react'
 import { Button } from '@/components/ui/button'
+import { Container } from '@/components/ui/container'
 import { Input } from '@/components/ui/input'
 import {
   Select,
@@ -63,7 +64,7 @@ export function LimitedTimeOfferPanel({
   }
 
   return (
-    <div className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-3">
+    <Container variant="subtle" padding="md" className="space-y-3">
       <div className="text-sm font-semibold text-white">Limited Time Offer</div>
       
       <div className="flex items-center gap-2">
@@ -120,6 +121,6 @@ export function LimitedTimeOfferPanel({
           )}
         </>
       )}
-    </div>
+    </Container>
   )
 }

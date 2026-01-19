@@ -3,6 +3,9 @@ import { Bot, Save, Key, CheckCircle, ExternalLink, RefreshCw, ChevronDown } fro
 import { toast } from 'sonner';
 import { AI_PROVIDERS, type AIProvider, type AIProviderConfig } from '@/lib/ai/providers';
 import type { AiFallbackConfig, AiPromptsConfig, AiRoutesConfig } from '@/lib/ai/ai-center-defaults';
+import { Container } from '@/components/ui/container';
+import { StatusBadge } from '@/components/ui/status-badge';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 
 interface ProviderStatus {
     isConfigured: boolean;
@@ -163,12 +166,12 @@ export const AISettings: React.FC<AISettingsProps> = ({
 
     if (isLoading) {
         return (
-            <div className="glass-panel rounded-2xl p-8 flex items-center justify-center">
+            <Container variant="glass" padding="lg" className="flex items-center justify-center">
                 <div className="animate-spin text-primary-500 mr-2">
                     <RefreshCw size={24} />
                 </div>
                 <span className="text-gray-400">Carregando configurações de IA...</span>
-            </div>
+            </Container>
         );
     }
 
@@ -179,7 +182,7 @@ export const AISettings: React.FC<AISettingsProps> = ({
     const tokenPreview = currentProviderStatus?.tokenPreview ?? null;
 
     return (
-        <div className="glass-panel rounded-2xl p-8 border border-white/5 relative overflow-hidden">
+        <Container variant="glass" padding="lg" className="relative overflow-hidden">
             {/* Background decoration */}
             <div className="absolute -right-10 -top-10 w-40 h-40 bg-purple-500/10 rounded-full blur-3xl pointer-events-none" />
 
@@ -196,10 +199,7 @@ export const AISettings: React.FC<AISettingsProps> = ({
                     </div>
 
                     {isConfigured && (
-                        <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
-                            <CheckCircle size={14} className="text-emerald-400" />
-                            <span className="text-xs font-medium text-emerald-400">Ativo</span>
-                        </div>
+                        <StatusBadge status="success" showDot>Ativo</StatusBadge>
                     )}
                 </div>
 
@@ -326,14 +326,9 @@ export const AISettings: React.FC<AISettingsProps> = ({
 
                         {/* Error Message */}
                         {errorMessage && (
-                            <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 animate-in slide-in-from-top-2 duration-200">
-                                <p className="text-sm text-red-400 flex items-center gap-2">
-                                    <svg className="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                                    </svg>
-                                    {errorMessage}
-                                </p>
-                            </div>
+                            <Alert variant="error" className="animate-in slide-in-from-top-2 duration-200">
+                                <AlertDescription>{errorMessage}</AlertDescription>
+                            </Alert>
                         )}
                     </div>
                 )}
@@ -373,6 +368,6 @@ export const AISettings: React.FC<AISettingsProps> = ({
                     )}
                 </div>
             </div>
-        </div>
+        </Container>
     );
 };

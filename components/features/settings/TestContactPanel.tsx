@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { UserCheck, X, Smartphone } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatPhoneNumberDisplay } from '../../../lib/phone-formatter';
+import { SectionHeader } from '@/components/ui/section-header';
 
 export interface TestContactPanelProps {
   testContact?: { name?: string; phone: string } | null;
@@ -70,13 +71,13 @@ export function TestContactPanel({
 
   return (
     <div className="glass-panel rounded-2xl p-8">
-      <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-        <span className="w-1 h-6 bg-amber-500 rounded-full"></span>
-        Contato de Teste
-      </h3>
-      <p className="text-sm text-gray-400 mb-6">
-        Configure um número para testar suas campanhas antes de enviar para todos os contatos.
-      </p>
+      <SectionHeader
+        title="Contato de Teste"
+        description="Configure um número para testar suas campanhas antes de enviar para todos os contatos."
+        color="warning"
+        icon={UserCheck}
+        className="mb-6"
+      />
 
       {testContact && !isEditing ? (
         // Show saved test contact

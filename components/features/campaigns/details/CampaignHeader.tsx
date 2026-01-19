@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { ChevronLeft, Calendar, Loader2, Play, Pause, Ban, RefreshCw, Download, ClipboardList } from 'lucide-react';
+import { ChevronLeft, Calendar, Loader2, Play, Pause, Ban, RefreshCw, Download } from 'lucide-react';
 import { PrefetchLink } from '@/components/ui/PrefetchLink';
 import { PageHeader, PageTitle } from '@/components/ui/page';
 import { CampaignStatus } from '@/types';
@@ -171,21 +171,7 @@ export const CampaignHeader: React.FC<CampaignHeaderProps> = ({
           </button>
         )}
 
-        {/* Link para página de submissões da campanha - só aparece quando tem Flow */}
-        {campaign.flowId && (
-          <PrefetchLink
-            href={`/submissions?campaignId=${encodeURIComponent(campaign.id)}`}
-            className="px-4 py-2 bg-zinc-900 border border-white/10 rounded-lg text-gray-300 hover:text-white hover:bg-white/5 transition-colors flex items-center gap-2 text-sm font-medium"
-            title="Ver submissões dos formulários MiniApp desta campanha"
-          >
-            <ClipboardList size={16} /> Ver Submissões
-            {typeof campaign.submissionsCount === 'number' && campaign.submissionsCount > 0 && (
-              <span className="ml-1 px-1.5 py-0.5 text-xs bg-primary-600 text-white rounded-full">
-                {campaign.submissionsCount}
-              </span>
-            )}
-          </PrefetchLink>
-        )}
+        {/* Relatório CSV */}
 
         <a
           href={`/api/campaigns/${encodeURIComponent(campaign.id)}/report.csv`}

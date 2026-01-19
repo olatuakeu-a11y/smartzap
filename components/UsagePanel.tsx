@@ -13,6 +13,7 @@ import {
   RefreshCw,
   Send
 } from 'lucide-react'
+import { Container } from '@/components/ui/container'
 
 interface UsageData {
   vercel: {
@@ -190,17 +191,17 @@ const UsageItem = ({
 export const UsagePanel: React.FC<UsagePanelProps> = ({ usage, isLoading, onRefresh }) => {
   if (isLoading && !usage) {
     return (
-      <div className="glass-panel p-6 rounded-2xl">
+      <Container variant="glass" padding="lg">
         <div className="flex items-center justify-center h-48">
           <RefreshCw size={24} className="text-gray-500 animate-spin" />
         </div>
-      </div>
+      </Container>
     )
   }
 
   if (!usage) {
     return (
-      <div className="glass-panel p-6 rounded-2xl">
+      <Container variant="glass" padding="lg">
         <div className="text-center text-gray-500 py-8">
           Não foi possível carregar os dados de uso.
           <button
@@ -210,7 +211,7 @@ export const UsagePanel: React.FC<UsagePanelProps> = ({ usage, isLoading, onRefr
             Tentar novamente
           </button>
         </div>
-      </div>
+      </Container>
     )
   }
 
@@ -229,7 +230,7 @@ export const UsagePanel: React.FC<UsagePanelProps> = ({ usage, isLoading, onRefr
   }
 
   return (
-    <div className="glass-panel p-6 rounded-2xl">
+    <Container variant="glass" padding="lg">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h3 className="text-lg font-semibold text-white">Uso da Infraestrutura</h3>
@@ -443,11 +444,11 @@ export const UsagePanel: React.FC<UsagePanelProps> = ({ usage, isLoading, onRefr
       {usage.whatsapp.status === 'warning' && (
         <div className="mt-4 p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl">
           <p className="text-xs text-amber-300">
-            💡 <strong>Dica:</strong> Você pode subir pro próximo tier do WhatsApp
+            <strong>Dica:</strong> Você pode subir pro próximo tier do WhatsApp
             alcançando mais {formatNumber(Math.max(usage.whatsapp.tierLimit - usage.whatsapp.messagesSent, 0))} contatos com boa qualidade.
           </p>
         </div>
       )}
-    </div>
+    </Container>
   )
 }

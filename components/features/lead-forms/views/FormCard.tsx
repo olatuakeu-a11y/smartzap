@@ -3,6 +3,7 @@
 import type { LeadForm } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Container } from '@/components/ui/container'
 import { Pencil } from 'lucide-react'
 
 export interface FormCardProps {
@@ -27,7 +28,7 @@ export function FormCard({
   const url = `${(publicBaseUrl || '').replace(/\/$/, '')}/f/${encodeURIComponent(form.slug)}`
 
   return (
-    <div className="rounded-xl border border-zinc-800 bg-zinc-950/40 p-4">
+    <Container variant="subtle" padding="md">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
@@ -70,6 +71,6 @@ export function FormCard({
           </Button>
         </div>
       </div>
-    </div>
+    </Container>
   )
 }

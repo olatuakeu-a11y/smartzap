@@ -2,9 +2,12 @@
 
 import React from 'react';
 import { FileText, Check } from 'lucide-react';
+import { Container } from '@/components/ui/container';
 import { Template } from '../../../../types';
 import { TemplateTableRow } from './TemplateTableRow';
+import { TemplateCardList } from './TemplateCard';
 import { StatusFilterType } from './types';
+import { useIsMobile } from '@/hooks/useMediaQuery';
 
 export interface TemplateTableProps {
   templates: Template[];
@@ -66,6 +69,8 @@ export const TemplateTable: React.FC<TemplateTableProps> = ({
   manualDraftCount,
   selectableMetaCount,
 }) => {
+  const isMobile = useIsMobile();
+
   const isManualDraft = (t: Template) => manualDraftIds?.has(t.id);
 
   const canSendDraft = (t: Template) => {
@@ -89,8 +94,32 @@ export const TemplateTable: React.FC<TemplateTableProps> = ({
 
   const hasItems = statusFilter === 'DRAFT' ? manualDraftCount > 0 : selectableMetaCount > 0;
 
+  // Mobile: render cards instead of table
+  if (isMobile) {
+    return (
+      <TemplateCardList
+        templates={templates}
+        isLoading={isLoading}
+        manualDraftIds={manualDraftIds}
+        manualDraftSendStateById={manualDraftSendStateById}
+        selectedManualDraftIds={selectedManualDraftIds}
+        selectedMetaTemplates={selectedMetaTemplates}
+        onToggleManualDraft={onToggleManualDraft}
+        onToggleMetaTemplate={onToggleMetaTemplate}
+        submittingManualDraftId={submittingManualDraftId}
+        deletingManualDraftId={deletingManualDraftId}
+        submitManualDraft={submitManualDraft}
+        deleteManualDraft={deleteManualDraft}
+        onViewDetails={onViewDetails}
+        onDeleteClick={onDeleteClick}
+        onCreateCampaign={onCreateCampaign}
+      />
+    );
+  }
+
+  // Desktop: render table
   return (
-    <div className="rounded-2xl border border-white/10 bg-zinc-900/60 shadow-[0_12px_30px_rgba(0,0,0,0.35)] overflow-hidden">
+    <Container variant="default" padding="none" className="overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full text-left text-sm">
           <thead className="bg-zinc-950/40 border-b border-white/10 text-gray-500 uppercase tracking-widest text-xs">
@@ -179,6 +208,6 @@ export const TemplateTable: React.FC<TemplateTableProps> = ({
           </tbody>
         </table>
       </div>
-    </div>
+    </Container>
   );
 };

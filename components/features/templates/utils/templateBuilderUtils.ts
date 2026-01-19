@@ -48,11 +48,6 @@ export const allowedHeaderFormats = new Set<HeaderFormat>([
   'LOCATION',
 ])
 
-export const panelClass =
-  'rounded-2xl border border-white/10 bg-zinc-900/60 shadow-[0_12px_30px_rgba(0,0,0,0.35)]'
-export const panelPadding = 'p-6'
-export const panelCompactPadding = 'p-4'
-
 // ============================================================================
 // Button Functions
 // ============================================================================

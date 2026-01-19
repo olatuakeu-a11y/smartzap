@@ -37,6 +37,9 @@ export interface LeadFormsViewProps {
   onDelete: (id: string) => void
   isDeleting: boolean
   deleteError?: string
+
+  // Optional: hide header when embedded in page with its own header
+  hideHeader?: boolean
 }
 
 export function LeadFormsView(props: LeadFormsViewProps) {
@@ -66,6 +69,7 @@ export function LeadFormsView(props: LeadFormsViewProps) {
     onDelete,
     isDeleting,
     deleteError,
+    hideHeader = false,
   } = props
 
   const { copyToClipboard, isCopied } = useCopyToClipboard()
@@ -81,15 +85,32 @@ export function LeadFormsView(props: LeadFormsViewProps) {
 
   return (
     <div className="space-y-6">
-      {/* Header with Create Button */}
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold text-white">Formularios</h1>
-          <p className="text-sm text-zinc-400">
-            Crie um link publico (tipo Google Forms) para captar contatos automaticamente com uma tag.
-          </p>
-        </div>
+      {/* Header with Create Button - hidden when parent page provides header */}
+      {!hideHeader && (
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-semibold text-white">Formularios</h1>
+            <p className="text-sm text-zinc-400">
+              Crie um link publico (tipo Google Forms) para captar contatos automaticamente com uma tag.
+            </p>
+          </div>
 
+          <CreateFormDialog
+            isOpen={isCreateOpen}
+            setIsOpen={setIsCreateOpen}
+            draft={createDraft}
+            setDraft={setCreateDraft}
+            onCreate={onCreate}
+            isCreating={isCreating}
+            createError={createError}
+            publicBaseUrl={publicBaseUrl}
+            sortedTags={sortedTags}
+          />
+        </div>
+      )}
+
+      {/* Create Dialog - always rendered (controlled by isCreateOpen) */}
+      {hideHeader && (
         <CreateFormDialog
           isOpen={isCreateOpen}
           setIsOpen={setIsCreateOpen}
@@ -101,7 +122,7 @@ export function LeadFormsView(props: LeadFormsViewProps) {
           publicBaseUrl={publicBaseUrl}
           sortedTags={sortedTags}
         />
-      </div>
+      )}
 
       {/* Edit Dialog */}
       <EditFormDialog

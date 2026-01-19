@@ -4,6 +4,8 @@ import React, { useState } from 'react';
 import { Webhook, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { PhoneNumber } from '../../../hooks/useSettings';
+import { Container } from '@/components/ui/container';
+import { SectionHeader } from '@/components/ui/section-header';
 
 import {
   WebhookUrlConfig,
@@ -140,27 +142,28 @@ export function WebhookConfigSection({
   };
 
   return (
-    <div className="glass-panel rounded-2xl p-8">
+    <Container variant="glass" padding="lg">
       {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-          <span className="w-1 h-6 bg-blue-500 rounded-full"></span>
-          <Webhook size={20} className="text-blue-400" />
-          Webhooks
-        </h3>
-        {phoneNumbers && phoneNumbers.length > 0 && (
-          <button
-            onClick={onRefreshPhoneNumbers}
-            disabled={phoneNumbersLoading}
-            className="p-2 text-gray-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
-            title="Atualizar lista"
-          >
-            <RefreshCw size={16} className={phoneNumbersLoading ? 'animate-spin' : ''} />
-          </button>
-        )}
-      </div>
-      
-      <p className="text-sm text-gray-400 mb-6">
+      <SectionHeader
+        title="Webhooks"
+        icon={Webhook}
+        color="info"
+        showIndicator={true}
+        actions={
+          phoneNumbers && phoneNumbers.length > 0 ? (
+            <button
+              onClick={onRefreshPhoneNumbers}
+              disabled={phoneNumbersLoading}
+              className="p-2 text-gray-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+              title="Atualizar lista"
+            >
+              <RefreshCw size={16} className={phoneNumbersLoading ? 'animate-spin' : ''} />
+            </button>
+          ) : undefined
+        }
+      />
+
+      <p className="text-sm text-gray-400 mt-4 mb-6">
         Webhooks são notificações que a Meta envia quando algo acontece (mensagem entregue, lida, etc).
       </p>
 
@@ -204,6 +207,6 @@ export function WebhookConfigSection({
 
       {/* Webhook Levels Explanation */}
       <WebhookLevelsExplanation />
-    </div>
+    </Container>
   );
 }

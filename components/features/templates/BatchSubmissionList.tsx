@@ -1,5 +1,6 @@
 import React from 'react';
 import { BatchSubmission } from '../../../types';
+import { Container } from '@/components/ui/container';
 import { ChevronRight, Trash2, Clock, CheckCircle, AlertTriangle, XCircle, Loader2 } from 'lucide-react';
 
 interface BatchSubmissionListProps {
@@ -35,7 +36,7 @@ export function BatchSubmissionList({
 
     if (submissions.length === 0) {
         return (
-            <div className="flex flex-col items-center justify-center py-16 px-4 bg-zinc-900/60 border border-white/10 rounded-2xl border-dashed shadow-[0_12px_30px_rgba(0,0,0,0.35)]">
+            <Container variant="default" padding="none" className="flex flex-col items-center justify-center py-16 px-4 border-dashed">
                 <div className="w-16 h-16 rounded-full bg-zinc-950/40 border border-white/10 flex items-center justify-center mb-4">
                     <Clock className="w-8 h-8 text-gray-500" />
                 </div>
@@ -43,7 +44,7 @@ export function BatchSubmissionList({
                 <p className="text-zinc-400 text-center max-w-md mb-6">
                     Gere sua primeira levas de templates para começar a fábrica.
                 </p>
-            </div>
+            </Container>
         );
     }
 
@@ -51,7 +52,7 @@ export function BatchSubmissionList({
         <div className="space-y-6">
             {/* Rate Limit Stats */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-zinc-900/60 border border-white/10 p-4 rounded-2xl shadow-[0_12px_30px_rgba(0,0,0,0.35)] flex items-center justify-between">
+                <Container variant="default" padding="md" className="flex items-center justify-between">
                     <div>
                         <p className="text-zinc-400 text-xs font-medium uppercase tracking-wider mb-1">Cota por Hora</p>
                         <h3 className={`text-2xl font-bold ${hourlyCount >= 100 ? 'text-amber-300' : 'text-white'}`}>
@@ -61,10 +62,10 @@ export function BatchSubmissionList({
                     <div className="h-10 w-10 rounded-full bg-zinc-950/40 border border-white/10 flex items-center justify-center">
                         <Clock className={`w-5 h-5 ${hourlyCount >= 80 ? 'text-amber-300' : 'text-emerald-300'}`} />
                     </div>
-                </div>
+                </Container>
             </div>
 
-            <div className="bg-zinc-900/60 border border-white/10 rounded-2xl overflow-hidden shadow-[0_12px_30px_rgba(0,0,0,0.35)]">
+            <Container variant="default" padding="none" className="overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left">
                         <thead>
@@ -163,7 +164,7 @@ export function BatchSubmissionList({
                         </tbody>
                     </table>
                 </div>
-            </div>
+            </Container>
         </div>
     );
 }

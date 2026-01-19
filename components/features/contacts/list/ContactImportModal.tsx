@@ -21,6 +21,8 @@ import {
 } from './types';
 import { parseCSV, formatPhoneNumber } from './utils';
 import { ContactFieldMappingSheet } from './ContactFieldMappingSheet';
+import { Container } from '@/components/ui/container';
+import { StatusBadge } from '@/components/ui/status-badge';
 
 export interface ContactImportModalProps {
   isOpen: boolean;
@@ -195,7 +197,7 @@ export const ContactImportModal: React.FC<ContactImportModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-zinc-950 border border-white/10 rounded-2xl w-full max-w-2xl p-8 shadow-2xl animate-in zoom-in duration-200 flex flex-col max-h-[90vh]">
+      <Container variant="surface" padding="xl" className="w-full max-w-2xl shadow-2xl animate-in zoom-in duration-200 flex flex-col max-h-[90vh]">
         {/* Header */}
         <div className="flex justify-between items-center mb-8 border-b border-white/5 pb-6">
           <div>
@@ -285,7 +287,7 @@ export const ContactImportModal: React.FC<ContactImportModalProps> = ({
           onCustomFieldCreated={onCustomFieldCreated}
           onCustomFieldDeleted={onCustomFieldDeleted}
         />
-      </div>
+      </Container>
     </div>
   );
 };
@@ -535,18 +537,18 @@ const ImportStepSuccess: React.FC<ImportStepSuccessProps> = ({ result }) => (
     <p className="text-gray-400 mb-8">Seus contatos foram processados com sucesso.</p>
 
     <div className="grid grid-cols-3 gap-4 max-w-md mx-auto mb-8">
-      <div className="bg-zinc-900 rounded-xl p-4">
+      <Container variant="surface" padding="md">
         <p className="text-2xl font-bold text-white">{result.total}</p>
         <p className="text-xs text-gray-500">Linhas</p>
-      </div>
+      </Container>
       <div className="bg-emerald-500/10 rounded-xl p-4 border border-emerald-500/20">
         <p className="text-2xl font-bold text-emerald-400">{result.success}</p>
         <p className="text-xs text-emerald-500/70">Sucessos</p>
       </div>
-      <div className="bg-zinc-900 rounded-xl p-4">
+      <Container variant="surface" padding="md">
         <p className="text-2xl font-bold text-gray-400">{result.errors}</p>
         <p className="text-xs text-gray-500">Ignorados</p>
-      </div>
+      </Container>
     </div>
   </div>
 );

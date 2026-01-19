@@ -5,6 +5,7 @@ import type { MetaDiagnosticsResponse } from '@/services/metaDiagnosticsService'
 import type { MetaDiagnosticsCheck, MetaDiagnosticsCheckStatus } from '../types'
 import { StatusBadge } from '../StatusBadge'
 import { formatJsonMaybe } from '../utils'
+import { Container } from '@/components/ui/container'
 
 export interface TokenValidityCardProps {
   data?: MetaDiagnosticsResponse
@@ -84,7 +85,7 @@ export function TokenValidityCard({ data, checks }: TokenValidityCardProps) {
   })()
 
   return (
-    <div className="glass-panel rounded-2xl p-6 border border-white/10">
+    <Container variant="glass" padding="md">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <div className="text-xs text-gray-500">Token</div>
@@ -134,6 +135,6 @@ export function TokenValidityCard({ data, checks }: TokenValidityCardProps) {
           </pre>
         </details>
       )}
-    </div>
+    </Container>
   )
 }

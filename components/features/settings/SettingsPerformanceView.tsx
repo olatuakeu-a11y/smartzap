@@ -6,6 +6,8 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { PrefetchLink } from '@/components/ui/PrefetchLink'
 import { Page, PageActions, PageDescription, PageHeader, PageTitle } from '@/components/ui/page'
 import type { SettingsPerformanceResponse } from '@/services/performanceService'
+import { Container } from '@/components/ui/container'
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
 
 function clamp(n: number, min: number, max: number) {
   if (!Number.isFinite(n)) return min
@@ -56,7 +58,7 @@ function Gauge(props: {
   const arcFillD = `M ${sx} ${sy} A ${r} ${r} 0 0 1 ${x} ${y}`
 
   return (
-    <div className="glass-panel rounded-2xl p-6">
+    <Container variant="glass" padding="md">
       <div className="text-xs text-gray-500">{props.title}</div>
       <div className="mt-1 text-sm text-gray-300">{props.subtitle || '—'}</div>
 
@@ -100,7 +102,7 @@ function Gauge(props: {
         <span>{props.footerLeft || ''}</span>
         <span>{props.footerRight || ''}</span>
       </div>
-    </div>
+    </Container>
   )
 }
 
@@ -225,15 +227,12 @@ export function SettingsPerformanceView(props: {
       </PageHeader>
 
       {data?.source === 'campaigns_fallback' && (
-        <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl px-4 py-3 flex items-start gap-3">
-          <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
-          <div className="min-w-0">
-            <p className="text-amber-200 font-medium text-sm">Métricas avançadas indisponíveis (fallback)</p>
-            <p className="text-amber-300/80 text-sm mt-0.5">
-              {props.hint || data.hint || 'Aplique a migration 0008 e rode novas campanhas para habilitar baselines por execução.'}
-            </p>
-          </div>
-        </div>
+        <Alert variant="warning">
+          <AlertTitle>Métricas avançadas indisponíveis (fallback)</AlertTitle>
+          <AlertDescription>
+            {props.hint || data.hint || 'Aplique a migration 0008 e rode novas campanhas para habilitar baselines por execução.'}
+          </AlertDescription>
+        </Alert>
       )}
 
       <div className="mt-6 flex flex-wrap items-center gap-2">
@@ -270,37 +269,37 @@ export function SettingsPerformanceView(props: {
       </div>
 
       <div className="mt-6 grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="glass-panel rounded-2xl p-5">
+        <Container variant="glass" padding="sm">
           <div className="flex items-center gap-2 text-xs text-gray-500">
             <Activity size={14} /> Runs
           </div>
           <div className="mt-2 text-2xl font-bold text-white">{data ? fmtInt(data.totals.runs) : '—'}</div>
           <div className="mt-1 text-xs text-gray-500">amostras: {data ? fmtInt(data.totals.throughput_mps.samples) : '—'}</div>
-        </div>
+        </Container>
 
-        <div className="glass-panel rounded-2xl p-5">
+        <Container variant="glass" padding="sm">
           <div className="flex items-center gap-2 text-xs text-gray-500">
             <TrendingUp size={14} /> Throughput (mps)
           </div>
           <div className="mt-2 text-2xl font-bold text-white">{data ? fmtNumber(data.totals.throughput_mps.median, 2) : '—'}</div>
           <div className="mt-1 text-xs text-gray-500">p90: {data ? fmtNumber(data.totals.throughput_mps.p90, 2) : '—'}</div>
-        </div>
+        </Container>
 
-        <div className="glass-panel rounded-2xl p-5">
+        <Container variant="glass" padding="sm">
           <div className="flex items-center gap-2 text-xs text-gray-500">
             <Timer size={14} /> Meta avg
           </div>
           <div className="mt-2 text-2xl font-bold text-white">{data ? fmtMs(data.totals.meta_avg_ms.median) : '—'}</div>
           <div className="mt-1 text-xs text-gray-500">amostras: {data ? fmtInt(data.totals.meta_avg_ms.samples) : '—'}</div>
-        </div>
+        </Container>
 
-        <div className="glass-panel rounded-2xl p-5">
+        <Container variant="glass" padding="sm">
           <div className="flex items-center gap-2 text-xs text-gray-500">
             <AlertTriangle size={14} /> 130429
           </div>
           <div className="mt-2 text-2xl font-bold text-white">{data ? fmtPct(data.totals.throughput_429_rate, 1) : '—'}</div>
           <div className="mt-1 text-xs text-gray-500">taxa no período</div>
-        </div>
+        </Container>
       </div>
 
       <div className="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -313,7 +312,7 @@ export function SettingsPerformanceView(props: {
           footerRight={data?.totals?.throughput_mps?.p90 ? `p90: ${fmtNumber(data.totals.throughput_mps.p90, 2)} mps` : ''}
         />
 
-        <div className="glass-panel rounded-2xl p-6 lg:col-span-2">
+        <Container variant="glass" padding="md" className="lg:col-span-2">
           <div className="text-sm font-semibold text-white">Como ler esse gauge</div>
           <div className="mt-2 text-sm text-gray-300 space-y-2">
             <p>
@@ -326,10 +325,10 @@ export function SettingsPerformanceView(props: {
               Dica: aplique presets (Safe/Balanced/Boost) e rode campanhas suficientes para aumentar a confiança do baseline.
             </p>
           </div>
-        </div>
+        </Container>
       </div>
 
-      <div className="mt-6 glass-panel rounded-2xl p-6">
+      <Container variant="glass" padding="md" className="mt-6">
         <div className="flex items-center justify-between gap-3">
           <div>
             <div className="text-sm font-semibold text-white">Histórico de throughput (sent-only)</div>
@@ -374,10 +373,10 @@ export function SettingsPerformanceView(props: {
             <div className="h-full w-full rounded-xl bg-white/5" aria-hidden="true" />
           )}
         </div>
-      </div>
+      </Container>
 
       <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="glass-panel rounded-2xl p-6">
+        <Container variant="glass" padding="md">
           <div className="flex items-center justify-between">
             <div className="text-sm font-semibold text-white">Baselines por config_hash</div>
             <div className="text-xs text-gray-500">ordenado por mediana</div>
@@ -439,9 +438,9 @@ export function SettingsPerformanceView(props: {
               </button>
             </div>
           )}
-        </div>
+        </Container>
 
-        <div className="glass-panel rounded-2xl p-6">
+        <Container variant="glass" padding="md">
           <div className="flex items-center justify-between">
             <div className="text-sm font-semibold text-white">Notas</div>
           </div>
@@ -457,7 +456,7 @@ export function SettingsPerformanceView(props: {
               Dica operacional: quando alterar muito <span className="font-mono">startMps</span>, use “Resetar aprendizado” no Turbo para alinhar o target atual.
             </p>
           </div>
-        </div>
+        </Container>
       </div>
     </Page>
   )

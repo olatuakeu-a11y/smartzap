@@ -9,27 +9,30 @@ const fetchTags = async (): Promise<string[]> => {
   return resp.json()
 }
 
-export const useLeadFormsQuery = () => {
+export const useLeadFormsQuery = (options?: { enabled?: boolean }) => {
   return useQuery({
     queryKey: ['leadForms'],
     queryFn: leadFormService.getAll,
     staleTime: 30 * 1000,
+    enabled: options?.enabled ?? true,
   })
 }
 
-export const useLeadFormTagsQuery = () => {
+export const useLeadFormTagsQuery = (options?: { enabled?: boolean }) => {
   return useQuery({
     queryKey: ['contactTags'],
     queryFn: fetchTags,
     staleTime: 60 * 1000,
+    enabled: options?.enabled ?? true,
   })
 }
 
-export const useLeadFormsController = () => {
+export const useLeadFormsController = (options?: { enabled?: boolean }) => {
   const queryClient = useQueryClient()
+  const enabled = options?.enabled ?? true
 
-  const leadFormsQuery = useLeadFormsQuery()
-  const tagsQuery = useLeadFormTagsQuery()
+  const leadFormsQuery = useLeadFormsQuery({ enabled })
+  const tagsQuery = useLeadFormTagsQuery({ enabled })
 
   const forms = leadFormsQuery.data ?? []
   const tags = tagsQuery.data ?? []

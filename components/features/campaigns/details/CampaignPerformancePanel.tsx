@@ -3,6 +3,8 @@
 import React, { useState } from 'react';
 import { ChevronDown, Clock, CheckCircle2, AlertCircle } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Container } from '@/components/ui/container';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { DetailCard } from './DetailCard';
 import { formatDurationMs, formatThroughput } from './utils';
 import { CampaignPerformancePanelProps } from './types';
@@ -22,10 +24,10 @@ export const CampaignPerformancePanel: React.FC<CampaignPerformancePanelProps> =
   const [isPerfTechOpen, setIsPerfTechOpen] = useState(false);
 
   return (
+    <Container variant="glass" padding="lg" className="mt-4">
     <Collapsible
       open={isPerfOpen}
       onOpenChange={setIsPerfOpen}
-      className="mt-4 glass-panel rounded-2xl p-5 border border-white/5"
     >
       <CollapsibleTrigger asChild>
         <button
@@ -54,10 +56,12 @@ export const CampaignPerformancePanel: React.FC<CampaignPerformancePanelProps> =
 
       <CollapsibleContent className="mt-4">
         {metrics?.source === 'campaigns_fallback' && (metrics as any)?.hint && (
-          <div className="text-xs text-amber-200 bg-amber-500/10 border border-amber-500/20 rounded-lg p-3">
-            <div className="font-medium">Metricas avancadas indisponiveis</div>
-            <div className="mt-1 text-amber-200/80">{(metrics as any).hint}</div>
-          </div>
+          <Alert variant="warning">
+            <AlertDescription>
+              <div className="font-medium">Metricas avancadas indisponiveis</div>
+              <div className="mt-1 opacity-80">{(metrics as any).hint}</div>
+            </AlertDescription>
+          </Alert>
         )}
 
         <div className={`${metrics?.source === 'campaigns_fallback' && (metrics as any)?.hint ? 'mt-4' : ''} grid grid-cols-1 sm:grid-cols-3 gap-4`}>
@@ -108,7 +112,7 @@ export const CampaignPerformancePanel: React.FC<CampaignPerformancePanelProps> =
             color={limiterInfo.color}
           />
 
-          <div className="sm:col-span-2 glass-panel p-5 rounded-2xl border border-white/5">
+          <Container variant="glass" padding="lg" className="sm:col-span-2">
             <Collapsible open={isPerfTechOpen} onOpenChange={setIsPerfTechOpen}>
               <CollapsibleTrigger asChild>
                 <button
@@ -129,24 +133,24 @@ export const CampaignPerformancePanel: React.FC<CampaignPerformancePanelProps> =
 
               <CollapsibleContent className="mt-3">
                 <div className="text-xs text-gray-400 grid grid-cols-1 sm:grid-cols-3 gap-2">
-                  <div className="bg-zinc-900/50 border border-white/10 rounded-lg p-3">
+                  <Container variant="subtle" padding="sm">
                     <div className="text-gray-500">Config efetiva</div>
                     <div className="mt-1 font-mono">
                       conc={perf?.config?.effective?.concurrency ?? '—'} | batch={perf?.config?.effective?.configuredBatchSize ?? '—'}
                     </div>
-                  </div>
-                  <div className="bg-zinc-900/50 border border-white/10 rounded-lg p-3">
+                  </Container>
+                  <Container variant="subtle" padding="sm">
                     <div className="text-gray-500">Turbo (adaptive)</div>
                     <div className="mt-1 font-mono">
                       {perf?.config?.adaptive
                         ? `enabled=${String(perf.config.adaptive.enabled)} maxMps=${perf.config.adaptive.maxMps}`
                         : '—'}
                     </div>
-                  </div>
-                  <div className="bg-zinc-900/50 border border-white/10 rounded-lg p-3">
+                  </Container>
+                  <Container variant="subtle" padding="sm">
                     <div className="text-gray-500">Hash de config</div>
                     <div className="mt-1 font-mono">{perf?.config_hash ?? '—'}</div>
-                  </div>
+                  </Container>
                 </div>
 
                 <div className="mt-2 text-[11px] text-gray-500">
@@ -158,9 +162,10 @@ export const CampaignPerformancePanel: React.FC<CampaignPerformancePanelProps> =
                 </div>
               </CollapsibleContent>
             </Collapsible>
-          </div>
+          </Container>
         </div>
       </CollapsibleContent>
     </Collapsible>
+    </Container>
   );
 };

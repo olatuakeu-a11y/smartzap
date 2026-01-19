@@ -13,6 +13,8 @@ import {
   type TurboDraft,
   type TurboPlan,
 } from './turbo';
+import { Container } from '@/components/ui/container';
+import { SectionHeader } from '@/components/ui/section-header';
 
 // Types
 interface WhatsAppThrottleConfig {
@@ -161,20 +163,19 @@ export function TurboConfigSection({
   };
 
   return (
-    <div className="glass-panel rounded-2xl p-8">
+    <Container variant="glass" padding="lg">
       <div className="flex items-start justify-between gap-4">
-        <div>
-          <h3 className="text-lg font-semibold text-white mb-1 flex items-center gap-2">
-            <span className="w-1 h-6 bg-primary-500 rounded-full"></span>
-            <Zap size={18} className="text-primary-400" />
-            Modo Turbo (Beta)
-          </h3>
-          <p className="text-sm text-gray-400">
-            Ajuste automatico de taxa baseado em feedback do Meta (ex.: erro <span className="font-mono">130429</span>). Ideal para campanhas grandes.
-          </p>
-        </div>
+        <SectionHeader
+          title="Modo Turbo (Beta)"
+          icon={Zap}
+          color="brand"
+          showIndicator={true}
+          description={
+            <>Ajuste automatico de taxa baseado em feedback do Meta (ex.: erro <span className="font-mono">130429</span>). Ideal para campanhas grandes.</>
+          }
+        />
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           <Link
             href="/settings/performance"
             className="h-10 px-4 rounded-xl bg-white/5 text-white hover:bg-white/10 border border-white/10 hover:border-white/20 transition-all text-sm font-medium"
@@ -231,6 +232,6 @@ export function TurboConfigSection({
           isSaving={isSaving}
         />
       )}
-    </div>
+    </Container>
   );
 }

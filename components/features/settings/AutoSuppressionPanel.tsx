@@ -3,6 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { Shield, Save, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { SectionHeader } from '@/components/ui/section-header';
+import { StatusBadge } from '@/components/ui/status-badge';
 
 interface AutoSuppressionConfig {
   enabled: boolean;
@@ -121,39 +123,38 @@ export function AutoSuppressionPanel({
 
   return (
     <div className="glass-panel rounded-2xl p-8">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h3 className="text-lg font-semibold text-white mb-1 flex items-center gap-2">
-            <span className="w-1 h-6 bg-primary-500 rounded-full"></span>
-            <Shield size={18} className="text-primary-400" />
-            Proteção de Qualidade (Auto-supressão)
-          </h3>
-          <p className="text-sm text-gray-400">
+      <SectionHeader
+        title="Proteção de Qualidade (Auto-supressão)"
+        description={
+          <>
             Bloqueia automaticamente telefones com falhas repetidas (ex.: <span className="font-mono">131026</span>)
             para reduzir retries inúteis e proteger a qualidade da conta.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          {isEditing && (
+          </>
+        }
+        color="brand"
+        icon={Shield}
+        actions={
+          <div className="flex items-center gap-2">
+            {isEditing && (
+              <button
+                onClick={handleSave}
+                disabled={!!isSaving}
+                className="h-10 px-5 rounded-xl bg-primary-500 hover:bg-primary-400 text-black font-semibold transition-all text-sm flex items-center gap-2 shadow-lg shadow-primary-500/10 disabled:opacity-50"
+                title="Salvar configurações de auto-supressão"
+              >
+                {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                Salvar
+              </button>
+            )}
             <button
-              onClick={handleSave}
-              disabled={!!isSaving}
-              className="h-10 px-5 rounded-xl bg-primary-500 hover:bg-primary-400 text-black font-semibold transition-all text-sm flex items-center gap-2 shadow-lg shadow-primary-500/10 disabled:opacity-50"
-              title="Salvar configurações de auto-supressão"
+              onClick={() => setIsEditing((v) => !v)}
+              className="h-10 px-4 rounded-xl bg-white/5 text-white hover:bg-white/10 border border-white/10 hover:border-white/20 transition-all text-sm font-medium"
             >
-              {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-              Salvar
+              {isEditing ? 'Fechar' : 'Configurar'}
             </button>
-          )}
-          <button
-            onClick={() => setIsEditing((v) => !v)}
-            className="h-10 px-4 rounded-xl bg-white/5 text-white hover:bg-white/10 border border-white/10 hover:border-white/20 transition-all text-sm font-medium"
-          >
-            {isEditing ? 'Fechar' : 'Configurar'}
-          </button>
-        </div>
-      </div>
+          </div>
+        }
+      />
 
       <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="bg-zinc-900/40 border border-white/10 rounded-xl p-4">
@@ -164,13 +165,12 @@ export function AutoSuppressionPanel({
             </div>
           ) : (
             <div className="mt-2">
-              <div className="text-sm text-white">
+              <div className="text-sm text-white flex items-center gap-2 flex-wrap">
                 {autoConfig?.enabled ? (
-                  <span className="text-emerald-300 font-medium">Ativo</span>
+                  <StatusBadge status="success">Ativo</StatusBadge>
                 ) : (
-                  <span className="text-gray-300 font-medium">Inativo</span>
+                  <StatusBadge status="default">Inativo</StatusBadge>
                 )}
-                <span className="text-gray-500"> · </span>
                 <span className="text-xs text-gray-400">fonte: {autoSuppression?.source || '—'}</span>
               </div>
               <div className="mt-2 text-xs text-gray-400">

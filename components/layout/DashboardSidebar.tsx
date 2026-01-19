@@ -11,6 +11,7 @@ import {
   LucideIcon,
 } from 'lucide-react'
 import { PrefetchLink } from '@/components/ui/PrefetchLink'
+import { cn } from '@/lib/utils'
 
 // =============================================================================
 // TYPES
@@ -178,9 +179,13 @@ const ExpandedSidebar = memo(function ExpandedSidebar({
 }: DashboardSidebarProps) {
   return (
     <aside
-      className={`fixed inset-y-0 left-0 z-50 w-56 bg-zinc-950 border-r border-white/5 transform transition-transform duration-200 ease-in-out ${
-        isSidebarExpanded || isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
-      }`}
+      className={cn(
+        "fixed inset-y-0 left-0 z-50 w-56 bg-zinc-950 border-r border-white/5 transform transition-transform duration-200 ease-in-out",
+        // Mobile (< lg): show only when menu is open
+        isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full',
+        // Desktop (lg+): controlled by isSidebarExpanded, overrides mobile class
+        isSidebarExpanded ? 'lg:translate-x-0' : 'lg:-translate-x-full'
+      )}
       aria-label="Menu de navegação expandido"
     >
       <div className="flex h-full flex-col p-4">

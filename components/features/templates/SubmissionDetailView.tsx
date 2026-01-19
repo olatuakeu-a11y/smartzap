@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { BatchSubmission, GeneratedTemplateWithStatus } from '../../../types';
+import { Container } from '@/components/ui/container';
 import {
     ArrowLeft, RefreshCw, Trash2, CheckCircle, AlertTriangle,
     XCircle, Filter, ChevronDown, ChevronRight, Zap, Eye, Copy,
@@ -126,7 +127,7 @@ export function SubmissionDetailView({
                 </div>
 
                 {/* Template List */}
-                <div className="flex-1 bg-zinc-900/60 border border-white/10 rounded-2xl overflow-y-auto shadow-[0_12px_30px_rgba(0,0,0,0.35)]">
+                <Container variant="default" padding="none" className="flex-1 overflow-y-auto">
                     {sections.map(section => {
                         if (section.count === 0) return null;
 
@@ -188,7 +189,7 @@ export function SubmissionDetailView({
                             </div>
                         );
                     })}
-                </div>
+                </Container>
             </div>
 
             {/* --- RIGHT SIDE: PREVIEW --- */}
@@ -209,7 +210,7 @@ export function SubmissionDetailView({
                             variables={['Variável 1', 'Variável 2', 'Variável 3']} // Shows placeholder variables
                             size="md"
                         />
-                        <div className="mt-6 p-4 bg-zinc-900/60 border border-white/10 rounded-2xl shadow-[0_12px_30px_rgba(0,0,0,0.35)]">
+                        <Container variant="default" padding="md" className="mt-6">
                             <h4 className="text-sm font-medium text-white mb-2">Detalhes Técnicos</h4>
                             <div className="space-y-2 text-xs text-zinc-400">
                                 <div className="flex justify-between">
@@ -227,13 +228,13 @@ export function SubmissionDetailView({
                                     <span className="font-mono">{selectedTemplate.id.slice(0, 8)}...</span>
                                 </div>
                             </div>
-                        </div>
+                        </Container>
                     </div>
                 ) : (
-                    <div className="h-full flex flex-col items-center justify-center text-zinc-500 border border-dashed border-white/10 rounded-2xl bg-zinc-900/60 shadow-[0_12px_30px_rgba(0,0,0,0.35)]">
+                    <Container variant="default" padding="none" className="h-full flex flex-col items-center justify-center text-zinc-500 border-dashed">
                         <Eye className="w-12 h-12 mb-4 opacity-50" />
                         <p className="text-sm">Selecione um template para visualizar</p>
-                    </div>
+                    </Container>
                 )}
             </div>
         </div>

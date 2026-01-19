@@ -3,7 +3,10 @@
 import React from 'react';
 import { PrefetchLink } from '@/components/ui/PrefetchLink';
 import { Page, PageActions, PageDescription, PageHeader, PageTitle } from '@/components/ui/page';
-import { Send, TrendingUp, AlertCircle, CheckCircle2, MoreHorizontal, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { Container } from '@/components/ui/container';
+import { StatCard } from '@/components/ui/stat-card';
+import { StatusBadge } from '@/components/ui/status-badge';
+import { Send, TrendingUp, AlertCircle, CheckCircle2, MoreHorizontal, ArrowUpRight } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from '@/components/ui/lazy-charts';
 import { Campaign, CampaignStatus } from '../../../types';
 import { DashboardStats } from '../../../services/dashboardService';
@@ -14,53 +17,23 @@ interface DashboardViewProps {
   isLoading: boolean;
 }
 
-interface StatCardProps {
-  title: string;
-  value: string;
-  icon: React.ComponentType<{ size?: number; className?: string }>;
-  color: string;
-}
-
-const StatCard = ({ title, value, icon: Icon, color }: StatCardProps) => {
-  // Map color prop to actual Tailwind classes
-  const colorStyles: Record<string, { bg: string; text: string }> = {
-    'bg-blue-500': { bg: 'bg-blue-500/20', text: 'text-blue-400' },
-    'bg-emerald-500': { bg: 'bg-emerald-500/20', text: 'text-emerald-400' },
-    'bg-purple-500': { bg: 'bg-purple-500/20', text: 'text-purple-400' },
-    'bg-red-500': { bg: 'bg-red-500/20', text: 'text-red-400' },
+/**
+ * Mapeia CampaignStatus enum para status do StatusBadge
+ */
+const getCampaignBadgeStatus = (status: CampaignStatus) => {
+  const map: Record<CampaignStatus, 'completed' | 'sending' | 'failed' | 'draft' | 'paused' | 'scheduled' | 'default'> = {
+    [CampaignStatus.COMPLETED]: 'completed',
+    [CampaignStatus.SENDING]: 'sending',
+    [CampaignStatus.FAILED]: 'failed',
+    [CampaignStatus.DRAFT]: 'draft',
+    [CampaignStatus.PAUSED]: 'paused',
+    [CampaignStatus.SCHEDULED]: 'scheduled',
+    [CampaignStatus.CANCELLED]: 'default',
   };
-  
-  const styles = colorStyles[color] || { bg: 'bg-zinc-500/20', text: 'text-zinc-400' };
-  
-  return (
-    <div className="rounded-2xl border border-white/10 bg-gradient-to-b from-white/[0.04] via-white/[0.02] to-transparent shadow-[0_0_40px_rgba(0,0,0,0.4)] transition-colors group">
-      <div className="p-6 rounded-[18px] bg-zinc-950/40 backdrop-blur-[6px]">
-      <div className="flex items-start justify-between mb-6">
-        <div className={`relative p-3 rounded-xl ${styles.bg} border border-white/10`}>
-          <div className={`absolute -inset-2 rounded-2xl opacity-60 blur-lg ${styles.text}`} />
-          <Icon size={20} className={`${styles.text} relative`} />
-        </div>
-      </div>
-      <div>
-        <h3 className="text-[28px] font-semibold text-white mb-1 tracking-tight">{value}</h3>
-        <p className="text-sm text-gray-400 font-medium">{title}</p>
-      </div>
-      </div>
-    </div>
-  );
+  return map[status] || 'default';
 };
 
-const StatusBadge = ({ status }: { status: CampaignStatus }) => {
-  const styles: Record<CampaignStatus, string> = {
-    [CampaignStatus.COMPLETED]: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
-    [CampaignStatus.SENDING]: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
-    [CampaignStatus.FAILED]: 'bg-red-500/10 text-red-400 border-red-500/20',
-    [CampaignStatus.DRAFT]: 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20',
-    [CampaignStatus.PAUSED]: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
-    [CampaignStatus.SCHEDULED]: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
-    [CampaignStatus.CANCELLED]: 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20',
-  };
-
+const getCampaignLabel = (status: CampaignStatus) => {
   const labels: Record<CampaignStatus, string> = {
     [CampaignStatus.COMPLETED]: 'Concluído',
     [CampaignStatus.SENDING]: 'Enviando',
@@ -70,43 +43,14 @@ const StatusBadge = ({ status }: { status: CampaignStatus }) => {
     [CampaignStatus.SCHEDULED]: 'Agendado',
     [CampaignStatus.CANCELLED]: 'Cancelada',
   };
-
-  return (
-    <span className={`px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wider border ${styles[status]}`}>
-      {labels[status]}
-    </span>
-  );
+  return labels[status];
 };
 
 export const DashboardView: React.FC<DashboardViewProps> = ({ stats, recentCampaigns, isLoading }) => {
-  // Skeleton loader for stats cards
   const [range, setRange] = React.useState<'7D' | '15D' | '30D'>('7D');
   const [isMounted, setIsMounted] = React.useState(false);
   const rangeSize = range === '7D' ? 7 : range === '15D' ? 15 : 30;
   const chartData = stats.chartData || [];
-  const StatSkeleton = () => (
-    <div className="glass-panel p-6 rounded-2xl">
-      <div className="flex items-start justify-between mb-6">
-        <div className="w-12 h-12 rounded-xl bg-zinc-700/50 animate-pulse" />
-        <div className="w-16 h-6 rounded-full bg-zinc-700/50 animate-pulse" style={{ animationDelay: '150ms' }} />
-      </div>
-      <div>
-        <div className="w-20 h-9 bg-zinc-700/50 rounded mb-2 animate-pulse" style={{ animationDelay: '300ms' }} />
-        <div className="w-28 h-4 bg-zinc-700/50 rounded animate-pulse" style={{ animationDelay: '450ms' }} />
-      </div>
-    </div>
-  );
-
-  // Skeleton loader for campaign rows
-  const CampaignSkeleton = () => (
-    <div className="flex items-center justify-between py-4 px-4">
-      <div className="flex-1">
-        <div className="w-40 h-5 bg-zinc-700/50 rounded mb-2 animate-pulse" />
-        <div className="w-24 h-3 bg-zinc-700/50 rounded animate-pulse" style={{ animationDelay: '150ms' }} />
-      </div>
-      <div className="w-20 h-6 bg-zinc-700/50 rounded-full animate-pulse" style={{ animationDelay: '300ms' }} />
-    </div>
-  );
 
   React.useEffect(() => {
     // Aguarda o browser calcular as dimensões do container antes de renderizar o chart
@@ -137,49 +81,41 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ stats, recentCampa
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        {isLoading ? (
-          <>
-            <StatSkeleton />
-            <StatSkeleton />
-            <StatSkeleton />
-            <StatSkeleton />
-          </>
-        ) : (
-          <>
-            <StatCard 
-              title="Total Enviado" 
-              value={stats.sent24h} 
-              icon={Send} 
-              color="bg-blue-500"
-            />
-            <StatCard 
-              title="Taxa de Entrega" 
-              value={stats.deliveryRate} 
-              icon={CheckCircle2} 
-              color="bg-emerald-500"
-            />
-            <StatCard 
-              title="Campanhas Ativas" 
-              value={stats.activeCampaigns} 
-              icon={TrendingUp} 
-              color="bg-purple-500"
-            />
-            <StatCard 
-              title="Falhas no Envio" 
-              value={stats.failedMessages} 
-              icon={AlertCircle} 
-              color="bg-red-500"
-            />
-          </>
-        )}
+        <StatCard
+          title="Total Enviado"
+          value={stats.sent24h}
+          icon={Send}
+          color="blue"
+          loading={isLoading}
+        />
+        <StatCard
+          title="Taxa de Entrega"
+          value={stats.deliveryRate}
+          icon={CheckCircle2}
+          color="emerald"
+          loading={isLoading}
+        />
+        <StatCard
+          title="Campanhas Ativas"
+          value={stats.activeCampaigns}
+          icon={TrendingUp}
+          color="purple"
+          loading={isLoading}
+        />
+        <StatCard
+          title="Falhas no Envio"
+          value={stats.failedMessages}
+          icon={AlertCircle}
+          color="red"
+          loading={isLoading}
+        />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Chart Section */}
-        <div className="lg:col-span-2 rounded-2xl border border-white/10 bg-gradient-to-b from-white/[0.04] via-white/[0.02] to-transparent shadow-[0_0_40px_rgba(0,0,0,0.4)]">
-          <div className="p-8 rounded-[18px] bg-zinc-950/40 backdrop-blur-[6px]">
+        <Container variant="glass" padding="lg" className="lg:col-span-2">
           <div className="flex items-center justify-between mb-8">
-            <h3 className="text-lg font-semibold text-white" id="chart-title">Volume de Mensagens</h3>
+            <h3 className="text-heading-4" id="chart-title">Volume de Mensagens</h3>
             <div className="flex gap-2" role="group" aria-label="Período do gráfico">
               {[
                 { key: '7D', label: 'Últimos 7 dias' },
@@ -251,13 +187,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ stats, recentCampa
             Os dados são atualizados automaticamente.
           </p>
         </figure>
-          </div>
-        </div>
+        </Container>
 
         {/* Recent Activity */}
-        <div className="rounded-2xl border border-white/10 bg-gradient-to-b from-white/[0.04] via-white/[0.02] to-transparent shadow-[0_0_40px_rgba(0,0,0,0.4)] flex flex-col">
-          <div className="p-6 border-b border-white/10 flex justify-between items-center bg-zinc-950/40 backdrop-blur-[6px] rounded-t-[18px]">
-            <h3 className="text-lg font-semibold text-white">Campanhas Recentes</h3>
+        <Container variant="glass" padding="none" className="flex flex-col overflow-hidden">
+          <div className="p-6 border-b border-white/10 flex justify-between items-center">
+            <h3 className="text-heading-4">Campanhas Recentes</h3>
             <button 
               aria-label="Mais opções"
               className="text-gray-500 hover:text-white transition-colors"
@@ -286,7 +221,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ stats, recentCampa
                         <p className="text-gray-500 text-xs mt-1 font-mono">{new Date(campaign.createdAt).toLocaleDateString('pt-BR')}</p>
                       </td>
                       <td className="px-6 py-5 text-right">
-                        <StatusBadge status={campaign.status} />
+                        <StatusBadge status={getCampaignBadgeStatus(campaign.status)} size="sm">
+                          {getCampaignLabel(campaign.status)}
+                        </StatusBadge>
                       </td>
                     </tr>
                   ))}
@@ -294,12 +231,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ stats, recentCampa
               </table>
             )}
           </div>
-            <div className="p-4 border-t border-white/10 text-center bg-zinc-950/40 backdrop-blur-[6px] rounded-b-[18px]">
-            <PrefetchLink href="/campaigns" className="text-sm text-gray-400 hover:text-white transition-colors flex items-center justify-center gap-2">
+          <div className="p-4 border-t border-white/10 text-center">
+            <PrefetchLink href="/campaigns" className="text-label-sm hover:text-white transition-colors flex items-center justify-center gap-2">
               Ver Todas <ArrowUpRight size={14} />
             </PrefetchLink>
           </div>
-        </div>
+        </Container>
       </div>
     </Page>
   );

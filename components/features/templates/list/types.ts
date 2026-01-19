@@ -24,6 +24,14 @@ export interface TemplateListViewProps {
   statusFilter: StatusFilterType;
   setStatusFilter: (status: StatusFilterType) => void;
   onSync: () => void;
+  // Status counts for filter pills
+  statusCounts?: {
+    APPROVED: number;
+    PENDING: number;
+    REJECTED: number;
+    DRAFT: number;
+    ALL: number;
+  };
 
   // Manual drafts (para acoes especificas de rascunho manual dentro da lista geral)
   manualDraftIds: Set<string>;

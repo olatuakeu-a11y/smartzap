@@ -12,6 +12,8 @@ import {
   Trash2,
 } from 'lucide-react';
 import { WebhookSubscription } from './types';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import { StatusBadge } from '@/components/ui/status-badge';
 
 interface WebhookSubscriptionStatusProps {
   webhookSubscription?: WebhookSubscription | null;
@@ -85,8 +87,7 @@ export function WebhookSubscriptionStatus({
           ) : webhookSubscription?.ok ? (
             webhookSubscription.messagesSubscribed ? (
               <>
-                <CheckCircle2 size={16} className="text-emerald-400" />
-                <span className="text-emerald-300">Ativo</span>
+                <StatusBadge status="success" showDot>Ativo</StatusBadge>
                 <span className="text-gray-500">·</span>
                 <span className="text-gray-400 text-xs">
                   WABA: {webhookSubscription.wabaId}
@@ -94,8 +95,7 @@ export function WebhookSubscriptionStatus({
               </>
             ) : (
               <>
-                <AlertCircle size={16} className="text-amber-400" />
-                <span className="text-amber-300">Inativo (via API)</span>
+                <StatusBadge status="warning" showDot>Inativo (via API)</StatusBadge>
                 <span className="text-gray-500">·</span>
                 <span className="text-gray-400 text-xs">
                   WABA: {webhookSubscription.wabaId}
@@ -103,10 +103,7 @@ export function WebhookSubscriptionStatus({
               </>
             )
           ) : (
-            <>
-              <AlertTriangle size={16} className="text-red-400" />
-              <span className="text-red-300">Erro ao consultar</span>
-            </>
+            <StatusBadge status="error" showDot>Erro ao consultar</StatusBadge>
           )}
         </div>
 
@@ -123,20 +120,24 @@ export function WebhookSubscriptionStatus({
           !webhookSubscriptionLoading &&
           webhookSubscription.ok &&
           !webhookSubscription.messagesSubscribed && (
-            <div className="text-[11px] text-amber-300/70 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
-              Se no painel da Meta estiver "Ativo" e aqui não, pode haver atraso de propagação
-              ou permissões do token. Clique em "Atualizar status" ou use "Ativar messages"
-              para forçar via API.
-            </div>
+            <Alert variant="warning" className="py-2">
+              <AlertDescription className="text-[11px] mt-0">
+                Se no painel da Meta estiver "Ativo" e aqui não, pode haver atraso de propagação
+                ou permissões do token. Clique em "Atualizar status" ou use "Ativar messages"
+                para forçar via API.
+              </AlertDescription>
+            </Alert>
           )}
 
         {webhookSubscription &&
           !webhookSubscriptionLoading &&
           !webhookSubscription.ok &&
           webhookSubscription.error && (
-            <div className="text-xs text-red-300/90 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
-              {webhookSubscription.error}
-            </div>
+            <Alert variant="error" className="py-2">
+              <AlertDescription className="text-xs mt-0">
+                {webhookSubscription.error}
+              </AlertDescription>
+            </Alert>
           )}
 
         <div className="flex flex-wrap gap-2">

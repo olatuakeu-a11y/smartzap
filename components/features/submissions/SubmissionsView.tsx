@@ -5,6 +5,7 @@ import { Search, ChevronLeft, ChevronRight, Loader2, Inbox, Phone, Calendar, Fil
 import { Page, PageHeader, PageTitle, PageDescription } from '@/components/ui/page'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
+import { Container } from '@/components/ui/container'
 import { SubmissionsController } from '@/hooks/useSubmissions'
 import { FlowSubmission } from '@/services/submissionsService'
 
@@ -35,7 +36,7 @@ function SubmissionCard({
   const campaignName = submission.campaign?.name
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-zinc-900/60 p-5 hover:bg-zinc-900/80 transition-colors">
+    <Container variant="default" padding="lg" hover className="hover:bg-zinc-900/80 transition-colors">
       {/* Header */}
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center gap-3">
@@ -91,7 +92,7 @@ function SubmissionCard({
       ) : (
         <div className="text-sm text-gray-500 pl-11 italic">Sem dados do formulário</div>
       )}
-    </div>
+    </Container>
   )
 }
 
@@ -127,7 +128,7 @@ function LoadingSkeleton() {
   return (
     <div className="space-y-4">
       {[1, 2, 3].map((i) => (
-        <div key={i} className="rounded-2xl border border-white/10 bg-zinc-900/60 p-5 animate-pulse">
+        <Container key={i} variant="default" padding="lg" className="animate-pulse">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-10 h-10 rounded-xl bg-zinc-700/50" />
             <div>
@@ -139,7 +140,7 @@ function LoadingSkeleton() {
             <div className="w-48 h-4 bg-zinc-700/50 rounded" />
             <div className="w-36 h-4 bg-zinc-700/50 rounded" />
           </div>
-        </div>
+        </Container>
       ))}
     </div>
   )

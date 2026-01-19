@@ -1,6 +1,7 @@
 'use client'
 
 import React from 'react'
+import { Container } from '@/components/ui/container'
 import { Input } from '@/components/ui/input'
 import {
   Select,
@@ -34,7 +35,7 @@ export function AuthenticationPanel({ spec, update }: AuthenticationPanelProps) 
   }
 
   return (
-    <div className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-3">
+    <Container variant="subtle" padding="md" className="space-y-3">
       <div className="text-sm font-semibold text-white">Autenticacao (Auth)</div>
       
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -74,6 +75,6 @@ export function AuthenticationPanel({ spec, update }: AuthenticationPanelProps) 
           />
         </div>
       </div>
-    </div>
+    </Container>
   )
 }

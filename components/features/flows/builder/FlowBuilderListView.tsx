@@ -8,6 +8,8 @@ import { Plus, Trash2, ArrowRight, RefreshCw } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Container } from '@/components/ui/container'
+import { StatusBadge } from '@/components/ui/status-badge'
 import { CreateFlowFromTemplateDialog } from '@/components/features/flows/builder/CreateFlowFromTemplateDialog'
 import type { FlowRow } from '@/services/flowsService'
 
@@ -46,7 +48,7 @@ export function FlowBuilderListView(props: {
 
   return (
     <div className="space-y-6">
-      <div className="rounded-2xl border border-white/10 bg-zinc-900/60 p-6 shadow-[0_12px_30px_rgba(0,0,0,0.35)]">
+      <Container variant="glass" padding="lg">
         <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
@@ -126,9 +128,9 @@ export function FlowBuilderListView(props: {
           {props.isLoading ? 'Carregando…' : `Mostrando ${props.flows.length} MiniApp(s)`}
           {props.isFetching && !props.isLoading ? ' (atualizando…)': ''}
         </div>
-      </div>
+      </Container>
 
-      <div className="rounded-2xl border border-white/10 bg-zinc-900/60 shadow-[0_12px_30px_rgba(0,0,0,0.35)] overflow-hidden">
+      <Container variant="glass" padding="none" className="overflow-hidden">
         <table className="w-full text-left text-sm">
           <thead className="bg-zinc-950/40">
             <tr className="text-gray-300">
@@ -150,7 +152,14 @@ export function FlowBuilderListView(props: {
               props.flows.map((f) => (
                 <tr key={f.id} className="border-t border-white/10 hover:bg-white/5">
                   <td className="px-4 py-3 text-gray-200 font-medium">{f.name}</td>
-                  <td className="px-4 py-3 text-gray-300">{f.status}</td>
+                  <td className="px-4 py-3">
+                    <StatusBadge
+                      status={f.status === 'published' ? 'success' : f.status === 'draft' ? 'draft' : 'default'}
+                      size="sm"
+                    >
+                      {f.status === 'published' ? 'Publicado' : f.status === 'draft' ? 'Rascunho' : f.status}
+                    </StatusBadge>
+                  </td>
                   <td className="px-4 py-3 font-mono text-xs text-gray-300">{f.meta_flow_id || '—'}</td>
                   <td className="px-4 py-3 text-gray-400">{formatDateTime(f.created_at)}</td>
                   <td className="px-4 py-3">
@@ -163,8 +172,8 @@ export function FlowBuilderListView(props: {
                       </Link>
                       <Button
                         type="button"
-                        variant="ghost"
-                        className="text-red-300 hover:text-red-200"
+                        variant="ghost-destructive"
+                        size="icon"
                         onClick={() => props.onDelete(f.id)}
                         disabled={props.isDeleting}
                       >
@@ -177,7 +186,7 @@ export function FlowBuilderListView(props: {
             )}
           </tbody>
         </table>
-      </div>
+      </Container>
     </div>
   )
 }

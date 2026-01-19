@@ -4,6 +4,7 @@ import React from 'react'
 import { useRouter } from 'next/navigation'
 import { FileText, RefreshCw, Plus, Trash2, Send, Pencil } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Container } from '@/components/ui/container'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 import type { ManualDraftTemplate } from '@/hooks/useManualDrafts'
@@ -134,7 +135,7 @@ export function ManualDraftsView({
       </div>
 
       <div className="space-y-6 max-w-[min(900px,100%)]">
-        <div className="rounded-2xl border border-white/10 bg-zinc-900/60 p-6 shadow-[0_12px_30px_rgba(0,0,0,0.35)] flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <Container variant="default" padding="lg" className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
             <div className="text-xs uppercase tracking-widest text-gray-500">Etapas</div>
             <div className="flex flex-wrap items-center gap-2 text-xs text-gray-400">
@@ -160,9 +161,9 @@ export function ManualDraftsView({
               Atualizar
             </Button>
           </div>
-        </div>
+        </Container>
 
-        <div className="rounded-2xl border border-white/10 bg-zinc-900/60 p-6 shadow-[0_12px_30px_rgba(0,0,0,0.35)] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <Container variant="default" padding="lg" className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -172,9 +173,9 @@ export function ManualDraftsView({
           <div className="text-xs text-gray-400">
             {drafts.length} rascunho(s) • {readyDrafts.length} pronto(s) para envio
           </div>
-        </div>
+        </Container>
 
-        <div className="rounded-2xl border border-white/10 bg-zinc-900/60 shadow-[0_12px_30px_rgba(0,0,0,0.35)] overflow-hidden">
+        <Container variant="default" padding="none" className="overflow-hidden">
         {isLoading ? (
           <div className="px-6 py-10 text-center text-gray-400">Carregando...</div>
         ) : drafts.length === 0 ? (
@@ -315,7 +316,7 @@ export function ManualDraftsView({
             )}
           </div>
         )}
-        </div>
+        </Container>
       </div>
 
       <div className="text-xs text-gray-500">

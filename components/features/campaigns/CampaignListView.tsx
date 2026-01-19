@@ -3,21 +3,17 @@ import React from 'react';
 import { Search, RefreshCw, Copy, Trash2, Calendar, Play, Pause, Loader2 } from 'lucide-react';
 import { Campaign, CampaignStatus } from '../../../types';
 import { Page, PageDescription, PageHeader, PageTitle } from '@/components/ui/page';
+import { Container } from '@/components/ui/container';
+import { StatusBadge as DsStatusBadge } from '@/components/ui/status-badge';
+import { Progress } from '@/components/ui/progress';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Button } from '@/components/ui/button';
+import { CampaignCardList } from './CampaignCard';
+import { useIsMobile } from '@/hooks/useMediaQuery';
 
 // =============================================================================
-// CONSTANTS - Moved outside component to avoid recreation on each render
+// CONSTANTS - Status labels e mapeamento para DS
 // =============================================================================
-
-const STATUS_STYLES = {
-  [CampaignStatus.COMPLETED]: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
-  [CampaignStatus.SENDING]: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
-  [CampaignStatus.FAILED]: 'bg-red-500/10 text-red-400 border-red-500/20',
-  [CampaignStatus.DRAFT]: 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20',
-  [CampaignStatus.PAUSED]: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
-  [CampaignStatus.SCHEDULED]: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
-  [CampaignStatus.CANCELLED]: 'bg-zinc-800 text-gray-300 border-zinc-700/70',
-} as const;
 
 const STATUS_LABELS = {
   [CampaignStatus.COMPLETED]: 'Concluído',
@@ -28,6 +24,22 @@ const STATUS_LABELS = {
   [CampaignStatus.SCHEDULED]: 'Agendado',
   [CampaignStatus.CANCELLED]: 'Cancelado',
 } as const;
+
+/**
+ * Mapeia CampaignStatus enum para status do StatusBadge do DS
+ */
+const getCampaignBadgeStatus = (status: CampaignStatus) => {
+  const map: Record<CampaignStatus, 'completed' | 'sending' | 'failed' | 'draft' | 'paused' | 'scheduled' | 'default'> = {
+    [CampaignStatus.COMPLETED]: 'completed',
+    [CampaignStatus.SENDING]: 'sending',
+    [CampaignStatus.FAILED]: 'failed',
+    [CampaignStatus.DRAFT]: 'draft',
+    [CampaignStatus.PAUSED]: 'paused',
+    [CampaignStatus.SCHEDULED]: 'scheduled',
+    [CampaignStatus.CANCELLED]: 'default',
+  };
+  return map[status] || 'default';
+};
 
 interface CampaignListViewProps {
   campaigns: Campaign[];
@@ -54,18 +66,17 @@ interface CampaignListViewProps {
   duplicatingId?: string;
 }
 
+/**
+ * StatusBadge usando Design System
+ * Wrapper local para manter a interface existente
+ */
 const StatusBadge = ({ status }: { status: CampaignStatus }) => (
-  <span
-    className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium border whitespace-nowrap select-none ${STATUS_STYLES[status]}`}
+  <DsStatusBadge
+    status={getCampaignBadgeStatus(status)}
+    showDot={status === CampaignStatus.SENDING}
   >
-    {status === CampaignStatus.SENDING && (
-      <span className="relative flex h-2 w-2 mr-1.5">
-        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-        <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
-      </span>
-    )}
     {STATUS_LABELS[status]}
-  </span>
+  </DsStatusBadge>
 );
 
 function formatDuration(ms: number): string {
@@ -156,14 +167,15 @@ const CampaignTableRow = React.memo(
           {recipients.toLocaleString('pt-BR')}
         </td>
         <td className="px-6 py-4">
-          <div className="flex items-center gap-3">
-            <div className="flex-1 w-24 bg-zinc-800 rounded-full h-1">
-              <div
-                className="bg-primary-500 h-1 rounded-full shadow-[0_0_10px_rgba(16,185,129,0.5)]"
-                style={{ width: `${deliveryPct}%` }}
-              />
-            </div>
-            <span className="text-xs text-gray-400 font-mono">{deliveryPctRounded}%</span>
+          <div className="w-32">
+            <Progress
+              value={deliveryPct}
+              color="brand"
+              size="sm"
+              showLabel
+              labelPosition="right"
+              formatLabel={() => `${deliveryPctRounded}%`}
+            />
           </div>
         </td>
         <td className="px-6 py-4 text-gray-400 font-mono">
@@ -185,18 +197,19 @@ const CampaignTableRow = React.memo(
             {onDuplicate && (
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <button
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
                     onClick={(e) => { e.stopPropagation(); onDuplicate(campaign.id); }}
                     aria-label={`Clonar campanha ${campaign.name}`}
                     disabled={isDuplicating}
-                    className="p-2 rounded-lg text-gray-400 hover:text-primary-400 hover:bg-primary-500/10 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2 transition-all"
                   >
                     {isDuplicating ? (
-                      <Loader2 size={16} className="animate-spin text-primary-400" aria-hidden="true" />
+                      <Loader2 size={16} className="animate-spin" aria-hidden="true" />
                     ) : (
                       <Copy size={16} aria-hidden="true" />
                     )}
-                  </button>
+                  </Button>
                 </TooltipTrigger>
                 <TooltipContent>
                   <p>Clonar campanha</p>
@@ -208,14 +221,15 @@ const CampaignTableRow = React.memo(
             {(campaign.status === CampaignStatus.SCHEDULED || campaign.status === CampaignStatus.DRAFT) && onStart && (
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <button
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
                     onClick={(e) => { e.stopPropagation(); onStart(campaign.id); }}
                     aria-label={`Iniciar campanha ${campaign.name} agora`}
                     disabled={isStarting}
-                    className="p-2 rounded-lg text-gray-400 hover:text-primary-400 hover:bg-primary-500/10 disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2 transition-all"
                   >
                     <Play size={16} aria-hidden="true" />
-                  </button>
+                  </Button>
                 </TooltipTrigger>
                 <TooltipContent>
                   <p>Iniciar agora</p>
@@ -227,14 +241,15 @@ const CampaignTableRow = React.memo(
             {campaign.status === CampaignStatus.SENDING && onPause && (
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <button
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
                     onClick={(e) => { e.stopPropagation(); onPause(campaign.id); }}
                     aria-label={`Pausar envio da campanha ${campaign.name}`}
                     disabled={isPausing}
-                    className="p-2 rounded-lg text-gray-400 hover:text-amber-400 hover:bg-amber-500/10 disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-500 focus-visible:outline-offset-2 transition-all"
                   >
                     <Pause size={16} aria-hidden="true" />
-                  </button>
+                  </Button>
                 </TooltipTrigger>
                 <TooltipContent>
                   <p>Pausar envio</p>
@@ -246,14 +261,15 @@ const CampaignTableRow = React.memo(
             {campaign.status === CampaignStatus.PAUSED && onResume && (
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <button
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
                     onClick={(e) => { e.stopPropagation(); onResume(campaign.id); }}
                     aria-label={`Retomar envio da campanha ${campaign.name}`}
                     disabled={isResuming}
-                    className="p-2 rounded-lg text-gray-400 hover:text-primary-400 hover:bg-primary-500/10 disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2 transition-all"
                   >
                     <Play size={16} aria-hidden="true" />
-                  </button>
+                  </Button>
                 </TooltipTrigger>
                 <TooltipContent>
                   <p>Retomar envio</p>
@@ -263,18 +279,19 @@ const CampaignTableRow = React.memo(
 
             <Tooltip>
               <TooltipTrigger asChild>
-                <button
+                <Button
+                  variant="ghost-destructive"
+                  size="icon-sm"
                   onClick={(e) => { e.stopPropagation(); onDelete(campaign.id); }}
                   aria-label={`Excluir campanha ${campaign.name}`}
                   disabled={isDeleting}
-                  className="p-2 rounded-lg text-gray-400 hover:text-red-400 hover:bg-red-500/10 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-red-500 focus-visible:outline-offset-2 transition-all"
                 >
                   {isDeleting ? (
-                    <Loader2 size={16} className="animate-spin text-red-400" aria-hidden="true" />
+                    <Loader2 size={16} className="animate-spin" aria-hidden="true" />
                   ) : (
                     <Trash2 size={16} aria-hidden="true" />
                   )}
-                </button>
+                </Button>
               </TooltipTrigger>
               <TooltipContent>
                 <p>Excluir campanha</p>
@@ -327,6 +344,8 @@ export const CampaignListView: React.FC<CampaignListViewProps> = ({
   deletingId,
   duplicatingId,
 }) => {
+  const isMobile = useIsMobile();
+
   return (
     <Page>
       <PageHeader>
@@ -337,7 +356,7 @@ export const CampaignListView: React.FC<CampaignListViewProps> = ({
       </PageHeader>
 
       {/* Filters Bar */}
-      <div className="glass-panel p-4 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <Container variant="glass" padding="md" className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3 w-full sm:w-96 bg-zinc-900 border border-white/5 rounded-lg px-4 py-2.5 focus-within:border-primary-500/50 focus-within:ring-1 focus-within:ring-primary-500/50 transition-all">
           <Search size={18} className="text-gray-500" aria-hidden="true" />
           <input
@@ -352,13 +371,14 @@ export const CampaignListView: React.FC<CampaignListViewProps> = ({
         <div className="flex items-center gap-2">
           <Tooltip>
             <TooltipTrigger asChild>
-              <button
+              <Button
+                variant="outline"
+                size="icon"
                 onClick={onRefresh}
-                className="p-2.5 text-gray-400 hover:text-white hover:bg-white/5 rounded-lg border border-white/10 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2"
                 aria-label="Atualizar lista de campanhas"
               >
                 <RefreshCw size={18} aria-hidden="true" />
-              </button>
+              </Button>
             </TooltipTrigger>
             <TooltipContent>
               <p>Atualizar lista</p>
@@ -380,127 +400,147 @@ export const CampaignListView: React.FC<CampaignListViewProps> = ({
             <option value={CampaignStatus.CANCELLED}>Cancelado</option>
           </select>
         </div>
-      </div>
+      </Container>
 
-      {/* Table */}
-      <div className="glass-panel rounded-xl overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-white/5 border-b border-white/5 text-gray-400 uppercase tracking-wider text-xs">
-              <tr>
-                <th className="px-6 py-4 font-medium">Nome</th>
-                <th className="px-6 py-4 font-medium">Status</th>
-                <th className="px-6 py-4 font-medium">Destinatários</th>
-                <th className="px-6 py-4 font-medium">Entrega</th>
-                <th className="px-6 py-4 font-medium">Envio</th>
-                <th className="px-6 py-4 font-medium">Criado em</th>
-                <th className="px-6 py-4 font-medium text-right">Ações</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/5">
-              {isLoading ? (
+      {/* Table (Desktop) / Cards (Mobile) */}
+      {isMobile ? (
+        <CampaignCardList
+          campaigns={campaigns}
+          isLoading={isLoading}
+          searchTerm={searchTerm}
+          filter={filter}
+          onRowClick={onRowClick}
+          onDelete={onDelete}
+          onDuplicate={onDuplicate}
+          onPause={onPause}
+          onResume={onResume}
+          onStart={onStart}
+          isPausing={isPausing}
+          isResuming={isResuming}
+          isStarting={isStarting}
+          deletingId={deletingId}
+          duplicatingId={duplicatingId}
+        />
+      ) : (
+        <Container variant="glass" padding="none" className="overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-white/5 border-b border-white/5 text-gray-400 uppercase tracking-wider text-xs">
                 <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
-                    Carregando campanhas...
-                  </td>
+                  <th className="px-6 py-4 font-medium">Nome</th>
+                  <th className="px-6 py-4 font-medium">Status</th>
+                  <th className="px-6 py-4 font-medium">Destinatarios</th>
+                  <th className="px-6 py-4 font-medium">Entrega</th>
+                  <th className="px-6 py-4 font-medium">Envio</th>
+                  <th className="px-6 py-4 font-medium">Criado em</th>
+                  <th className="px-6 py-4 font-medium text-right">Acoes</th>
                 </tr>
-              ) : campaigns.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="px-6 py-16 text-center">
-                    <div className="flex flex-col items-center gap-3">
-                      <div className="w-12 h-12 rounded-full bg-zinc-800 flex items-center justify-center">
-                        <Search size={24} className="text-gray-500" aria-hidden="true" />
+              </thead>
+              <tbody className="divide-y divide-white/5">
+                {isLoading ? (
+                  <tr>
+                    <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
+                      Carregando campanhas...
+                    </td>
+                  </tr>
+                ) : campaigns.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="px-6 py-16 text-center">
+                      <div className="flex flex-col items-center gap-3">
+                        <div className="w-12 h-12 rounded-full bg-zinc-800 flex items-center justify-center">
+                          <Search size={24} className="text-gray-500" aria-hidden="true" />
+                        </div>
+                        <div>
+                          <p className="text-gray-400 font-medium">Nenhuma campanha encontrada</p>
+                          <p className="text-gray-600 text-sm mt-1">
+                            {searchTerm || filter !== 'All'
+                              ? 'Tente ajustar os filtros ou buscar por outro termo'
+                              : 'Crie sua primeira campanha para comecar'}
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-gray-400 font-medium">Nenhuma campanha encontrada</p>
-                        <p className="text-gray-600 text-sm mt-1">
-                          {searchTerm || filter !== 'All' 
-                            ? 'Tente ajustar os filtros ou buscar por outro termo'
-                            : 'Crie sua primeira campanha para começar'}
-                        </p>
-                      </div>
-                    </div>
-                  </td>
-                </tr>
-              ) : (
-                campaigns.map((campaign) => (
-                  <CampaignTableRow
-                    key={campaign.id}
-                    campaign={campaign}
-                    onRowClick={onRowClick}
-                    onDelete={onDelete}
-                    onDuplicate={onDuplicate}
-                    onPause={onPause}
-                    onResume={onResume}
-                    onStart={onStart}
-                    isPausing={isPausing}
-                    isResuming={isResuming}
-                    isStarting={isStarting}
-                    deletingId={deletingId}
-                    duplicatingId={duplicatingId}
-                  />
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="px-6 py-4 border-t border-white/5 flex items-center justify-between">
-            <span className="text-sm text-gray-500" aria-live="polite">
-              Página {currentPage} de {totalPages} • {totalFiltered} campanha(s)
-            </span>
-            <nav className="flex items-center gap-2" aria-label="Paginação de campanhas">
-              <button
-                onClick={() => onPageChange(currentPage - 1)}
-                disabled={currentPage === 1}
-                className="p-2 rounded-lg border border-white/10 text-gray-400 hover:text-white hover:bg-white/5 disabled:opacity-30 disabled:cursor-not-allowed transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2"
-                aria-label="Página anterior"
-              >
-                <span aria-hidden="true">&lt;</span>
-              </button>
-              <div className="flex items-center gap-1">
-                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                  let pageNum: number;
-                  if (totalPages <= 5) {
-                    pageNum = i + 1;
-                  } else if (currentPage <= 3) {
-                    pageNum = i + 1;
-                  } else if (currentPage >= totalPages - 2) {
-                    pageNum = totalPages - 4 + i;
-                  } else {
-                    pageNum = currentPage - 2 + i;
-                  }
-
-                  return (
-                    <button
-                      key={pageNum}
-                      onClick={() => onPageChange(pageNum)}
-                      className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2 ${currentPage === pageNum
-                        ? 'bg-primary-500 text-white'
-                        : 'text-gray-400 hover:text-white hover:bg-white/5'
-                        }`}
-                      aria-label={`Ir para página ${pageNum}`}
-                      aria-current={currentPage === pageNum ? 'page' : undefined}
-                    >
-                      {pageNum}
-                    </button>
-                  );
-                })}
-              </div>
-              <button
-                onClick={() => onPageChange(currentPage + 1)}
-                disabled={currentPage === totalPages}
-                className="p-2 rounded-lg border border-white/10 text-gray-400 hover:text-white hover:bg-white/5 disabled:opacity-30 disabled:cursor-not-allowed transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2"
-                aria-label="Próxima página"
-              >
-                <span aria-hidden="true">&gt;</span>
-              </button>
-            </nav>
+                    </td>
+                  </tr>
+                ) : (
+                  campaigns.map((campaign) => (
+                    <CampaignTableRow
+                      key={campaign.id}
+                      campaign={campaign}
+                      onRowClick={onRowClick}
+                      onDelete={onDelete}
+                      onDuplicate={onDuplicate}
+                      onPause={onPause}
+                      onResume={onResume}
+                      onStart={onStart}
+                      isPausing={isPausing}
+                      isResuming={isResuming}
+                      isStarting={isStarting}
+                      deletingId={deletingId}
+                      duplicatingId={duplicatingId}
+                    />
+                  ))
+                )}
+              </tbody>
+            </table>
           </div>
-        )}
-      </div>
+        </Container>
+      )}
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <Container variant="glass" padding="md" className="flex flex-col sm:flex-row items-center justify-between gap-4">
+          <span className="text-sm text-gray-500" aria-live="polite">
+            Pagina {currentPage} de {totalPages} • {totalFiltered} campanha(s)
+          </span>
+          <nav className="flex items-center gap-2" aria-label="Paginacao de campanhas">
+            <Button
+              variant="outline"
+              size="icon-sm"
+              onClick={() => onPageChange(currentPage - 1)}
+              disabled={currentPage === 1}
+              aria-label="Pagina anterior"
+            >
+              <span aria-hidden="true">&lt;</span>
+            </Button>
+            <div className="flex items-center gap-1">
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                let pageNum: number;
+                if (totalPages <= 5) {
+                  pageNum = i + 1;
+                } else if (currentPage <= 3) {
+                  pageNum = i + 1;
+                } else if (currentPage >= totalPages - 2) {
+                  pageNum = totalPages - 4 + i;
+                } else {
+                  pageNum = currentPage - 2 + i;
+                }
+
+                return (
+                  <Button
+                    key={pageNum}
+                    variant={currentPage === pageNum ? 'default' : 'ghost'}
+                    size="icon-sm"
+                    onClick={() => onPageChange(pageNum)}
+                    aria-label={`Ir para pagina ${pageNum}`}
+                    aria-current={currentPage === pageNum ? 'page' : undefined}
+                  >
+                    {pageNum}
+                  </Button>
+                );
+              })}
+            </div>
+            <Button
+              variant="outline"
+              size="icon-sm"
+              onClick={() => onPageChange(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              aria-label="Proxima pagina"
+            >
+              <span aria-hidden="true">&gt;</span>
+            </Button>
+          </nav>
+        </Container>
+      )}
     </Page>
   );
 };

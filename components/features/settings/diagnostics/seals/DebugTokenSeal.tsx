@@ -4,6 +4,7 @@ import Link from 'next/link'
 import type { MetaDiagnosticsResponse } from '@/services/metaDiagnosticsService'
 import type { MetaDiagnosticsCheckStatus } from '../types'
 import { StatusBadge } from '../StatusBadge'
+import { Container } from '@/components/ui/container'
 
 export interface DebugTokenSealProps {
   data?: MetaDiagnosticsResponse
@@ -33,7 +34,7 @@ export function DebugTokenSeal({ data }: DebugTokenSealProps) {
       : 'Aguardando primeira validacao'
 
   return (
-    <div className="glass-panel rounded-2xl p-6">
+    <Container variant="glass" padding="md">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <div className="text-xs text-gray-500">Selo</div>
@@ -64,6 +65,6 @@ export function DebugTokenSeal({ data }: DebugTokenSealProps) {
           Detalhe: {typeof dbg.error === 'string' ? dbg.error : 'Falha ao validar via /debug_token'}
         </div>
       ) : null}
-    </div>
+    </Container>
   )
 }

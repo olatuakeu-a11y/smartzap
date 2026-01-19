@@ -10,6 +10,8 @@ import { CalendarBookingPanel } from './CalendarBookingPanel';
 import { FlowEndpointPanel } from './FlowEndpointPanel';
 import { CredentialsForm } from './CredentialsForm';
 import { NgrokDevPanel } from './NgrokDevPanel';
+import { DevModePanel } from './DevModePanel';
+import { useDevMode } from '@/components/providers/DevModeProvider';
 import type { SettingsViewProps } from './types';
 
 // Re-export types for consumers
@@ -85,6 +87,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   isSavingWorkflowExecution,
 
 }) => {
+  // Dev mode hook
+  const { isDevMode } = useDevMode();
+
   // Always start collapsed
   const [isEditing, setIsEditing] = useState(false);
   const [devPublicBaseUrl, setDevPublicBaseUrl] = useState<string | null>(null);
@@ -162,7 +167,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         />
 
         {/* Meta App (opcional) — debug_token e diagnóstico avançado */}
-        {settings.isConnected && (
+        {isDevMode && settings.isConnected && (
           <MetaAppPanel
             metaApp={metaApp}
             metaAppLoading={metaAppLoading}
@@ -199,11 +204,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           />
         )}
 
-        {/* Flow Endpoint (MiniApp Dinamico) */}
-        {settings.isConnected && <FlowEndpointPanel devBaseUrl={devPublicBaseUrl} />}
+        {/* Flow Endpoint (MiniApp Dinamico) - Dev only */}
+        {isDevMode && settings.isConnected && <FlowEndpointPanel devBaseUrl={devPublicBaseUrl} />}
 
-        {/* Test Contact Section */}
-        {settings.isConnected && (
+        {/* Test Contact Section - Dev only */}
+        {isDevMode && settings.isConnected && (
           <TestContactPanel
             testContact={testContact}
             saveTestContact={saveTestContact}
@@ -244,7 +249,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         )}
 
         {/* Webhook Local (dev only) */}
-        {process.env.NODE_ENV === 'development' && <NgrokDevPanel />}
+        {isDevMode && <NgrokDevPanel />}
+
+        {/* Developer Mode Toggle - sempre visível */}
+        <DevModePanel />
 
 
         {/* Webhook Configuration Section */}

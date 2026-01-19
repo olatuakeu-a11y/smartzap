@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { RefreshCw, Sparkles, Zap } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 export interface TemplateListHeaderProps {
   templateCount: number;
@@ -47,31 +48,31 @@ export const TemplateListHeader: React.FC<TemplateListHeaderProps> = ({
           </div>
         </div>
 
-        <button
+        <Button
+          variant="brand"
           onClick={onOpenBulkModal}
-          className="flex items-center gap-2 px-4 py-2.5 bg-emerald-500 text-black rounded-xl font-semibold hover:bg-emerald-400 transition-colors focus-visible:outline focus-visible:outline-emerald-400 focus-visible:outline-offset-2"
           aria-label="Gerar templates de utilidade em massa"
         >
-          <Zap size={18} className="text-emerald-900" aria-hidden="true" />
+          <Zap size={18} aria-hidden="true" />
           Gerar UTILIDADE em Massa
-        </button>
-        <button
+        </Button>
+        <Button
+          variant="outline"
           onClick={onOpenAiModal}
-          className="flex items-center gap-2 px-4 py-2.5 bg-zinc-950/40 text-gray-200 border border-white/10 rounded-xl font-semibold hover:bg-white/5 transition-colors focus-visible:outline focus-visible:outline-emerald-400 focus-visible:outline-offset-2"
           aria-label="Criar novo template usando inteligencia artificial"
         >
-          <Sparkles size={18} className="text-emerald-300" aria-hidden="true" />
+          <Sparkles size={18} aria-hidden="true" />
           Criar com IA
-        </button>
-        <button
+        </Button>
+        <Button
+          variant="outline"
           onClick={onSync}
           disabled={isSyncing}
-          className={`flex items-center gap-2 px-4 py-2.5 bg-zinc-950/40 border border-white/10 text-gray-200 rounded-xl font-medium hover:bg-white/5 transition-colors focus-visible:outline focus-visible:outline-primary-500 focus-visible:outline-offset-2 ${isSyncing ? 'opacity-75 cursor-wait' : ''}`}
           aria-label={isSyncing ? 'Sincronizando templates com WhatsApp' : 'Sincronizar templates com WhatsApp'}
         >
           <RefreshCw size={18} className={isSyncing ? 'animate-spin' : ''} aria-hidden="true" />
           {isSyncing ? 'Sincronizando...' : 'Sincronizar'}
-        </button>
+        </Button>
       </div>
     </div>
   );

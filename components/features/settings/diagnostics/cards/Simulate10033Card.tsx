@@ -6,6 +6,7 @@ import { metaDiagnosticsService, type Simulate10033Response } from '@/services/m
 import { StatusBadge } from '../StatusBadge'
 import { Pill } from '../Pill'
 import { formatJsonMaybe } from '../utils'
+import { Container } from '@/components/ui/container'
 
 export function Simulate10033Card() {
   const [isRunning, setIsRunning] = React.useState(false)
@@ -30,7 +31,7 @@ export function Simulate10033Card() {
   const normalized = (result as { result?: { normalizedError?: Record<string, unknown> } })?.result?.normalizedError || null
 
   return (
-    <div className="glass-panel rounded-2xl p-6 border border-white/10">
+    <Container variant="glass" padding="md">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <div className="text-xs text-gray-500">Simulador</div>
@@ -90,6 +91,6 @@ export function Simulate10033Card() {
           )}
         </div>
       )}
-    </div>
+    </Container>
   )
 }

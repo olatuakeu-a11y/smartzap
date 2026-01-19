@@ -5,6 +5,7 @@ import { ArrowUpRight, FileText, Image, Phone, Video } from 'lucide-react'
 import type { TemplateButton, TemplateComponent } from '@/types'
 import { replaceTemplatePlaceholders, type TemplateParameterFormat } from '@/lib/whatsapp/placeholder'
 import { cn } from '@/lib/utils'
+import { Container } from '@/components/ui/container'
 
 type PreviewButtonKind = 'url' | 'phone_number' | 'quick_reply' | 'copy_code' | 'other'
 
@@ -344,10 +345,11 @@ export const TemplatePreviewCard: React.FC<TemplatePreviewCardProps> = ({
   const footerText = footer?.text || ''
 
   return (
-    <div
+    <Container
+      variant="glass"
+      padding="lg"
       className={cn(
-        'glass-panel rounded-2xl p-6 shadow-[0_18px_45px_rgba(0,0,0,0.45)] overflow-hidden',
-        'border border-white/10',
+        'shadow-[0_18px_45px_rgba(0,0,0,0.45)] overflow-hidden',
         className
       )}
       aria-label={`Preview do template ${templateName}`}
@@ -460,6 +462,6 @@ export const TemplatePreviewCard: React.FC<TemplatePreviewCardProps> = ({
           })}
         </div>
       ) : null}
-    </div>
+    </Container>
   )
 }

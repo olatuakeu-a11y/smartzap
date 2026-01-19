@@ -382,7 +382,8 @@ export default function CampaignsNewRealPage() {
 
   const configuredName = testContactQuery.data?.name?.trim() || configuredContact?.name || ''
   const configuredPhone = testContactQuery.data?.phone?.trim() || configuredContact?.phone || ''
-  const hasConfiguredContact = Boolean(configuredContact?.phone)
+  const hasTestPhoneInSettings = Boolean(testContactQuery.data?.phone?.trim())
+  const hasConfiguredContact = Boolean(configuredContact?.phone) || hasTestPhoneInSettings
   const configuredLabel = configuredPhone
     ? [configuredName || 'Contato de teste', configuredPhone].filter(Boolean).join(' - ')
     : 'Defina um telefone de teste'
@@ -581,7 +582,17 @@ export default function CampaignsNewRealPage() {
   const resolveAudienceContacts = async (): Promise<Contact[]> => {
     if (audienceMode === 'teste') {
       const baseList: Contact[] = []
-      if (sendToConfigured && configuredContact) baseList.push(configuredContact)
+      if (sendToConfigured) {
+        // Usa o contato real se existir, senão cria um "virtual" com dados das settings
+        const testContact = configuredContact || (testContactQuery.data?.phone ? {
+          id: 'test_contact_virtual',
+          phone: testContactQuery.data.phone,
+          name: testContactQuery.data.name || 'Contato de Teste',
+          status: 'Opt-in',
+          custom_fields: {},
+        } as Contact : null)
+        if (testContact) baseList.push(testContact)
+      }
       if (sendToSelected && selectedTestContact) baseList.push(selectedTestContact)
 
       // Importantíssimo: após "Corrigir" (PATCH) ou "Aplicar em massa", o estado local pode ficar stale

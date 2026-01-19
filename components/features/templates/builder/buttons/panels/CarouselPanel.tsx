@@ -1,6 +1,7 @@
 'use client'
 
 import React from 'react'
+import { Container } from '@/components/ui/container'
 import { Textarea } from '@/components/ui/textarea'
 import { Spec } from '../types'
 
@@ -21,7 +22,7 @@ export function CarouselPanel({ spec, update, carouselErrors }: CarouselPanelPro
   }
 
   return (
-    <div className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-3">
+    <Container variant="subtle" padding="md" className="space-y-3">
       <div className="text-sm font-semibold text-white">Carousel</div>
       <div className="text-xs text-gray-400">
         Editor visual completo do Carousel vem depois. Por enquanto, voce pode colar o JSON.
@@ -44,6 +45,6 @@ export function CarouselPanel({ spec, update, carouselErrors }: CarouselPanelPro
           ))}
         </div>
       )}
-    </div>
+    </Container>
   )
 }

@@ -6,6 +6,7 @@ import type { MetaDiagnosticsAction } from '@/services/metaDiagnosticsService'
 import type { MetaDiagnosticsCheck } from '../types'
 import { StatusBadge } from '../StatusBadge'
 import { isProblemStatus, bestApiAction, firstNextSteps, scrollToCheck, getFriendlyCopy } from '../utils'
+import { Container } from '@/components/ui/container'
 
 export interface QuickStartCardProps {
   checks: MetaDiagnosticsCheck[]
@@ -27,7 +28,7 @@ export function QuickStartCard(props: QuickStartCardProps) {
 
   if (problems.length === 0) {
     return (
-      <div className="glass-panel rounded-2xl p-6">
+      <Container variant="glass" padding="md">
         <div className="flex items-start justify-between gap-4">
           <div>
             <div className="text-xs text-gray-500">O que fazer agora</div>
@@ -40,12 +41,12 @@ export function QuickStartCard(props: QuickStartCardProps) {
             <ListChecks size={18} />
           </div>
         </div>
-      </div>
+      </Container>
     )
   }
 
   return (
-    <div className="glass-panel rounded-2xl p-6 border border-white/10">
+    <Container variant="glass" padding="md">
       <div className="flex items-start justify-between gap-4">
         <div>
           <div className="text-xs text-gray-500">O que fazer agora</div>
@@ -115,6 +116,6 @@ export function QuickStartCard(props: QuickStartCardProps) {
           Mais itens: {problems.length - 3}. Use o filtro "Problemas" ou "Com acoes" abaixo.
         </div>
       )}
-    </div>
+    </Container>
   )
 }

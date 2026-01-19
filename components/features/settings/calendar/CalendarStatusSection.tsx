@@ -3,6 +3,8 @@
 import React from 'react';
 import { ExternalLink } from 'lucide-react';
 import type { CalendarStatusSectionProps } from './types';
+import { Container } from '@/components/ui/container';
+import { StatusBadge } from '@/components/ui/status-badge';
 
 export function CalendarStatusSection({
   calendarAuthLoading,
@@ -16,16 +18,18 @@ export function CalendarStatusSection({
   setIsCalendarWizardOpen,
 }: CalendarStatusSectionProps) {
   return (
-    <div className="mt-5 rounded-2xl border border-white/10 bg-zinc-900/60 p-5">
+    <Container variant="subtle" padding="sm" className="mt-5">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <div className="text-sm font-semibold text-white">Google Calendar</div>
-          <div className="mt-1 text-xs text-gray-400">
-            {calendarAuthLoading
-              ? 'Verificando...'
-              : calendarAuthStatus?.connected
-                ? 'Conectado'
-                : 'Desconectado'}
+          <div className="mt-1">
+            {calendarAuthLoading ? (
+              <span className="text-xs text-gray-400">Verificando...</span>
+            ) : (
+              <StatusBadge status={calendarAuthStatus?.connected ? 'success' : 'default'} showDot>
+                {calendarAuthStatus?.connected ? 'Conectado' : 'Desconectado'}
+              </StatusBadge>
+            )}
           </div>
           {calendarAuthStatus?.calendar?.calendarSummary && (
             <div className="mt-2 text-xs text-gray-400">
@@ -92,6 +96,6 @@ export function CalendarStatusSection({
           )}
         </div>
       </div>
-    </div>
+    </Container>
   );
 }

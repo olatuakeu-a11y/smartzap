@@ -1,13 +1,15 @@
 'use client';
 
 import React from 'react';
+import { Container } from '@/components/ui/container';
+import { StatusBadge } from '@/components/ui/status-badge';
 import { CampaignTelemetryPanelProps } from './types';
 
 export const CampaignTelemetryPanel: React.FC<CampaignTelemetryPanelProps> = ({
   telemetry,
 }) => {
   return (
-    <div className="mt-4 glass-panel rounded-2xl p-5 border border-white/5">
+    <Container variant="glass" padding="lg" className="mt-4">
       <div className="flex items-start justify-between gap-4">
         <div>
           <h3 className="text-white font-bold">Debug - Telemetria de latencia</h3>
@@ -15,13 +17,11 @@ export const CampaignTelemetryPanel: React.FC<CampaignTelemetryPanelProps> = ({
             Best-effort. Util para entender se o atraso esta no broadcast, no realtime do DB ou no refetch.
           </p>
         </div>
-        <span className="text-[10px] uppercase tracking-wider rounded-full px-2 py-1 border text-amber-200 bg-amber-500/10 border-amber-500/20">
-          experimental
-        </span>
+        <StatusBadge status="warning" size="sm">experimental</StatusBadge>
       </div>
 
       <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-zinc-900/50 border border-white/10 rounded-lg p-3">
+        <Container variant="subtle" padding="sm">
           <div className="text-gray-500 text-xs">Broadcast - UI</div>
           {telemetry.broadcast ? (
             <div className="mt-2 text-xs text-gray-300 space-y-1">
@@ -42,9 +42,9 @@ export const CampaignTelemetryPanel: React.FC<CampaignTelemetryPanelProps> = ({
           ) : (
             <div className="mt-2 text-xs text-gray-500">Aguardando evento...</div>
           )}
-        </div>
+        </Container>
 
-        <div className="bg-zinc-900/50 border border-white/10 rounded-lg p-3">
+        <Container variant="subtle" padding="sm">
           <div className="text-gray-500 text-xs">DB realtime - UI</div>
           {telemetry.dbChange ? (
             <div className="mt-2 text-xs text-gray-300 space-y-1">
@@ -64,9 +64,9 @@ export const CampaignTelemetryPanel: React.FC<CampaignTelemetryPanelProps> = ({
           ) : (
             <div className="mt-2 text-xs text-gray-500">Aguardando mudanca...</div>
           )}
-        </div>
+        </Container>
 
-        <div className="bg-zinc-900/50 border border-white/10 rounded-lg p-3">
+        <Container variant="subtle" padding="sm">
           <div className="text-gray-500 text-xs">Refetch (React Query)</div>
           {telemetry.refetch ? (
             <div className="mt-2 text-xs text-gray-300 space-y-1">
@@ -80,8 +80,8 @@ export const CampaignTelemetryPanel: React.FC<CampaignTelemetryPanelProps> = ({
           ) : (
             <div className="mt-2 text-xs text-gray-500">Sem refetch recente</div>
           )}
-        </div>
+        </Container>
       </div>
-    </div>
+    </Container>
   );
 };

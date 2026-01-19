@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Clock, Save, Loader2 } from 'lucide-react';
 import { WorkflowExecutionConfig } from '../../../types';
+import { SectionHeader } from '@/components/ui/section-header';
 
 export interface WorkflowExecutionPanelProps {
   workflowExecution?: {
@@ -63,37 +64,32 @@ export function WorkflowExecutionPanel({
 
   return (
     <div className="glass-panel rounded-2xl p-8">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h3 className="text-lg font-semibold text-white mb-1 flex items-center gap-2">
-            <span className="w-1 h-6 bg-sky-500 rounded-full"></span>
-            <Clock size={18} className="text-sky-300" />
-            Execução do workflow (global)
-          </h3>
-          <p className="text-sm text-gray-400">
-            Define retries e timeouts padrão para cada etapa, sem complicar o fluxo.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          {isEditing && (
+      <SectionHeader
+        title="Execução do workflow (global)"
+        description="Define retries e timeouts padrão para cada etapa, sem complicar o fluxo."
+        color="info"
+        icon={Clock}
+        actions={
+          <div className="flex items-center gap-2">
+            {isEditing && (
+              <button
+                onClick={handleSave}
+                disabled={!!isSaving}
+                className="h-10 px-5 rounded-xl bg-sky-500 hover:bg-sky-400 text-black font-semibold transition-all text-sm flex items-center gap-2 shadow-lg shadow-sky-500/10 disabled:opacity-50"
+              >
+                {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                Salvar
+              </button>
+            )}
             <button
-              onClick={handleSave}
-              disabled={!!isSaving}
-              className="h-10 px-5 rounded-xl bg-sky-500 hover:bg-sky-400 text-black font-semibold transition-all text-sm flex items-center gap-2 shadow-lg shadow-sky-500/10 disabled:opacity-50"
+              onClick={() => setIsEditing((v) => !v)}
+              className="h-10 px-4 rounded-xl bg-white/5 text-white hover:bg-white/10 border border-white/10 hover:border-white/20 transition-all text-sm font-medium"
             >
-              {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-              Salvar
+              {isEditing ? 'Fechar' : 'Configurar'}
             </button>
-          )}
-          <button
-            onClick={() => setIsEditing((v) => !v)}
-            className="h-10 px-4 rounded-xl bg-white/5 text-white hover:bg-white/10 border border-white/10 hover:border-white/20 transition-all text-sm font-medium"
-          >
-            {isEditing ? 'Fechar' : 'Configurar'}
-          </button>
-        </div>
-      </div>
+          </div>
+        }
+      />
 
       <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="bg-zinc-900/40 border border-white/10 rounded-xl p-4">

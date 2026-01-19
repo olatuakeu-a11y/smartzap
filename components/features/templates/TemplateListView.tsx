@@ -37,6 +37,7 @@ export const TemplateListView: React.FC<TemplateListViewProps> = ({
   statusFilter,
   setStatusFilter,
   onSync,
+  statusCounts,
   manualDraftIds,
   manualDraftSendStateById,
   submitManualDraft,
@@ -213,6 +214,7 @@ export const TemplateListView: React.FC<TemplateListViewProps> = ({
         setStatusFilter={setStatusFilter}
         searchTerm={searchTerm}
         setSearchTerm={setSearchTerm}
+        statusCounts={statusCounts}
         showDraftControls={statusFilter === 'DRAFT' && manualDraftTemplates.length > 0}
         hasDraftSelection={hasDraftSelection}
         selectedDraftCount={selectedManualDraftIds.size}

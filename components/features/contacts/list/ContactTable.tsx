@@ -3,8 +3,12 @@
 import React from 'react';
 import { Edit2, Trash2, Tag, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { StatusBadge } from '@/components/ui/status-badge';
+import { Button } from '@/components/ui/button';
 import { Contact, ContactStatus } from './types';
 import { calculateRelativeTime, getContactInitials } from './utils';
+import { ContactCardList } from './ContactCard';
+import { useIsMobile } from '@/hooks/useMediaQuery';
 
 export interface ContactTableProps {
   contacts: Contact[];
@@ -29,8 +33,25 @@ export const ContactTable: React.FC<ContactTableProps> = ({
   onEditContact,
   onDeleteClick
 }) => {
+  const isMobile = useIsMobile();
   const tableColSpan = showSuppressionDetails ? 8 : 7;
 
+  // Mobile: render cards instead of table
+  if (isMobile) {
+    return (
+      <ContactCardList
+        contacts={contacts}
+        isLoading={isLoading}
+        showSuppressionDetails={showSuppressionDetails}
+        selectedIds={selectedIds}
+        onToggleSelect={onToggleSelect}
+        onEditContact={onEditContact}
+        onDeleteClick={onDeleteClick}
+      />
+    );
+  }
+
+  // Desktop: render table
   return (
     <div className="flex-1 min-h-0 overflow-auto">
       <table className="w-full text-left text-sm" aria-label="Lista de contatos">
@@ -151,7 +172,12 @@ const ContactTableRow = React.memo(
           </div>
         </td>
         <td className="px-6 py-5">
-          <ContactStatusBadge status={contact.status} />
+          <StatusBadge
+            status={contact.status === ContactStatus.OPT_IN ? 'success' : contact.status === ContactStatus.OPT_OUT ? 'error' : 'default'}
+            size="sm"
+          >
+            {contact.status === ContactStatus.OPT_IN ? 'OPT_IN' : contact.status === ContactStatus.OPT_OUT ? 'OPT_OUT' : 'DESCONHECIDO'}
+          </StatusBadge>
         </td>
         {showSuppressionDetails && (
           <td className="px-6 py-5 text-xs text-gray-400">
@@ -173,13 +199,14 @@ const ContactTableRow = React.memo(
           <div className="flex items-center justify-end gap-1">
             <Tooltip>
               <TooltipTrigger asChild>
-                <button
+                <Button
+                  variant="ghost"
+                  size="icon"
                   onClick={() => onEdit(contact)}
-                  className="text-gray-500 hover:text-primary-400 p-1.5 rounded-lg hover:bg-primary-500/10 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2"
                   aria-label={`Editar contato ${displayName}`}
                 >
                   <Edit2 size={16} aria-hidden="true" />
-                </button>
+                </Button>
               </TooltipTrigger>
               <TooltipContent>
                 <p>Editar contato</p>
@@ -187,13 +214,14 @@ const ContactTableRow = React.memo(
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
-                <button
+                <Button
+                  variant="ghost-destructive"
+                  size="icon"
                   onClick={() => onDelete(contact.id)}
-                  className="text-gray-500 hover:text-red-400 p-1.5 rounded-lg hover:bg-red-500/10 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-red-500 focus-visible:outline-offset-2"
                   aria-label={`Excluir contato ${displayName}`}
                 >
                   <Trash2 size={16} aria-hidden="true" />
-                </button>
+                </Button>
               </TooltipTrigger>
               <TooltipContent>
                 <p>Excluir contato</p>
@@ -213,33 +241,6 @@ const ContactTableRow = React.memo(
     prev.showSuppressionDetails === next.showSuppressionDetails
   )
 );
-
-interface ContactStatusBadgeProps {
-  status: ContactStatus;
-}
-
-const ContactStatusBadge: React.FC<ContactStatusBadgeProps> = ({ status }) => {
-  const getStatusStyles = () => {
-    switch (status) {
-      case ContactStatus.OPT_IN:
-        return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
-      case ContactStatus.OPT_OUT:
-        return 'bg-red-500/10 text-red-400 border-red-500/20';
-      default:
-        return 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20';
-    }
-  };
-
-  const getStatusLabel = () => {
-    return status === ContactStatus.UNKNOWN ? 'DESCONHECIDO' : status;
-  };
-
-  return (
-    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wider border ${getStatusStyles()}`}>
-      {getStatusLabel()}
-    </span>
-  );
-};
 
 export interface ContactPaginationProps {
   currentPage: number;
@@ -276,14 +277,15 @@ export const ContactPagination: React.FC<ContactPaginationProps> = ({
       <div className="flex items-center gap-2">
         <Tooltip>
           <TooltipTrigger asChild>
-            <button
+            <Button
+              variant="outline"
+              size="icon-sm"
               onClick={() => onPageChange(currentPage - 1)}
               disabled={currentPage === 1}
-              className="p-2 rounded-lg border border-white/10 text-gray-400 hover:text-white hover:bg-white/5 disabled:opacity-30 disabled:cursor-not-allowed transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2"
               aria-label="Página anterior"
             >
               <ChevronLeft size={18} aria-hidden="true" />
-            </button>
+            </Button>
           </TooltipTrigger>
           <TooltipContent>
             <p>Página anterior</p>
@@ -293,29 +295,28 @@ export const ContactPagination: React.FC<ContactPaginationProps> = ({
         {/* Page Numbers */}
         <div className="flex items-center gap-1">
           {getPageNumbers().map((pageNum) => (
-            <button
+            <Button
               key={pageNum}
+              variant={currentPage === pageNum ? 'default' : 'ghost'}
+              size="icon-sm"
               onClick={() => onPageChange(pageNum)}
-              className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${currentPage === pageNum
-                ? 'bg-primary-500 text-white'
-                : 'text-gray-400 hover:text-white hover:bg-white/5'
-                }`}
             >
               {pageNum}
-            </button>
+            </Button>
           ))}
         </div>
 
         <Tooltip>
           <TooltipTrigger asChild>
-            <button
+            <Button
+              variant="outline"
+              size="icon-sm"
               onClick={() => onPageChange(currentPage + 1)}
               disabled={currentPage === totalPages}
-              className="p-2 rounded-lg border border-white/10 text-gray-400 hover:text-white hover:bg-white/5 disabled:opacity-30 disabled:cursor-not-allowed transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2"
               aria-label="Próxima página"
             >
               <ChevronRight size={18} aria-hidden="true" />
-            </button>
+            </Button>
           </TooltipTrigger>
           <TooltipContent>
             <p>Próxima página</p>

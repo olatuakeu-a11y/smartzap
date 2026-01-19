@@ -2,8 +2,7 @@
 
 import React from 'react'
 import { Loader2 } from 'lucide-react'
-
-const panelClass = 'rounded-2xl border border-white/10 bg-zinc-900/60 shadow-[0_12px_30px_rgba(0,0,0,0.35)]'
+import { Container } from '@/components/ui/container'
 
 interface StepNavigationProps {
   step: number
@@ -68,7 +67,7 @@ export function StepNavigation({
   ltoCopyCodeTooLong,
 }: StepNavigationProps) {
   return (
-    <div className={`${panelClass} px-5 py-4`}>
+    <Container variant="default" padding="none" className="px-5 py-4">
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <button
           type="button"
@@ -151,6 +150,6 @@ export function StepNavigation({
           )}
         </button>
       </div>
-    </div>
+    </Container>
   )
 }

@@ -4,6 +4,8 @@ import React from 'react';
 import { ChevronLeft, Clock, CheckCircle2, Ban, FileText, Loader2, AlertCircle } from 'lucide-react';
 import { PrefetchLink } from '@/components/ui/PrefetchLink';
 import { Page, PageHeader, PageTitle } from '@/components/ui/page';
+import { Container } from '@/components/ui/container';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { MessageStatus } from '@/types';
 import { MessageStatusBadge } from './MessageStatusBadge';
 import { PreparingCampaignViewProps } from './types';
@@ -49,7 +51,7 @@ export const PreparingCampaignView: React.FC<PreparingCampaignViewProps> = ({
       </PageHeader>
 
       <div className="mt-8 space-y-6">
-        <div className="glass-panel p-6 rounded-2xl border border-white/10">
+        <Container variant="glass" padding="lg">
           <div className="flex items-start gap-3">
             <div className="mt-0.5">
               <Loader2 size={18} className="animate-spin text-primary-400" />
@@ -81,10 +83,10 @@ export const PreparingCampaignView: React.FC<PreparingCampaignViewProps> = ({
               </div>
             </div>
           </div>
-        </div>
+        </Container>
 
         {Array.isArray(campaign.pendingContacts) && campaign.pendingContacts.length > 0 && (
-          <div className="glass-panel p-6 rounded-2xl border border-white/10">
+          <Container variant="glass" padding="lg">
             <h4 className="text-white font-semibold">Previa dos destinatarios</h4>
             <p className="text-sm text-gray-400 mt-1">
               Lista carregada localmente (a ordem final pode mudar apos o pre-check).
@@ -107,13 +109,14 @@ export const PreparingCampaignView: React.FC<PreparingCampaignViewProps> = ({
                 </div>
               )}
             </div>
-          </div>
+          </Container>
         )}
 
-        <div className="flex items-start gap-2 text-xs text-gray-500">
-          <AlertCircle size={14} className="mt-0.5" />
-          Se ficar preso aqui por mais de 1-2 minutos, verifique sua configuracao da Meta/Supabase e tente novamente.
-        </div>
+        <Alert variant="info" hideIcon={false}>
+          <AlertDescription>
+            Se ficar preso aqui por mais de 1-2 minutos, verifique sua configuracao da Meta/Supabase e tente novamente.
+          </AlertDescription>
+        </Alert>
       </div>
     </Page>
   );

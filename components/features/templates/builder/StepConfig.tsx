@@ -2,6 +2,7 @@
 
 import React from 'react'
 import { Input } from '@/components/ui/input'
+import { Container } from '@/components/ui/container'
 import {
   Select,
   SelectContent,
@@ -9,9 +10,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-
-const panelClass = 'rounded-2xl border border-white/10 bg-zinc-900/60 shadow-[0_12px_30px_rgba(0,0,0,0.35)]'
-const panelPadding = 'p-6'
 
 type ButtonType =
   | 'QUICK_REPLY'
@@ -82,7 +80,7 @@ export function StepConfig({
   isNameValid,
 }: StepConfigProps) {
   return (
-    <div className={`${panelClass} ${panelPadding} min-h-140`}>
+    <Container variant="default" padding="lg" className="min-h-140">
       <div className="flex items-start justify-between gap-4">
         <div>
           <div className="text-base font-semibold text-white">Nome e idioma do modelo</div>
@@ -209,6 +207,6 @@ export function StepConfig({
       <div className="mt-3 text-xs text-gray-500">
         ID do rascunho: <span className="font-mono">{id}</span>
       </div>
-    </div>
+    </Container>
   )
 }

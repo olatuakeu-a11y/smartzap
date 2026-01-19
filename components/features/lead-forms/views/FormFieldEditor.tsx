@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
+import { Container } from '@/components/ui/container'
 import { ArrowDown, ArrowUp } from 'lucide-react'
 
 export interface FormFieldEditorProps {
@@ -32,7 +33,7 @@ export function FormFieldEditor({
   onMoveDown,
 }: FormFieldEditorProps) {
   return (
-    <div className="rounded-lg border border-zinc-800 bg-zinc-950/40 p-3">
+    <Container variant="subtle" padding="sm">
       <div className="mb-2 flex items-center justify-between">
         <p className="text-xs text-zinc-500">Ordem do campo</p>
         <div className="flex items-center gap-2">
@@ -135,6 +136,6 @@ export function FormFieldEditor({
           Remover campo
         </Button>
       </div>
-    </div>
+    </Container>
   )
 }

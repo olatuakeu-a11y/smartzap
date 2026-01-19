@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { Trash2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 export interface SelectionActionBarProps {
   selectedCount: number;
@@ -24,19 +25,13 @@ export const SelectionActionBar: React.FC<SelectionActionBarProps> = ({
         </span>
       </div>
       <div className="flex items-center gap-2">
-        <button
-          onClick={onClearSelection}
-          className="px-3 py-1.5 text-sm text-gray-300 hover:text-white transition-colors"
-        >
+        <Button variant="ghost" size="sm" onClick={onClearSelection}>
           Cancelar
-        </button>
-        <button
-          onClick={onBulkDeleteClick}
-          className="flex items-center gap-2 px-4 py-2 bg-amber-500/10 text-amber-200 border border-amber-500/30 rounded-lg font-medium hover:bg-amber-500/15 transition-colors"
-        >
+        </Button>
+        <Button variant="outline" size="sm" onClick={onBulkDeleteClick}>
           <Trash2 size={16} />
           Deletar {selectedCount}
-        </button>
+        </Button>
       </div>
     </div>
   );

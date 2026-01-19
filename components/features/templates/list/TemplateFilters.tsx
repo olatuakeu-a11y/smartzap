@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { Search, Trash2 } from 'lucide-react';
+import { Container } from '@/components/ui/container';
 import { StatusFilterType } from './types';
 
 export interface TemplateFiltersProps {
@@ -11,6 +12,14 @@ export interface TemplateFiltersProps {
   setStatusFilter: (status: StatusFilterType) => void;
   searchTerm: string;
   setSearchTerm: (term: string) => void;
+  // Status counts for pills
+  statusCounts?: {
+    APPROVED: number;
+    PENDING: number;
+    REJECTED: number;
+    DRAFT: number;
+    ALL: number;
+  };
   // Draft selection controls
   showDraftControls: boolean;
   hasDraftSelection: boolean;
@@ -41,6 +50,7 @@ export const TemplateFilters: React.FC<TemplateFiltersProps> = ({
   setStatusFilter,
   searchTerm,
   setSearchTerm,
+  statusCounts,
   showDraftControls,
   hasDraftSelection,
   selectedDraftCount,
@@ -48,7 +58,7 @@ export const TemplateFilters: React.FC<TemplateFiltersProps> = ({
   onClearDraftSelection,
 }) => {
   return (
-    <div className="rounded-2xl border border-white/10 bg-zinc-900/60 p-6 shadow-[0_12px_30px_rgba(0,0,0,0.35)] flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <Container variant="default" padding="lg" className="flex flex-col md:flex-row md:items-center justify-between gap-4">
       <div
         className="flex gap-2 overflow-x-auto no-scrollbar pb-2 md:pb-0"
         role="group"
@@ -76,21 +86,24 @@ export const TemplateFilters: React.FC<TemplateFiltersProps> = ({
         role="group"
         aria-label="Filtrar por status"
       >
-        {STATUS_OPTIONS.map((s) => (
-          <button
-            key={s.value}
-            onClick={() => setStatusFilter(s.value)}
-            className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors whitespace-nowrap focus-visible:outline focus-visible:outline-emerald-400 focus-visible:outline-offset-2 ${
-              statusFilter === s.value
-                ? 'border-emerald-400/40 bg-emerald-500/10 text-emerald-200'
-                : 'border-white/10 bg-zinc-950/40 text-gray-400 hover:text-white'
-            }`}
-            aria-pressed={statusFilter === s.value}
-            aria-label={`Filtrar por status: ${s.label}`}
-          >
-            {s.label}
-          </button>
-        ))}
+        {STATUS_OPTIONS.map((s) => {
+          const count = statusCounts?.[s.value];
+          return (
+            <button
+              key={s.value}
+              onClick={() => setStatusFilter(s.value)}
+              className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors whitespace-nowrap focus-visible:outline focus-visible:outline-emerald-400 focus-visible:outline-offset-2 ${
+                statusFilter === s.value
+                  ? 'border-emerald-400/40 bg-emerald-500/10 text-emerald-200'
+                  : 'border-white/10 bg-zinc-950/40 text-gray-400 hover:text-white'
+              }`}
+              aria-pressed={statusFilter === s.value}
+              aria-label={`Filtrar por status: ${s.label}`}
+            >
+              {s.label}{count !== undefined && ` (${count})`}
+            </button>
+          );
+        })}
       </div>
 
       <div className="flex items-center gap-2 w-full md:w-auto">
@@ -136,6 +149,6 @@ export const TemplateFilters: React.FC<TemplateFiltersProps> = ({
           </div>
         )}
       </div>
-    </div>
+    </Container>
   );
 };

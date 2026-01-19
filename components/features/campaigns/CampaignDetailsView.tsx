@@ -6,6 +6,7 @@ import { Page } from '@/components/ui/page';
 import { ContactQuickEditModal } from '@/components/features/contacts/ContactQuickEditModal';
 import { computeCampaignUiCounters } from '@/lib/campaign-ui-counters';
 import { CampaignTracePanel } from './CampaignTracePanel';
+import { useDevMode } from '@/components/providers/DevModeProvider';
 
 // Extracted components
 import {
@@ -65,6 +66,9 @@ export const CampaignDetailsView: React.FC<CampaignDetailsViewProps> = ({
   includeReadInDelivered,
   setIncludeReadInDelivered,
 }) => {
+  // Dev mode hook
+  const { isDevMode } = useDevMode();
+
   // Local state
   const [showTemplatePreview, setShowTemplatePreview] = useState(false);
   const [isPerfOpen, setIsPerfOpen] = useState(false);
@@ -206,25 +210,29 @@ export const CampaignDetailsView: React.FC<CampaignDetailsViewProps> = ({
       {/* Flow/MiniApp Panel - exibido apenas se a campanha usa Flow */}
       <CampaignFlowPanel campaign={campaign} />
 
-      {/* Performance Panel */}
-      <CampaignPerformancePanel
-        isPerfOpen={isPerfOpen}
-        setIsPerfOpen={setIsPerfOpen}
-        perfSourceLabel={perfSourceLabel}
-        metrics={metrics}
-        perf={perf}
-        throughputMpsForUi={throughputMpsForUi ?? 0}
-        dispatchDurationMsForUi={dispatchDurationMsForUi ?? 0}
-        isPerfEstimatedLive={isPerfEstimatedLive}
-        baselineThroughputMedian={baselineThroughputMedian}
-        limiterInfo={limiterInfo}
-      />
+      {/* Performance Panel - Dev only */}
+      {isDevMode && (
+        <CampaignPerformancePanel
+          isPerfOpen={isPerfOpen}
+          setIsPerfOpen={setIsPerfOpen}
+          perfSourceLabel={perfSourceLabel}
+          metrics={metrics}
+          perf={perf}
+          throughputMpsForUi={throughputMpsForUi ?? 0}
+          dispatchDurationMsForUi={dispatchDurationMsForUi ?? 0}
+          isPerfEstimatedLive={isPerfEstimatedLive}
+          baselineThroughputMedian={baselineThroughputMedian}
+          limiterInfo={limiterInfo}
+        />
+      )}
 
-      {/* Telemetry Panel (debug) */}
-      {telemetry && <CampaignTelemetryPanel telemetry={telemetry} />}
+      {/* Telemetry Panel (debug) - Dev only */}
+      {isDevMode && telemetry && <CampaignTelemetryPanel telemetry={telemetry} />}
 
-      {/* Trace Panel */}
-      <CampaignTracePanel campaignId={campaign.id} initialTraceId={(perf as any)?.trace_id || null} />
+      {/* Trace Panel - Dev only */}
+      {isDevMode && (
+        <CampaignTracePanel campaignId={campaign.id} initialTraceId={(perf as any)?.trace_id || null} />
+      )}
 
       {/* Message Log Table */}
       <MessageLogTable

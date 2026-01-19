@@ -1,9 +1,5 @@
 import { ButtonType } from './types'
 
-export const PANEL_CLASS = 'rounded-2xl border border-white/10 bg-zinc-900/60 shadow-[0_12px_30px_rgba(0,0,0,0.35)]'
-export const PANEL_PADDING = 'p-6'
-export const PANEL_COMPACT_PADDING = 'p-4'
-
 export const REQUIRES_BUTTON_TEXT = new Set<ButtonType>([
   'QUICK_REPLY',
   'URL',

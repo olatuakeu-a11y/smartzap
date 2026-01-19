@@ -12,6 +12,7 @@ import {
 } from 'lucide-react'
 
 import { Page, PageActions, PageDescription, PageHeader, PageTitle } from '@/components/ui/page'
+import { Container, containerVariants } from '@/components/ui/container'
 import { PrefetchLink } from '@/components/ui/PrefetchLink'
 import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard'
 import type {
@@ -159,7 +160,7 @@ export function MetaDiagnosticsView(props: MetaDiagnosticsViewProps) {
       </PageHeader>
 
       {/* Top Line Summary */}
-      <div className="glass-panel rounded-2xl p-6 mb-6 border border-white/10">
+      <Container variant="glass" padding="md" className="mb-6">
         <div className="text-xs text-gray-500">Resposta direta</div>
         <div className="mt-2 text-sm text-white font-medium">O que importa primeiro</div>
         <div className="mt-4 grid grid-cols-1 lg:grid-cols-3 gap-3">
@@ -178,10 +179,10 @@ export function MetaDiagnosticsView(props: MetaDiagnosticsViewProps) {
             </div>
           ))}
         </div>
-      </div>
+      </Container>
 
       {/* Seals Section */}
-      <details className="glass-panel rounded-2xl p-6 mb-6">
+      <details className={containerVariants({ variant: 'glass', padding: 'md' }) + ' mb-6'}>
         <summary className="cursor-pointer list-none flex items-center justify-between gap-3">
           <div>
             <div className="text-xs text-gray-500">Mais detalhes</div>
@@ -194,7 +195,7 @@ export function MetaDiagnosticsView(props: MetaDiagnosticsViewProps) {
           <TokenExpirySeal data={props.data} checks={props.checks} />
           <DebugTokenSeal data={props.data} />
 
-          <div className="glass-panel rounded-2xl p-6">
+          <Container variant="glass" padding="md">
             <div className="text-xs text-gray-500">Atalho</div>
             <div className="mt-2 text-sm text-white font-medium">Support Packet</div>
             <div className="mt-2 text-sm text-gray-300">
@@ -218,7 +219,7 @@ export function MetaDiagnosticsView(props: MetaDiagnosticsViewProps) {
                 <Copy size={14} /> Resumo
               </button>
             </div>
-          </div>
+          </Container>
         </div>
       </details>
 
@@ -245,7 +246,7 @@ export function MetaDiagnosticsView(props: MetaDiagnosticsViewProps) {
       </div>
 
       {/* Advanced Tools */}
-      <details className="glass-panel rounded-2xl p-6 mb-6">
+      <details className={containerVariants({ variant: 'glass', padding: 'md' }) + ' mb-6'}>
         <summary className="cursor-pointer list-none flex items-center justify-between gap-3">
           <div>
             <div className="text-xs text-gray-500">Ferramentas avancadas</div>
@@ -260,7 +261,7 @@ export function MetaDiagnosticsView(props: MetaDiagnosticsViewProps) {
 
       {/* Error Interpretation Panels */}
       {hasGraph100_33 && (
-        <div className="glass-panel rounded-2xl p-6 border border-amber-500/20 bg-amber-500/5 mb-6">
+        <Container variant="glass" padding="md" className="border-amber-500/20 bg-amber-500/5 mb-6">
           <div className="flex items-start gap-3">
             <AlertTriangle className="mt-0.5 text-amber-300" size={18} />
             <div className="min-w-0">
@@ -280,11 +281,11 @@ export function MetaDiagnosticsView(props: MetaDiagnosticsViewProps) {
               </div>
             </div>
           </div>
-        </div>
+        </Container>
       )}
 
       {hasGraph190 && (
-        <div className="glass-panel rounded-2xl p-6 border border-red-500/20 bg-red-500/5 mb-6">
+        <Container variant="glass" padding="md" className="border-red-500/20 bg-red-500/5 mb-6">
           <div className="flex items-start gap-3">
             <XCircle className="mt-0.5 text-red-300" size={18} />
             <div className="min-w-0">
@@ -303,11 +304,11 @@ export function MetaDiagnosticsView(props: MetaDiagnosticsViewProps) {
               </div>
             </div>
           </div>
-        </div>
+        </Container>
       )}
 
       {hasSignal131042 && (
-        <div className="glass-panel rounded-2xl p-6 border border-amber-500/20 bg-amber-500/5 mb-6">
+        <Container variant="glass" padding="md" className="border-amber-500/20 bg-amber-500/5 mb-6">
           <div className="flex items-start gap-3">
             <AlertTriangle className="mt-0.5 text-amber-300" size={18} />
             <div className="min-w-0">
@@ -322,11 +323,11 @@ export function MetaDiagnosticsView(props: MetaDiagnosticsViewProps) {
               </ul>
             </div>
           </div>
-        </div>
+        </Container>
       )}
 
       {hasSignal131056 && (
-        <div className="glass-panel rounded-2xl p-6 border border-amber-500/20 bg-amber-500/5 mb-6">
+        <Container variant="glass" padding="md" className="border-amber-500/20 bg-amber-500/5 mb-6">
           <div className="flex items-start gap-3">
             <AlertTriangle className="mt-0.5 text-amber-300" size={18} />
             <div className="min-w-0">
@@ -341,12 +342,12 @@ export function MetaDiagnosticsView(props: MetaDiagnosticsViewProps) {
               </ul>
             </div>
           </div>
-        </div>
+        </Container>
       )}
 
       {/* Summary Panel */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="glass-panel rounded-2xl p-6">
+        <Container variant="glass" padding="md">
           <div className="flex items-start justify-between gap-4">
             <div>
               <div className="text-xs text-gray-500">Status geral</div>
@@ -383,9 +384,9 @@ export function MetaDiagnosticsView(props: MetaDiagnosticsViewProps) {
               <div className="mt-1 text-white font-medium">{props.counts.fail}</div>
             </div>
           </div>
-        </div>
+        </Container>
 
-        <details className="glass-panel rounded-2xl p-6 lg:col-span-2">
+        <details className={containerVariants({ variant: 'glass', padding: 'md' }) + ' lg:col-span-2'}>
           <summary className="cursor-pointer list-none flex items-center justify-between gap-3">
             <div>
               <div className="text-xs text-gray-500">Painel tecnico</div>
@@ -428,8 +429,10 @@ export function MetaDiagnosticsView(props: MetaDiagnosticsViewProps) {
 
       {/* Lock Warning Panel */}
       {lock.kind !== 'none' && (
-        <div
-          className={`mt-4 glass-panel rounded-2xl p-6 border ${
+        <Container
+          variant="glass"
+          padding="md"
+          className={`mt-4 ${
             lock.kind === 'current'
               ? 'border-red-500/20 bg-red-500/5'
               : 'border-amber-500/20 bg-amber-500/5'
@@ -487,7 +490,7 @@ export function MetaDiagnosticsView(props: MetaDiagnosticsViewProps) {
               </button>
             </div>
           </div>
-        </div>
+        </Container>
       )}
 
       {/* Filters */}
@@ -533,19 +536,19 @@ export function MetaDiagnosticsView(props: MetaDiagnosticsViewProps) {
       {/* Checks List */}
       <div className="space-y-3">
         {props.isLoading && (
-          <div className="glass-panel rounded-2xl p-6 text-sm text-gray-400">
+          <Container variant="glass" padding="md" className="text-sm text-gray-400">
             Carregando diagnostico...
-          </div>
+          </Container>
         )}
 
         {!props.isLoading && props.filteredChecks.length === 0 && (
-          <div className="glass-panel rounded-2xl p-6 text-sm text-gray-400">
+          <Container variant="glass" padding="md" className="text-sm text-gray-400">
             Nenhum item nesse filtro.
-          </div>
+          </Container>
         )}
 
         {props.filteredChecks.map((c) => (
-          <div key={c.id} id={`check-${c.id}`} className="glass-panel rounded-2xl p-6">
+          <Container key={c.id} id={`check-${c.id}`} variant="glass" padding="md">
             {(() => {
               const friendly = simpleMode ? getFriendlyCopy(c) : { title: c.title, message: c.message }
               return (
@@ -588,18 +591,18 @@ export function MetaDiagnosticsView(props: MetaDiagnosticsViewProps) {
                 </div>
               )
             })()}
-          </div>
+          </Container>
         ))}
       </div>
 
       {/* Raw Report */}
       {reportText && (
-        <div className="glass-panel rounded-2xl p-6">
+        <Container variant="glass" padding="md">
           <div className="text-xs text-gray-500">Relatorio (resumo)</div>
           <pre className="mt-3 text-xs bg-zinc-950/50 border border-white/10 rounded-xl p-4 overflow-auto text-gray-200 whitespace-pre-wrap">
             {reportText}
           </pre>
-        </div>
+        </Container>
       )}
     </Page>
   )

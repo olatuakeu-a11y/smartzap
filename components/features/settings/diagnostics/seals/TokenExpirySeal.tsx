@@ -4,6 +4,7 @@ import { Clock } from 'lucide-react'
 import type { MetaDiagnosticsResponse } from '@/services/metaDiagnosticsService'
 import type { MetaDiagnosticsCheck, MetaDiagnosticsCheckStatus } from '../types'
 import { StatusBadge } from '../StatusBadge'
+import { Container } from '@/components/ui/container'
 
 export interface TokenExpirySealProps {
   data?: MetaDiagnosticsResponse
@@ -40,7 +41,7 @@ export function TokenExpirySeal({ data, checks }: TokenExpirySealProps) {
     : null
 
   return (
-    <div className="glass-panel rounded-2xl p-6">
+    <Container variant="glass" padding="md">
       <div className="flex items-start justify-between gap-4">
         <div>
           <div className="text-xs text-gray-500">Token</div>
@@ -55,6 +56,6 @@ export function TokenExpirySeal({ data, checks }: TokenExpirySealProps) {
           <Clock size={18} />
         </div>
       </div>
-    </div>
+    </Container>
   )
 }

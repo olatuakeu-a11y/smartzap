@@ -4,6 +4,7 @@ import React from 'react';
 import { Search, Filter, RefreshCw, Eye, Ban, AlertCircle, Pencil, Loader2 } from 'lucide-react';
 import { MessageStatus } from '@/types';
 import { humanizePrecheckReason } from '@/lib/precheck-humanizer';
+import { Container } from '@/components/ui/container';
 import { MessageStatusBadge } from './MessageStatusBadge';
 import { MessageLogTableProps } from './types';
 
@@ -26,7 +27,7 @@ export const MessageLogTable: React.FC<MessageLogTableProps> = ({
   const showPagination = total > 0 && shown < total;
 
   return (
-    <div className="glass-panel rounded-2xl overflow-hidden">
+    <Container variant="glass" padding="none" className="overflow-hidden">
       <div className="p-5 border-b border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <h3 className="font-bold text-white flex items-center gap-2">
           Logs de Envio{' '}
@@ -164,6 +165,6 @@ export const MessageLogTable: React.FC<MessageLogTableProps> = ({
           </div>
         )}
       </div>
-    </div>
+    </Container>
   );
 };

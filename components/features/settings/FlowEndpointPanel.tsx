@@ -3,6 +3,9 @@
 import React, { useState, useEffect } from 'react';
 import { Workflow, Copy, Check, RefreshCw, Key } from 'lucide-react';
 import { toast } from 'sonner';
+import { SectionHeader } from '@/components/ui/section-header';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import { StatusBadge } from '@/components/ui/status-badge';
 
 interface EndpointStatus {
   configured: boolean;
@@ -77,23 +80,14 @@ export function FlowEndpointPanel({ devBaseUrl }: FlowEndpointPanelProps) {
 
   return (
     <div className="glass-panel rounded-2xl p-8">
-      <div className="flex items-start justify-between gap-4 mb-6">
-        <div>
-          <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-            <span className="w-1 h-6 bg-purple-500 rounded-full" />
-            <Workflow size={18} className="text-purple-300" />
-            MiniApp Dinâmico (Endpoint)
-          </h3>
-          <p className="text-sm text-gray-400 mt-1">
-            Permite MiniApps buscarem dados em tempo real (ex: slots do Calendar).
-          </p>
-        </div>
-        {status?.configured && (
-          <span className="px-3 py-1 text-xs bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 rounded-full">
-            Configurado
-          </span>
-        )}
-      </div>
+      <SectionHeader
+        title="MiniApp Dinâmico (Endpoint)"
+        description="Permite MiniApps buscarem dados em tempo real (ex: slots do Calendar)."
+        color="info"
+        icon={Workflow}
+        badge={status?.configured && <StatusBadge status="success">Configurado</StatusBadge>}
+        className="mb-6"
+      />
 
       {!status?.configured ? (
         <div className="text-center py-8">
@@ -113,15 +107,12 @@ export function FlowEndpointPanel({ devBaseUrl }: FlowEndpointPanelProps) {
       ) : (
         <div className="space-y-4">
           {/* Sucesso */}
-          <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-xl p-4">
-            <div className="flex items-center gap-2 text-emerald-300">
-              <Check size={16} />
-              <span className="text-sm font-medium">Pronto para usar!</span>
-            </div>
-            <p className="text-xs text-gray-400 mt-2">
+          <Alert variant="success">
+            <AlertTitle>Pronto para usar!</AlertTitle>
+            <AlertDescription>
               Ao publicar um MiniApp dinâmico, o endpoint será configurado automaticamente.
-            </p>
-          </div>
+            </AlertDescription>
+          </Alert>
 
           {/* Endpoint URL */}
           <div className="bg-zinc-900/50 rounded-xl p-4">

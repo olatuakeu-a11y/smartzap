@@ -4,8 +4,7 @@ import React from 'react'
 import Image from 'next/image'
 import { Play, ExternalLink, CornerDownLeft, FileText } from 'lucide-react'
 import { cn } from '@/lib/utils'
-
-const panelClass = 'rounded-2xl border border-white/10 bg-zinc-900/60 shadow-[0_12px_30px_rgba(0,0,0,0.35)]'
+import { Container } from '@/components/ui/container'
 
 type HeaderFormat = 'TEXT' | 'IMAGE' | 'VIDEO' | 'GIF' | 'DOCUMENT' | 'LOCATION'
 
@@ -66,7 +65,7 @@ export function TemplatePreview({ spec, headerMediaPreview }: TemplatePreviewPro
   })()
 
   return (
-    <div className={`${panelClass} overflow-hidden`}>
+    <Container variant="default" padding="none" className="overflow-hidden">
       <div className="px-6 py-4 flex items-center justify-between border-b border-white/10">
         <div className="text-sm font-semibold text-white">Previa do modelo</div>
         <button
@@ -172,6 +171,6 @@ export function TemplatePreview({ spec, headerMediaPreview }: TemplatePreviewPro
           </div>
         </div>
       </div>
-    </div>
+    </Container>
   )
 }

@@ -12,6 +12,8 @@ import {
   CalendarStatusSection,
   CalendarWizardModal,
 } from './calendar';
+import { Container } from '@/components/ui/container';
+import { StatusBadge } from '@/components/ui/status-badge';
 
 export interface CalendarBookingPanelProps extends UseCalendarBookingProps {
   // Additional props can be added here if needed
@@ -41,7 +43,7 @@ export function CalendarBookingPanel({
   const enabledDayLabels = enabledDays.map(d => CALENDAR_WEEK_LABELS[d.day]?.slice(0, 3)).join(', ');
 
   return (
-    <div className="glass-panel rounded-2xl p-6">
+    <Container variant="glass" padding="md">
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-center gap-3">
@@ -58,9 +60,7 @@ export function CalendarBookingPanel({
 
         <div className="flex items-center gap-2">
           {isConfigured && (
-            <span className="text-xs text-emerald-400 flex items-center gap-1 mr-2">
-              <Check size={12} /> Ativo
-            </span>
+            <StatusBadge status="success" showDot>Ativo</StatusBadge>
           )}
           <button
             type="button"
@@ -197,6 +197,6 @@ export function CalendarBookingPanel({
         fetchCalendarList={hook.fetchCalendarList}
         handleSaveCalendarSelection={hook.handleSaveCalendarSelection}
       />
-    </div>
+    </Container>
   );
 }

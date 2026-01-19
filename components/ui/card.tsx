@@ -2,12 +2,22 @@ import * as React from "react"
 
 import { cn } from "@/lib/utils"
 
+/**
+ * Card com Design System
+ *
+ * Mudanças do DS:
+ * - Sombra composta com highlight interno (--ds-shadow-card)
+ * - Transição suave para hover states
+ * - Hover com elevação maior (--ds-shadow-card-hover)
+ */
 function Card({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="card"
       className={cn(
-        "bg-card text-card-foreground flex flex-col gap-6 rounded-xl border py-6 shadow-sm",
+        "bg-card text-card-foreground flex flex-col gap-6 rounded-xl border py-6",
+        "[box-shadow:var(--ds-shadow-card)]",
+        "[transition:var(--ds-transition-normal)]",
         className
       )}
       {...props}

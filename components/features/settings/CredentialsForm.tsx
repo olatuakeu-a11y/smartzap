@@ -4,6 +4,8 @@ import { toast } from 'sonner';
 import { AppSettings } from '../../../types';
 import type { MetaAppInfo } from './types';
 import { settingsService } from '@/services/settingsService';
+import { Container } from '@/components/ui/container';
+import { SectionHeader } from '@/components/ui/section-header';
 
 interface CredentialsFormProps {
   settings: AppSettings;
@@ -60,16 +62,19 @@ export const CredentialsForm = forwardRef<HTMLDivElement, CredentialsFormProps>(
     };
 
     return (
-      <div
-        ref={ref}
-        className="glass-panel rounded-2xl p-8 animate-in slide-in-from-top-4 duration-300 scroll-mt-24"
-      >
-        <h3 className="text-lg font-semibold text-white mb-8 flex items-center gap-2">
-          <span className="w-1 h-6 bg-primary-500 rounded-full"></span>
-          Configuracao da API
-        </h3>
+      <div ref={ref} className="scroll-mt-24">
+        <Container
+          variant="glass"
+          padding="lg"
+          className="animate-in slide-in-from-top-4 duration-300"
+        >
+          <SectionHeader
+          title="Configuracao da API"
+          color="brand"
+          showIndicator={true}
+        />
 
-        <div className="space-y-6">
+        <div className="mt-6 space-y-6">
           {/* Phone Number ID */}
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-2">
@@ -180,6 +185,7 @@ export const CredentialsForm = forwardRef<HTMLDivElement, CredentialsFormProps>(
             <Save size={18} /> {isSaving ? 'Salvando...' : 'Salvar Config'}
           </button>
         </div>
+      </Container>
       </div>
     );
   }

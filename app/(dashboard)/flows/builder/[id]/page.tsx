@@ -330,6 +330,8 @@ export default function FlowBuilderEditorPage({
     const savedJson = (flow as any)?.flow_json
     if (savedJson && typeof savedJson === 'object') {
       setFormPreviewJson((prev: unknown) => prev || savedJson)
+      // Se o flow já tem conteúdo salvo, pula direto para o step 2 (edição)
+      setStep((prev) => prev === 1 ? 2 : prev)
     }
     setEditorSpecOverride(null)
   }, [flow?.id])

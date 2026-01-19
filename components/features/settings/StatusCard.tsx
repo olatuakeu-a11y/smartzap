@@ -3,6 +3,8 @@
 import React, { forwardRef } from 'react';
 import { Wifi, AlertTriangle, RefreshCw, AlertCircle, Shield, Edit2 } from 'lucide-react';
 import { AccountLimits } from '../../../lib/meta-limits';
+import { Container } from '@/components/ui/container';
+import { StatusBadge } from '@/components/ui/status-badge';
 
 export interface StatusCardProps {
   settings: {
@@ -36,10 +38,12 @@ export const StatusCard = forwardRef<HTMLDivElement, StatusCardProps>(function S
   ref
 ) {
   return (
-    <div
-      ref={ref}
-      className={`glass-panel rounded-2xl p-8 flex items-start gap-6 border transition-all duration-500 ${settings.isConnected ? 'border-emerald-500/30 shadow-[0_0_30px_rgba(16,185,129,0.1)]' : 'border-red-500/30 shadow-[0_0_30px_rgba(239,68,68,0.1)]'}`}
-    >
+    <div ref={ref}>
+      <Container
+        variant="glass"
+        padding="lg"
+        className={`flex items-start gap-6 transition-all duration-500 ${settings.isConnected ? 'border-emerald-500/30 shadow-[0_0_30px_rgba(16,185,129,0.1)]' : 'border-red-500/30 shadow-[0_0_30px_rgba(239,68,68,0.1)]'}`}
+      >
       <div className={`p-4 rounded-2xl ${settings.isConnected ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'}`}>
         {settings.isConnected ? <Wifi size={32} /> : <AlertTriangle size={32} />}
       </div>
@@ -135,6 +139,7 @@ export const StatusCard = forwardRef<HTMLDivElement, StatusCardProps>(function S
           </button>
         </div>
       )}
+      </Container>
     </div>
   );
 });

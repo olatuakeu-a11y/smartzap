@@ -6,6 +6,7 @@ import type { MetaDiagnosticsResponse } from '@/services/metaDiagnosticsService'
 import type { MetaDiagnosticsCheck, MetaDiagnosticsCheckStatus } from '../types'
 import { StatusBadge } from '../StatusBadge'
 import { Pill } from '../Pill'
+import { Container } from '@/components/ui/container'
 
 export interface TokenScopesCardProps {
   data?: MetaDiagnosticsResponse
@@ -48,7 +49,7 @@ export function TokenScopesCard({ data, checks }: TokenScopesCardProps) {
   })()
 
   return (
-    <div className="glass-panel rounded-2xl p-6 border border-white/10">
+    <Container variant="glass" padding="md">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <div className="text-xs text-gray-500">Token</div>
@@ -139,6 +140,6 @@ export function TokenScopesCard({ data, checks }: TokenScopesCardProps) {
           Para ver escopos com prova (recomendado), habilite <b>Meta App ID/Secret</b> em <Link href="/settings" className="underline">Ajustes</Link>.
         </div>
       )}
-    </div>
+    </Container>
   )
 }

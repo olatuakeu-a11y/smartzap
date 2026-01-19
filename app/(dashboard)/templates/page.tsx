@@ -6,7 +6,7 @@ import { useTemplatesController } from '@/hooks/useTemplates';
 import { useLeadFormsController } from '@/hooks/useLeadForms'
 import { TemplateListView } from '@/components/features/templates/TemplateListView';
 import { useTemplateProjectsQuery, useTemplateProjectMutations } from '@/hooks/useTemplateProjects';
-import { Loader2, Plus, Folder, Search, RefreshCw, CheckCircle, AlertTriangle, Trash2, LayoutGrid, Sparkles, Zap, Workflow, FileText, ClipboardList } from 'lucide-react';
+import { Loader2, Plus, Folder, Search, RefreshCw, CheckCircle, AlertTriangle, Trash2, LayoutGrid, Sparkles, Workflow, FileText, ClipboardList } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Page, PageActions, PageDescription, PageHeader, PageTitle } from '@/components/ui/page';
 import { Button } from '@/components/ui/button';
@@ -167,28 +167,13 @@ export default function TemplatesPage() {
         <PageActions>
           {activeTab === 'meta' && (
             <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                onClick={handleCreateManualTemplate}
-                className="border-white/10 bg-zinc-950/40 hover:bg-white/5 text-gray-200"
-              >
+              <Button variant="outline" onClick={handleCreateManualTemplate}>
                 <FileText className="w-4 h-4" />
                 Criar template
               </Button>
 
-              <Button
-                onClick={() => controller.setIsBulkModalOpen(true)}
-                className="bg-emerald-500 text-black hover:bg-emerald-400 transition-colors"
-              >
-                <Zap className="w-4 h-4 text-emerald-900" />
-                Gerar UTILITY em Massa
-              </Button>
-
-              <Button
-                onClick={() => controller.setIsAiModalOpen(true)}
-                className="bg-zinc-950/40 text-gray-200 border border-white/10 hover:bg-white/5 transition-colors"
-              >
-                <Sparkles className="w-4 h-4 text-emerald-300" />
+              <Button variant="outline" onClick={() => controller.setIsAiModalOpen(true)}>
+                <Sparkles className="w-4 h-4" />
                 Criar com IA
               </Button>
 
@@ -196,26 +181,38 @@ export default function TemplatesPage() {
                 variant="outline"
                 onClick={controller.onSync}
                 disabled={controller.isSyncing}
-                className="border-white/10 bg-zinc-950/40 hover:bg-white/5 text-gray-200"
               >
-                <RefreshCw className={cn('w-4 h-4', controller.isSyncing ? 'animate-spin' : '')} />
+                <RefreshCw className={cn('w-4 h-4', controller.isSyncing && 'animate-spin')} />
                 {controller.isSyncing ? 'Sincronizando...' : 'Sincronizar'}
               </Button>
             </div>
           )}
 
           {activeTab === 'projects' && (
-            <button
-              onClick={() => router.push('/templates/new')}
-              className="bg-white text-black px-6 py-3 rounded-xl font-semibold flex items-center gap-2 transition-colors hover:bg-gray-200"
-            >
-              <Plus className="w-5 h-5" />
+            <Button variant="brand" onClick={() => router.push('/templates/new')}>
+              <Plus className="w-4 h-4" />
               Novo Projeto
-            </button>
+            </Button>
           )}
 
           {activeTab === 'flows' && (
-            <div className="flex items-center gap-2" />
+            <div className="flex items-center gap-2">
+              <Button variant="outline" onClick={() => router.push('/submissions')}>
+                <ClipboardList className="w-4 h-4" />
+                Ver Submissões
+              </Button>
+              <Button variant="brand" onClick={handleQuickCreateFlow} disabled={isCreatingFlow}>
+                <Plus className="w-4 h-4" />
+                {isCreatingFlow ? 'Criando...' : 'Criar MiniApp'}
+              </Button>
+            </div>
+          )}
+
+          {activeTab === 'forms' && (
+            <Button variant="brand" onClick={() => leadFormsController.setIsCreateOpen(true)}>
+              <Plus className="w-4 h-4" />
+              Criar formulário
+            </Button>
           )}
         </PageActions>
       </PageHeader>
@@ -276,7 +273,8 @@ export default function TemplatesPage() {
         </button>
       </div>
 
-      {activeTab === 'meta' && (
+      {/* Mantém componentes montados para evitar flicker no switch de abas */}
+      <div className={activeTab === 'meta' ? '' : 'hidden'}>
         <TemplateListView
           {...controller}
           hideHeader
@@ -284,51 +282,18 @@ export default function TemplatesPage() {
             router.push(`/campaigns/new?templateName=${encodeURIComponent(template.name)}`)
           }}
         />
-      )}
+      </div>
 
-      {activeTab === 'flows' && (
-        <div className="space-y-6">
-          <div className="space-y-4">
-            <div className="rounded-2xl border border-white/10 bg-zinc-900/60 p-6 shadow-[0_12px_30px_rgba(0,0,0,0.35)] flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <div className="text-sm font-semibold text-white">Criar MiniApp</div>
-                <div className="text-xs text-gray-400">
-                  Crie um MiniApp e abra direto o builder para editar.
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  onClick={handleQuickCreateFlow}
-                  disabled={isCreatingFlow}
-                  className="bg-white text-black hover:bg-gray-200"
-                >
-                  {isCreatingFlow ? 'Criando…' : 'Criar MiniApp'}
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => router.push('/submissions')}
-                  className="border-white/10 bg-zinc-950/40 hover:bg-white/5 text-gray-200"
-                >
-                  <ClipboardList className="w-4 h-4" />
-                  Ver Submissões
-                </Button>
-              </div>
-            </div>
+      <div className={activeTab === 'flows' ? '' : 'hidden'}>
+        <FlowPublishPanel
+          flows={builderFlows}
+          isLoading={flowsQuery.isLoading}
+          isFetching={flowsQuery.isFetching}
+          onRefresh={() => flowsQuery.refetch()}
+        />
+      </div>
 
-            <div id="flow-publish-panel">
-              <FlowPublishPanel
-                flows={builderFlows}
-                isLoading={flowsQuery.isLoading}
-                isFetching={flowsQuery.isFetching}
-                onRefresh={() => flowsQuery.refetch()}
-              />
-            </div>
-
-          </div>
-        </div>
-      )}
-
-      {activeTab === 'forms' && (
+      <div className={activeTab === 'forms' ? '' : 'hidden'}>
         <LeadFormsView
           forms={leadFormsController.forms}
           tags={leadFormsController.tags}
@@ -353,8 +318,9 @@ export default function TemplatesPage() {
           onDelete={leadFormsController.remove}
           isDeleting={leadFormsController.isDeleting}
           deleteError={leadFormsController.deleteError}
+          hideHeader
         />
-      )}
+      </div>
 
       {activeTab === 'projects' && (
         <>

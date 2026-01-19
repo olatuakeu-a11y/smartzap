@@ -9,6 +9,7 @@ import {
 } from '../../../../hooks/settings/useCalendarBooking';
 import type { BookingConfigSectionProps } from './types';
 import type { TimeSlot } from '../../../../types';
+import { Container } from '@/components/ui/container';
 
 export function BookingConfigSection({
   calendarBookingLoading,
@@ -33,7 +34,7 @@ export function BookingConfigSection({
     <>
       {/* Configurações Básicas */}
       <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="rounded-xl border border-white/10 bg-zinc-900/50 p-4">
+        <Container variant="subtle" padding="sm">
           <div className="text-xs text-gray-400 flex items-center gap-2">
             <Clock size={12} />
             Fuso horario
@@ -54,9 +55,9 @@ export function BookingConfigSection({
           ) : (
             <div className="mt-2 text-sm text-white font-mono">{calendarDraft.timezone}</div>
           )}
-        </div>
+        </Container>
 
-        <div className="rounded-xl border border-white/10 bg-zinc-900/50 p-4">
+        <Container variant="subtle" padding="sm">
           <div className="text-xs text-gray-400 flex items-center gap-2">
             <Clock size={12} />
             Duracao do slot
@@ -77,9 +78,9 @@ export function BookingConfigSection({
           ) : (
             <div className="mt-2 text-sm text-white font-mono">{calendarDraft.slotDurationMinutes} min</div>
           )}
-        </div>
+        </Container>
 
-        <div className="rounded-xl border border-white/10 bg-zinc-900/50 p-4">
+        <Container variant="subtle" padding="sm">
           <div className="text-xs text-gray-400 flex items-center gap-2">
             <Clock size={12} />
             Buffer entre slots
@@ -99,12 +100,12 @@ export function BookingConfigSection({
           ) : (
             <div className="mt-2 text-sm text-white font-mono">{calendarDraft.slotBufferMinutes} min</div>
           )}
-        </div>
+        </Container>
       </div>
 
       {/* Regras de Agendamento */}
       <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="rounded-xl border border-white/10 bg-zinc-900/50 p-4">
+        <Container variant="subtle" padding="sm">
           <div className="text-xs text-gray-400 flex items-center gap-2 mb-2">
             <Clock size={12} />
             Tempo minimo de antecedencia
@@ -125,9 +126,9 @@ export function BookingConfigSection({
               {MIN_ADVANCE_OPTIONS.find(o => o.value === (calendarDraft.minAdvanceHours ?? 4))?.label || `${calendarDraft.minAdvanceHours} horas`}
             </div>
           )}
-        </div>
+        </Container>
 
-        <div className="rounded-xl border border-white/10 bg-zinc-900/50 p-4">
+        <Container variant="subtle" padding="sm">
           <div className="text-xs text-gray-400 flex items-center gap-2 mb-2">
             <Calendar size={12} />
             Distancia maxima permitida
@@ -148,12 +149,12 @@ export function BookingConfigSection({
               {MAX_ADVANCE_OPTIONS.find(o => o.value === (calendarDraft.maxAdvanceDays ?? 14))?.label || `${calendarDraft.maxAdvanceDays} dias`}
             </div>
           )}
-        </div>
+        </Container>
       </div>
 
       {/* Agendamentos Simultâneos */}
       <div className="mt-4">
-        <div className="rounded-xl border border-white/10 bg-zinc-900/50 p-4">
+        <Container variant="subtle" padding="sm">
           <div className="flex items-center justify-between">
             <div>
               <div className="text-sm text-white flex items-center gap-2">
@@ -178,12 +179,12 @@ export function BookingConfigSection({
               </span>
             )}
           </div>
-        </div>
+        </Container>
       </div>
 
       {/* Webhook externo */}
       <div className="mt-4">
-        <div className="rounded-xl border border-white/10 bg-zinc-900/50 p-4">
+        <Container variant="subtle" padding="sm">
           <div className="text-xs text-gray-400 flex items-center gap-2 mb-2">
             <Calendar size={12} />
             Webhook externo (n8n, Make, etc.)
@@ -204,7 +205,7 @@ export function BookingConfigSection({
               {calendarDraft.externalWebhookUrl || 'Nao configurado'}
             </div>
           )}
-        </div>
+        </Container>
       </div>
 
       {/* Horários de Funcionamento */}

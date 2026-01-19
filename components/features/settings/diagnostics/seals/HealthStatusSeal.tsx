@@ -2,6 +2,7 @@
 
 import type { MetaDiagnosticsCheck, MetaDiagnosticsCheckStatus } from '../types'
 import { StatusBadge } from '../StatusBadge'
+import { Container } from '@/components/ui/container'
 
 export interface HealthStatusSealProps {
   checks: MetaDiagnosticsCheck[]
@@ -24,7 +25,7 @@ export function HealthStatusSeal({ checks }: HealthStatusSealProps) {
           : 'Health Status nao disponivel (ou nao foi possivel consultar).'
 
   return (
-    <div className="glass-panel rounded-2xl p-6">
+    <Container variant="glass" padding="md">
       <div className="text-xs text-gray-500">Semaforo</div>
       <div className="mt-2 flex items-center gap-2">
         <StatusBadge status={status} />
@@ -34,6 +35,6 @@ export function HealthStatusSeal({ checks }: HealthStatusSealProps) {
       <div className="mt-2 text-xs text-gray-500">
         Fonte: Graph API · field <span className="font-mono">health_status</span>
       </div>
-    </div>
+    </Container>
   )
 }

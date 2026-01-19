@@ -4,6 +4,16 @@ import { cva, type VariantProps } from "class-variance-authority"
 
 import { cn } from "@/lib/utils"
 
+/**
+ * Badge variants usando Design System
+ *
+ * Novas variantes de status:
+ * - success: verde (deliveries, completions)
+ * - error: vermelho (failures, errors)
+ * - warning: amarelo (paused, attention)
+ * - info: azul (processing, sending)
+ * - processing: azul com animação pulse
+ */
 const badgeVariants = cva(
   "inline-flex items-center justify-center rounded-full border px-2 py-0.5 text-xs font-medium w-fit whitespace-nowrap shrink-0 [&>svg]:size-3 gap-1 [&>svg]:pointer-events-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive transition-[color,box-shadow] overflow-hidden",
   {
@@ -17,6 +27,32 @@ const badgeVariants = cva(
           "border-transparent bg-destructive text-white [a&]:hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60",
         outline:
           "text-foreground [a&]:hover:bg-accent [a&]:hover:text-accent-foreground",
+        // Status variants usando DS
+        success: [
+          "border-transparent",
+          "[background-color:var(--ds-status-success-bg)]",
+          "[color:var(--ds-status-success-text)]",
+        ].join(" "),
+        error: [
+          "border-transparent",
+          "[background-color:var(--ds-status-error-bg)]",
+          "[color:var(--ds-status-error-text)]",
+        ].join(" "),
+        warning: [
+          "border-transparent",
+          "[background-color:var(--ds-status-warning-bg)]",
+          "[color:var(--ds-status-warning-text)]",
+        ].join(" "),
+        info: [
+          "border-transparent",
+          "[background-color:var(--ds-status-info-bg)]",
+          "[color:var(--ds-status-info-text)]",
+        ].join(" "),
+        processing: [
+          "border-transparent animate-pulse",
+          "[background-color:var(--ds-status-info-bg)]",
+          "[color:var(--ds-status-info-text)]",
+        ].join(" "),
       },
     },
     defaultVariants: {
