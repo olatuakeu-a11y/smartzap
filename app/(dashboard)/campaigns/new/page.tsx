@@ -1424,11 +1424,11 @@ export default function CampaignsNewRealPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
         <div className="space-y-2">
-          <div className="text-xs text-gray-500">App / Campanhas / Novo</div>
+          <div className="text-xs text-[var(--ds-text-muted)]">App / Campanhas / Novo</div>
           <div className="flex items-center gap-3">
-            <h1 className="text-3xl font-semibold text-white">Criar Campanha</h1>
+            <h1 className="text-3xl font-semibold text-[var(--ds-text-primary)]">Criar Campanha</h1>
           </div>
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-[var(--ds-text-muted)]">
             Fluxo simplificado: uma decisao por vez, com contexto sempre visivel.
           </p>
         </div>
@@ -1463,15 +1463,15 @@ export default function CampaignsNewRealPage() {
                   }
                   className={`flex items-center gap-3 rounded-2xl border px-4 py-3 text-left text-sm transition ${
                     step === item.id
-                      ? 'border-emerald-400/40 bg-emerald-500/10 text-white'
-                      : 'border-white/10 bg-zinc-900/40 text-gray-400'
-                  } ${!isStepEnabled ? 'cursor-not-allowed opacity-40' : 'hover:text-white'}`}
+                      ? 'border-emerald-600 dark:border-emerald-400/40 bg-emerald-500/10 text-[var(--ds-text-primary)]'
+                      : 'border-[var(--ds-border-default)] bg-[var(--ds-bg-surface)] text-[var(--ds-text-secondary)]'
+                  } ${!isStepEnabled ? 'cursor-not-allowed opacity-40' : 'hover:text-[var(--ds-text-primary)]'}`}
                 >
                   <span
                     className={`grid h-8 w-8 shrink-0 aspect-square place-items-center rounded-full border text-xs font-semibold leading-none ${
                       step === item.id
-                        ? 'border-emerald-400 bg-emerald-500/20 text-emerald-200'
-                        : 'border-white/10 text-gray-400'
+                        ? 'border-emerald-400 bg-emerald-500/20 text-emerald-700 dark:text-emerald-200'
+                        : 'border-[var(--ds-border-default)] text-[var(--ds-text-secondary)]'
                     }`}
                   >
                     {item.id}
@@ -1485,7 +1485,7 @@ export default function CampaignsNewRealPage() {
             <div className="space-y-6">
               <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
                 <input
-                  className="w-full h-11 flex-1 rounded-xl border border-white/10 bg-zinc-950/40 px-4 text-sm text-white placeholder:text-gray-600"
+                  className="w-full h-11 flex-1 rounded-xl border border-[var(--ds-border-default)] bg-[var(--ds-bg-elevated)] px-4 text-sm text-[var(--ds-text-primary)] placeholder:text-[var(--ds-text-muted)]"
                   placeholder="Nome da campanha"
                   value={campaignName}
                   onChange={(event) => setCampaignName(event.target.value)}
@@ -1493,29 +1493,29 @@ export default function CampaignsNewRealPage() {
                 />
                 <div className="relative w-full lg:w-36">
                   <select
-                    className="w-full h-11 appearance-none rounded-xl border border-white/10 bg-zinc-950/40 pl-4 pr-10 text-sm text-white"
+                    className="w-full h-11 appearance-none rounded-xl border border-[var(--ds-border-default)] bg-[var(--ds-bg-elevated)] pl-4 pr-10 text-sm text-[var(--ds-text-primary)]"
                     aria-label="Objetivo da campanha"
                   >
                     <option>Utilidade</option>
                     <option>Marketing</option>
                     <option>Autenticacao</option>
                   </select>
-                  <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-lg text-emerald-200">
+                  <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-lg text-emerald-700 dark:text-emerald-200">
                     ▾
                   </span>
                 </div>
               </div>
 
               {templateSelected ? (
-                <div className="flex h-11 flex-wrap items-center justify-between gap-3 rounded-xl border border-white/10 bg-zinc-950/40 px-4 text-sm">
+                <div className="flex h-11 flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--ds-border-default)] bg-[var(--ds-bg-elevated)] px-4 text-sm">
                   <div className="flex items-center gap-3">
-                    <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-emerald-400/40 text-[10px] text-emerald-300">
+                    <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-emerald-600 dark:border-emerald-400/40 text-[10px] text-emerald-700 dark:text-emerald-300">
                       ✓
                     </span>
                     <div className="flex items-center gap-2">
-                      <span className="text-base font-semibold text-white">{selectedTemplate?.name}</span>
+                      <span className="text-base font-semibold text-[var(--ds-text-primary)]">{selectedTemplate?.name}</span>
                       {selectedTemplate?.category && (
-                        <span className="text-[10px] uppercase tracking-widest text-gray-500">
+                        <span className="text-[10px] uppercase tracking-widest text-[var(--ds-text-muted)]">
                           {selectedTemplate.category}
                         </span>
                       )}
@@ -1527,50 +1527,50 @@ export default function CampaignsNewRealPage() {
                       setTemplateSelected(false)
                       setPreviewTemplate(null)
                     }}
-                    className="text-xs text-emerald-400/80 hover:text-emerald-300"
+                    className="text-xs text-emerald-600 dark:text-emerald-400/80 hover:text-emerald-700 dark:text-emerald-300"
                   >
                     Trocar
                   </button>
                 </div>
               ) : (
-                <div className="rounded-2xl border border-white/10 bg-zinc-900/40 p-6 shadow-[0_10px_26px_rgba(0,0,0,0.3)]">
+                <div className="rounded-2xl border border-[var(--ds-border-default)] bg-[var(--ds-bg-surface)] p-6 shadow-[0_10px_26px_rgba(0,0,0,0.3)]">
                   <div className="space-y-1">
-                    <h2 className="text-lg font-semibold text-white">Template</h2>
-                    <p className="text-sm text-gray-500">Busque e escolha o template da campanha.</p>
+                    <h2 className="text-lg font-semibold text-[var(--ds-text-primary)]">Template</h2>
+                    <p className="text-sm text-[var(--ds-text-muted)]">Busque e escolha o template da campanha.</p>
                   </div>
 
                   <div className="mt-5">
-                    <label className="text-xs uppercase tracking-widest text-gray-500">Buscar template</label>
+                    <label className="text-xs uppercase tracking-widest text-[var(--ds-text-muted)]">Buscar template</label>
                     <input
-                      className="mt-2 w-full rounded-xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm text-white placeholder:text-gray-600"
+                      className="mt-2 w-full rounded-xl border border-[var(--ds-border-default)] bg-[var(--ds-bg-elevated)] px-4 py-3 text-sm text-[var(--ds-text-primary)] placeholder:text-[var(--ds-text-muted)]"
                       placeholder="Digite o nome do template..."
                       value={templateSearch}
                       onChange={(event) => setTemplateSearch(event.target.value)}
                     />
                     {templatesQuery.isLoading && (
-                      <div className="mt-2 text-xs text-gray-500">Carregando templates...</div>
+                      <div className="mt-2 text-xs text-[var(--ds-text-muted)]">Carregando templates...</div>
                     )}
                     {templatesQuery.isError && (
-                      <div className="mt-2 text-xs text-amber-300">
+                      <div className="mt-2 text-xs text-amber-700 dark:text-amber-300">
                         Falha ao carregar templates. Verifique as credenciais.
                       </div>
                     )}
                     {!templatesQuery.isLoading && !templatesQuery.isError && templateOptions.length === 0 && (
-                      <div className="mt-2 text-xs text-amber-300">Nenhum template aprovado encontrado.</div>
+                      <div className="mt-2 text-xs text-amber-700 dark:text-amber-300">Nenhum template aprovado encontrado.</div>
                     )}
                   </div>
 
                   {showTemplateResults ? (
-                    <div className="mt-5 rounded-2xl border border-white/10 bg-zinc-950/40 p-4">
+                    <div className="mt-5 rounded-2xl border border-[var(--ds-border-default)] bg-[var(--ds-bg-elevated)] p-4">
                       <div className="flex items-center justify-between">
-                        <div className="text-xs uppercase tracking-widest text-gray-500">
+                        <div className="text-xs uppercase tracking-widest text-[var(--ds-text-muted)]">
                           {hasTemplateSearch ? 'Resultados da busca' : 'Todos os templates'}
                         </div>
                         {hasTemplateSearch ? (
                           <button
                             type="button"
                             onClick={() => setTemplateSearch('')}
-                            className="text-xs text-gray-400 hover:text-white"
+                            className="text-xs text-[var(--ds-text-secondary)] hover:text-[var(--ds-text-primary)]"
                           >
                             Limpar busca
                           </button>
@@ -1578,7 +1578,7 @@ export default function CampaignsNewRealPage() {
                           <button
                             type="button"
                             onClick={() => setShowAllTemplates(false)}
-                            className="text-xs text-gray-400 hover:text-white"
+                            className="text-xs text-[var(--ds-text-secondary)] hover:text-[var(--ds-text-primary)]"
                           >
                             Voltar para recentes
                           </button>
@@ -1586,7 +1586,7 @@ export default function CampaignsNewRealPage() {
                       </div>
                       <div className="mt-3 max-h-56 space-y-2 overflow-y-auto pr-2 text-sm">
                         {filteredTemplates.length === 0 ? (
-                          <div className="text-xs text-gray-500">Nenhum template encontrado.</div>
+                          <div className="text-xs text-[var(--ds-text-muted)]">Nenhum template encontrado.</div>
                         ) : (
                           filteredTemplates.map((template) => (
                             <button
@@ -1599,11 +1599,11 @@ export default function CampaignsNewRealPage() {
                                 setTemplateSelected(true)
                                 setPreviewTemplate(null)
                               }}
-                              className="w-full rounded-lg border border-white/10 bg-zinc-950/40 px-3 py-2 text-left text-gray-300 hover:border-emerald-400/40"
+                              className="w-full rounded-lg border border-[var(--ds-border-default)] bg-[var(--ds-bg-elevated)] px-3 py-2 text-left text-[var(--ds-text-secondary)] hover:border-emerald-600 dark:hover:border-emerald-400/40"
                             >
                               <div className="flex items-center justify-between">
-                                <span className="font-semibold text-white">{template.name}</span>
-                                <span className="text-[10px] uppercase text-gray-500">{template.category}</span>
+                                <span className="font-semibold text-[var(--ds-text-primary)]">{template.name}</span>
+                                <span className="text-[10px] uppercase text-[var(--ds-text-muted)]">{template.category}</span>
                               </div>
                             </button>
                           ))
@@ -1613,8 +1613,8 @@ export default function CampaignsNewRealPage() {
                   ) : (
                     <>
                       <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-2">
-                        <div className="rounded-xl border border-white/10 bg-zinc-950/40 p-4">
-                          <div className="text-xs uppercase tracking-widest text-gray-500">Recentes</div>
+                        <div className="rounded-xl border border-[var(--ds-border-default)] bg-[var(--ds-bg-elevated)] p-4">
+                          <div className="text-xs uppercase tracking-widest text-[var(--ds-text-muted)]">Recentes</div>
                           <div className="mt-3 space-y-2 text-sm">
                             {recentTemplates.map((template) => (
                               <button
@@ -1627,16 +1627,16 @@ export default function CampaignsNewRealPage() {
                                   setTemplateSelected(true)
                                   setPreviewTemplate(null)
                                 }}
-                                className="w-full rounded-lg border border-white/10 bg-zinc-950/40 px-3 py-2 text-left text-gray-300 hover:border-emerald-400/40"
+                                className="w-full rounded-lg border border-[var(--ds-border-default)] bg-[var(--ds-bg-elevated)] px-3 py-2 text-left text-[var(--ds-text-secondary)] hover:border-emerald-600 dark:hover:border-emerald-400/40"
                               >
-                                <div className="font-semibold text-white">{template.name}</div>
-                                <div className="mt-1 text-xs text-gray-500">{template.category}</div>
+                                <div className="font-semibold text-[var(--ds-text-primary)]">{template.name}</div>
+                                <div className="mt-1 text-xs text-[var(--ds-text-muted)]">{template.category}</div>
                               </button>
                             ))}
                           </div>
                         </div>
-                        <div className="rounded-xl border border-white/10 bg-zinc-950/40 p-4">
-                          <div className="text-xs uppercase tracking-widest text-gray-500">Recomendados</div>
+                        <div className="rounded-xl border border-[var(--ds-border-default)] bg-[var(--ds-bg-elevated)] p-4">
+                          <div className="text-xs uppercase tracking-widest text-[var(--ds-text-muted)]">Recomendados</div>
                           <div className="mt-3 space-y-2 text-sm">
                             {recommendedTemplates.map((template) => (
                               <button
@@ -1649,10 +1649,10 @@ export default function CampaignsNewRealPage() {
                                   setTemplateSelected(true)
                                   setPreviewTemplate(null)
                                 }}
-                                className="w-full rounded-lg border border-white/10 bg-zinc-950/40 px-3 py-2 text-left text-gray-300 hover:border-emerald-400/40"
+                                className="w-full rounded-lg border border-[var(--ds-border-default)] bg-[var(--ds-bg-elevated)] px-3 py-2 text-left text-[var(--ds-text-secondary)] hover:border-emerald-600 dark:hover:border-emerald-400/40"
                               >
-                                <div className="font-semibold text-white">{template.name}</div>
-                                <div className="mt-1 text-xs text-gray-500">{template.category}</div>
+                                <div className="font-semibold text-[var(--ds-text-primary)]">{template.name}</div>
+                                <div className="mt-1 text-xs text-[var(--ds-text-muted)]">{template.category}</div>
                               </button>
                             ))}
                           </div>
@@ -1662,7 +1662,7 @@ export default function CampaignsNewRealPage() {
                         <button
                           type="button"
                           onClick={() => setShowAllTemplates(true)}
-                          className="mt-4 text-xs text-emerald-300"
+                          className="mt-4 text-xs text-emerald-700 dark:text-emerald-300"
                         >
                           Ver todos os templates
                         </button>
@@ -1675,12 +1675,12 @@ export default function CampaignsNewRealPage() {
               {templateSelected && hasTemplateVariables && (
                 <div className="rounded-2xl border border-emerald-400/30 bg-emerald-500/10 p-6 shadow-[0_12px_30px_rgba(0,0,0,0.35)]">
                   <div className="flex items-start gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-500/20 text-emerald-200">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-500/20 text-emerald-700 dark:text-emerald-200">
                       <Sparkles size={18} />
                     </div>
                     <div>
-                      <h2 className="text-lg font-semibold text-white">Variáveis do Template</h2>
-                      <p className="text-sm text-gray-500">
+                      <h2 className="text-lg font-semibold text-[var(--ds-text-primary)]">Variáveis do Template</h2>
+                      <p className="text-sm text-[var(--ds-text-muted)]">
                         Preencha os valores que serão usados neste template. Esses valores serão iguais para todos os destinatários.
                       </p>
                     </div>
@@ -1688,21 +1688,21 @@ export default function CampaignsNewRealPage() {
 
                   <div className="mt-5 space-y-5">
                     {templateSpecError && (
-                      <div className="rounded-xl border border-amber-400/30 bg-amber-500/10 p-4 text-sm text-amber-200">
+                      <div className="rounded-xl border border-amber-400/30 bg-amber-500/10 p-4 text-sm text-amber-700 dark:text-amber-200">
                         <div className="font-semibold">Template com contrato inválido</div>
-                        <div className="mt-1 text-xs text-amber-200/80">{templateSpecError}</div>
+                        <div className="mt-1 text-xs text-amber-700 dark:text-amber-200/80">{templateSpecError}</div>
                       </div>
                     )}
                     {templateVars.header.length > 0 && (
                       <div className="space-y-3">
-                        <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-gray-500">
+                        <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-[var(--ds-text-muted)]">
                           <Eye size={14} />
                           <span>Variáveis do cabeçalho</span>
                         </div>
                       <div className="space-y-3">
                           {templateVars.header.map((item, index) => (
                             <div key={item.key} className="flex items-center gap-3">
-                              <span className="rounded-lg bg-amber-500/20 px-2 py-1 text-xs text-amber-200">
+                              <span className="rounded-lg bg-amber-500/20 px-2 py-1 text-xs text-amber-700 dark:text-amber-200">
                                 {item.placeholder}
                               </span>
                               <div className="relative flex flex-1 items-center">
@@ -1710,26 +1710,26 @@ export default function CampaignsNewRealPage() {
                                   value={item.value}
                                   onChange={(event) => setTemplateVarValue('header', index, event.target.value)}
                                   placeholder={`Variável do cabeçalho (${item.placeholder})`}
-                                  className={`w-full rounded-xl border bg-zinc-950/40 px-4 py-2 pr-10 text-sm text-white placeholder:text-gray-600 ${
+                                  className={`w-full rounded-xl border bg-[var(--ds-bg-elevated)] px-4 py-2 pr-10 text-sm text-[var(--ds-text-primary)] placeholder:text-[var(--ds-text-muted)] ${
                                     !item.value.trim() && item.required
                                       ? 'border-amber-400/40'
-                                      : 'border-white/10'
+                                      : 'border-[var(--ds-border-default)]'
                                   }`}
                                 />
                                 <DropdownMenu>
                                   <DropdownMenuTrigger asChild>
                                     <button
                                       type="button"
-                                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-amber-300"
+                                      className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--ds-text-secondary)] hover:text-amber-700 dark:text-amber-300"
                                     >
                                       <Braces size={14} />
                                     </button>
                                   </DropdownMenuTrigger>
                                   <DropdownMenuContent
                                     align="end"
-                                    className="min-w-52 border border-white/10 bg-zinc-900 text-white"
+                                    className="min-w-52 border border-[var(--ds-border-default)] bg-[var(--ds-bg-surface)] text-[var(--ds-text-primary)]"
                                   >
-                                    <DropdownMenuLabel className="text-xs uppercase tracking-widest text-gray-500">
+                                    <DropdownMenuLabel className="text-xs uppercase tracking-widest text-[var(--ds-text-muted)]">
                                       Dados do contato
                                     </DropdownMenuLabel>
                                     <DropdownMenuItem
@@ -1753,10 +1753,10 @@ export default function CampaignsNewRealPage() {
                                       <div className="text-blue-400 font-mono text-[10px] w-3.5 text-center">@</div>
                                       <span>E-mail</span>
                                     </DropdownMenuItem>
-                                    <DropdownMenuSeparator className="bg-white/10" />
+                                    <DropdownMenuSeparator className="bg-[var(--ds-bg-hover)]" />
                                     {customFields.length > 0 && (
                                       <>
-                                        <DropdownMenuLabel className="text-xs uppercase tracking-widest text-gray-500">
+                                        <DropdownMenuLabel className="text-xs uppercase tracking-widest text-[var(--ds-text-muted)]">
                                           Campos personalizados
                                         </DropdownMenuLabel>
                                         {customFields.map((field) => (
@@ -1765,23 +1765,23 @@ export default function CampaignsNewRealPage() {
                                             onSelect={() => setTemplateVarValue('header', index, `{{${field.key}}}`)}
                                             className="flex items-center gap-2"
                                           >
-                                            <div className="text-amber-400 font-mono text-[10px] w-3.5 text-center">#</div>
+                                            <div className="text-amber-600 dark:text-amber-400 font-mono text-[10px] w-3.5 text-center">#</div>
                                             <span>{field.label || field.key}</span>
                                           </DropdownMenuItem>
                                         ))}
-                                        <DropdownMenuSeparator className="bg-white/10" />
+                                        <DropdownMenuSeparator className="bg-[var(--ds-bg-hover)]" />
                                       </>
                                     )}
                                     <DropdownMenuItem
                                       onSelect={() => setIsFieldsSheetOpen(true)}
-                                      className="text-xs text-amber-400"
+                                      className="text-xs text-amber-600 dark:text-amber-400"
                                     >
                                       <Plus size={12} /> Gerenciar campos
                                     </DropdownMenuItem>
                                   </DropdownMenuContent>
                                 </DropdownMenu>
                               </div>
-                              {item.required && <span className="text-xs text-amber-300">obrigatório</span>}
+                              {item.required && <span className="text-xs text-amber-700 dark:text-amber-300">obrigatório</span>}
                             </div>
                           ))}
                         </div>
@@ -1789,15 +1789,15 @@ export default function CampaignsNewRealPage() {
                     )}
 
                     {templateVars.body.length > 0 && (
-                      <div className="space-y-3 border-t border-white/10 pt-4">
-                        <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-gray-500">
+                      <div className="space-y-3 border-t border-[var(--ds-border-default)] pt-4">
+                        <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-[var(--ds-text-muted)]">
                           <MessageSquare size={14} />
                           <span>Variáveis do corpo</span>
                         </div>
                         <div className="space-y-3">
                           {templateVars.body.map((item, index) => (
                             <div key={`${item.key}-${index}`} className="flex items-center gap-3">
-                              <span className="rounded-lg bg-amber-500/20 px-2 py-1 text-xs text-amber-200">
+                              <span className="rounded-lg bg-amber-500/20 px-2 py-1 text-xs text-amber-700 dark:text-amber-200">
                                 {item.placeholder}
                               </span>
                               <div className="relative flex flex-1 items-center">
@@ -1805,26 +1805,26 @@ export default function CampaignsNewRealPage() {
                                   value={item.value}
                                   onChange={(event) => setTemplateVarValue('body', index, event.target.value)}
                                   placeholder={`Variável do corpo (${item.placeholder})`}
-                                  className={`w-full rounded-xl border bg-zinc-950/40 px-4 py-2 pr-10 text-sm text-white placeholder:text-gray-600 ${
+                                  className={`w-full rounded-xl border bg-[var(--ds-bg-elevated)] px-4 py-2 pr-10 text-sm text-[var(--ds-text-primary)] placeholder:text-[var(--ds-text-muted)] ${
                                     !item.value.trim() && item.required
                                       ? 'border-amber-400/40'
-                                      : 'border-white/10'
+                                      : 'border-[var(--ds-border-default)]'
                                   }`}
                                 />
                                 <DropdownMenu>
                                   <DropdownMenuTrigger asChild>
                                     <button
                                       type="button"
-                                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-amber-300"
+                                      className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--ds-text-secondary)] hover:text-amber-700 dark:text-amber-300"
                                     >
                                       <Braces size={14} />
                                     </button>
                                   </DropdownMenuTrigger>
                                   <DropdownMenuContent
                                     align="end"
-                                    className="min-w-52 border border-white/10 bg-zinc-900 text-white"
+                                    className="min-w-52 border border-[var(--ds-border-default)] bg-[var(--ds-bg-surface)] text-[var(--ds-text-primary)]"
                                   >
-                                    <DropdownMenuLabel className="text-xs uppercase tracking-widest text-gray-500">
+                                    <DropdownMenuLabel className="text-xs uppercase tracking-widest text-[var(--ds-text-muted)]">
                                       Dados do contato
                                     </DropdownMenuLabel>
                                     <DropdownMenuItem
@@ -1848,10 +1848,10 @@ export default function CampaignsNewRealPage() {
                                       <div className="text-blue-400 font-mono text-[10px] w-3.5 text-center">@</div>
                                       <span>E-mail</span>
                                     </DropdownMenuItem>
-                                    <DropdownMenuSeparator className="bg-white/10" />
+                                    <DropdownMenuSeparator className="bg-[var(--ds-bg-hover)]" />
                                     {customFields.length > 0 && (
                                       <>
-                                        <DropdownMenuLabel className="text-xs uppercase tracking-widest text-gray-500">
+                                        <DropdownMenuLabel className="text-xs uppercase tracking-widest text-[var(--ds-text-muted)]">
                                           Campos personalizados
                                         </DropdownMenuLabel>
                                         {customFields.map((field) => (
@@ -1860,23 +1860,23 @@ export default function CampaignsNewRealPage() {
                                             onSelect={() => setTemplateVarValue('body', index, `{{${field.key}}}`)}
                                             className="flex items-center gap-2"
                                           >
-                                            <div className="text-amber-400 font-mono text-[10px] w-3.5 text-center">#</div>
+                                            <div className="text-amber-600 dark:text-amber-400 font-mono text-[10px] w-3.5 text-center">#</div>
                                             <span>{field.label || field.key}</span>
                                           </DropdownMenuItem>
                                         ))}
-                                        <DropdownMenuSeparator className="bg-white/10" />
+                                        <DropdownMenuSeparator className="bg-[var(--ds-bg-hover)]" />
                                       </>
                                     )}
                                     <DropdownMenuItem
                                       onSelect={() => setIsFieldsSheetOpen(true)}
-                                      className="text-xs text-amber-400"
+                                      className="text-xs text-amber-600 dark:text-amber-400"
                                     >
                                       <Plus size={12} /> Gerenciar campos
                                     </DropdownMenuItem>
                                   </DropdownMenuContent>
                                 </DropdownMenu>
                               </div>
-                              {item.required && <span className="text-xs text-amber-300">obrigatório</span>}
+                              {item.required && <span className="text-xs text-amber-700 dark:text-amber-300">obrigatório</span>}
                             </div>
                           ))}
                         </div>
@@ -1884,9 +1884,9 @@ export default function CampaignsNewRealPage() {
                     )}
 
                     {buttonAudit.some((b: any) => b.kind === 'url' && b.isDynamic) && (
-                      <div className="space-y-3 border-t border-white/10 pt-4">
-                        <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-gray-500">
-                          <span className="text-[10px] font-mono text-emerald-200">URL</span>
+                      <div className="space-y-3 border-t border-[var(--ds-border-default)] pt-4">
+                        <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-[var(--ds-text-muted)]">
+                          <span className="text-[10px] font-mono text-emerald-700 dark:text-emerald-200">URL</span>
                           <span>Variáveis dos botões</span>
                         </div>
 
@@ -1894,10 +1894,10 @@ export default function CampaignsNewRealPage() {
                           {buttonAudit
                             .filter((b: any) => b.kind === 'url' && b.isDynamic)
                             .map((b: any) => (
-                              <div key={`btn-${b.index}`} className="rounded-xl border border-white/10 bg-zinc-950/30 p-4">
+                              <div key={`btn-${b.index}`} className="rounded-xl border border-[var(--ds-border-default)] bg-[var(--ds-bg-elevated)] p-4">
                                 <div className="flex items-center justify-between gap-3">
-                                  <div className="text-sm font-semibold text-white">{b.text}</div>
-                                  <div className="text-[10px] uppercase tracking-widest text-gray-500">botão {b.index + 1}</div>
+                                  <div className="text-sm font-semibold text-[var(--ds-text-primary)]">{b.text}</div>
+                                  <div className="text-[10px] uppercase tracking-widest text-[var(--ds-text-muted)]">botão {b.index + 1}</div>
                                 </div>
                                 <div className="mt-3 space-y-2">
                                   {(b.requiredKeys as string[]).map((k) => {
@@ -1905,30 +1905,30 @@ export default function CampaignsNewRealPage() {
                                     const value = templateButtonVars[`button_${b.index}_${k}`] || ''
                                     return (
                                       <div key={`btn-${b.index}-${k}`} className="flex items-center gap-3">
-                                        <span className="rounded-lg bg-amber-500/20 px-2 py-1 text-xs text-amber-200">{id}</span>
+                                        <span className="rounded-lg bg-amber-500/20 px-2 py-1 text-xs text-amber-700 dark:text-amber-200">{id}</span>
                                         <div className="relative flex flex-1 items-center">
                                           <input
                                             value={value}
                                             onChange={(event) => setButtonVarValue(b.index, k, event.target.value)}
                                             placeholder={`Variável do botão (${id})`}
-                                            className={`w-full rounded-xl border bg-zinc-950/40 px-4 py-2 pr-10 text-sm text-white placeholder:text-gray-600 ${
-                                              !value.trim() ? 'border-amber-400/40' : 'border-white/10'
+                                            className={`w-full rounded-xl border bg-[var(--ds-bg-elevated)] px-4 py-2 pr-10 text-sm text-[var(--ds-text-primary)] placeholder:text-[var(--ds-text-muted)] ${
+                                              !value.trim() ? 'border-amber-400/40' : 'border-[var(--ds-border-default)]'
                                             }`}
                                           />
                                           <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
                                               <button
                                                 type="button"
-                                                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-amber-300"
+                                                className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--ds-text-secondary)] hover:text-amber-700 dark:text-amber-300"
                                               >
                                                 <Braces size={14} />
                                               </button>
                                             </DropdownMenuTrigger>
                                             <DropdownMenuContent
                                               align="end"
-                                              className="min-w-52 border border-white/10 bg-zinc-900 text-white"
+                                              className="min-w-52 border border-[var(--ds-border-default)] bg-[var(--ds-bg-surface)] text-[var(--ds-text-primary)]"
                                             >
-                                              <DropdownMenuLabel className="text-xs uppercase tracking-widest text-gray-500">
+                                              <DropdownMenuLabel className="text-xs uppercase tracking-widest text-[var(--ds-text-muted)]">
                                                 Dados do contato
                                               </DropdownMenuLabel>
                                               <DropdownMenuItem
@@ -1952,10 +1952,10 @@ export default function CampaignsNewRealPage() {
                                                 <div className="text-blue-400 font-mono text-[10px] w-3.5 text-center">@</div>
                                                 <span>E-mail</span>
                                               </DropdownMenuItem>
-                                              <DropdownMenuSeparator className="bg-white/10" />
+                                              <DropdownMenuSeparator className="bg-[var(--ds-bg-hover)]" />
                                               {customFields.length > 0 && (
                                                 <>
-                                                  <DropdownMenuLabel className="text-xs uppercase tracking-widest text-gray-500">
+                                                  <DropdownMenuLabel className="text-xs uppercase tracking-widest text-[var(--ds-text-muted)]">
                                                     Campos personalizados
                                                   </DropdownMenuLabel>
                                                   {customFields.map((field) => (
@@ -1964,23 +1964,23 @@ export default function CampaignsNewRealPage() {
                                                       onSelect={() => setButtonVarValue(b.index, k, `{{${field.key}}}`)}
                                                       className="flex items-center gap-2"
                                                     >
-                                                      <div className="text-amber-400 font-mono text-[10px] w-3.5 text-center">#</div>
+                                                      <div className="text-amber-600 dark:text-amber-400 font-mono text-[10px] w-3.5 text-center">#</div>
                                                       <span>{field.label || field.key}</span>
                                                     </DropdownMenuItem>
                                                   ))}
-                                                  <DropdownMenuSeparator className="bg-white/10" />
+                                                  <DropdownMenuSeparator className="bg-[var(--ds-bg-hover)]" />
                                                 </>
                                               )}
                                               <DropdownMenuItem
                                                 onSelect={() => setIsFieldsSheetOpen(true)}
-                                                className="text-xs text-amber-400"
+                                                className="text-xs text-amber-600 dark:text-amber-400"
                                               >
                                                 <Plus size={12} /> Gerenciar campos
                                               </DropdownMenuItem>
                                             </DropdownMenuContent>
                                           </DropdownMenu>
                                         </div>
-                                        <span className="text-xs text-amber-300">obrigatório</span>
+                                        <span className="text-xs text-amber-700 dark:text-amber-300">obrigatório</span>
                                       </div>
                                     )
                                   })}
@@ -1998,12 +1998,12 @@ export default function CampaignsNewRealPage() {
 
           {step === 2 && (
             <div className="space-y-6">
-              <div className="rounded-2xl border border-white/10 bg-zinc-900/60 p-6 shadow-[0_12px_30px_rgba(0,0,0,0.35)]">
+              <div className="rounded-2xl border border-[var(--ds-border-default)] bg-[var(--ds-bg-surface)] p-6 shadow-[0_12px_30px_rgba(0,0,0,0.35)]">
                 {collapseAudienceChoice ? (
                   <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                     <div>
-                      <div className="text-xs uppercase tracking-widest text-gray-500">Público</div>
-                      <div className="mt-1 text-sm font-semibold text-white">
+                      <div className="text-xs uppercase tracking-widest text-[var(--ds-text-muted)]">Público</div>
+                      <div className="mt-1 text-sm font-semibold text-[var(--ds-text-primary)]">
                         {audienceMode === 'todos' && 'Todos'}
                         {audienceMode === 'segmentos' && 'Segmentos'}
                         {audienceMode === 'teste' && 'Teste'}
@@ -2012,7 +2012,7 @@ export default function CampaignsNewRealPage() {
                     <button
                       type="button"
                       onClick={() => setCollapseAudienceChoice(false)}
-                      className="text-xs text-emerald-300"
+                      className="text-xs text-emerald-700 dark:text-emerald-300"
                     >
                       Editar público
                     </button>
@@ -2020,8 +2020,8 @@ export default function CampaignsNewRealPage() {
                 ) : (
                   <>
                     <div className="space-y-1">
-                      <h2 className="text-lg font-semibold text-white">Escolha o público</h2>
-                      <p className="text-sm text-gray-500">Uma decisao rapida antes dos filtros.</p>
+                      <h2 className="text-lg font-semibold text-[var(--ds-text-primary)]">Escolha o público</h2>
+                      <p className="text-sm text-[var(--ds-text-muted)]">Uma decisao rapida antes dos filtros.</p>
                     </div>
                     <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-3">
                       {[
@@ -2035,12 +2035,12 @@ export default function CampaignsNewRealPage() {
                           onClick={() => setAudienceMode(item.value)}
                           className={`rounded-2xl border px-4 py-4 text-left text-sm ${
                             audienceMode === item.value
-                              ? 'border-emerald-400/40 bg-emerald-500/10 text-white'
-                              : 'border-white/10 bg-zinc-950/40 text-gray-400'
+                              ? 'border-emerald-600 dark:border-emerald-400/40 bg-emerald-500/10 text-[var(--ds-text-primary)]'
+                              : 'border-[var(--ds-border-default)] bg-[var(--ds-bg-elevated)] text-[var(--ds-text-secondary)]'
                           }`}
                         >
                           <div className="text-sm font-semibold">{item.label}</div>
-                          <div className="mt-2 text-xs text-gray-500">{item.helper}</div>
+                          <div className="mt-2 text-xs text-[var(--ds-text-muted)]">{item.helper}</div>
                         </button>
                       ))}
                     </div>
@@ -2049,49 +2049,49 @@ export default function CampaignsNewRealPage() {
               </div>
 
               {audienceMode === 'todos' && (
-                <div className="rounded-2xl border border-white/10 bg-zinc-900/60 p-6 shadow-[0_12px_30px_rgba(0,0,0,0.35)]">
+                <div className="rounded-2xl border border-[var(--ds-border-default)] bg-[var(--ds-bg-surface)] p-6 shadow-[0_12px_30px_rgba(0,0,0,0.35)]">
                   <div className="space-y-1">
-                    <h2 className="text-lg font-semibold text-white">Todos os contatos</h2>
-                    <p className="text-sm text-gray-500">Nenhum filtro aplicado.</p>
+                    <h2 className="text-lg font-semibold text-[var(--ds-text-primary)]">Todos os contatos</h2>
+                    <p className="text-sm text-[var(--ds-text-muted)]">Nenhum filtro aplicado.</p>
                   </div>
                   <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-3">
-                    <div className="rounded-xl border border-white/10 bg-zinc-950/40 p-4 text-center">
-                      <p className="text-2xl font-semibold text-white">221</p>
-                      <p className="text-xs text-gray-500">Elegíveis</p>
+                    <div className="rounded-xl border border-[var(--ds-border-default)] bg-[var(--ds-bg-elevated)] p-4 text-center">
+                      <p className="text-2xl font-semibold text-[var(--ds-text-primary)]">221</p>
+                      <p className="text-xs text-[var(--ds-text-muted)]">Elegíveis</p>
                     </div>
-                    <div className="rounded-xl border border-white/10 bg-zinc-950/40 p-4 text-center">
-                      <p className="text-2xl font-semibold text-amber-200">6</p>
-                      <p className="text-xs text-gray-500">Suprimidos</p>
+                    <div className="rounded-xl border border-[var(--ds-border-default)] bg-[var(--ds-bg-elevated)] p-4 text-center">
+                      <p className="text-2xl font-semibold text-amber-700 dark:text-amber-200">6</p>
+                      <p className="text-xs text-[var(--ds-text-muted)]">Suprimidos</p>
                     </div>
-                    <div className="rounded-xl border border-white/10 bg-zinc-950/40 p-4 text-center">
-                      <p className="text-2xl font-semibold text-gray-200">0</p>
-                      <p className="text-xs text-gray-500">Duplicados</p>
+                    <div className="rounded-xl border border-[var(--ds-border-default)] bg-[var(--ds-bg-elevated)] p-4 text-center">
+                      <p className="text-2xl font-semibold text-[var(--ds-text-primary)]">0</p>
+                      <p className="text-xs text-[var(--ds-text-muted)]">Duplicados</p>
                     </div>
                   </div>
-                  <p className="mt-4 text-xs text-gray-500">
+                  <p className="mt-4 text-xs text-[var(--ds-text-muted)]">
                     Envio para todos os contatos válidos, excluindo opt-out e suprimidos.
                   </p>
                 </div>
               )}
 
               {audienceMode === 'segmentos' && (
-                <div className="rounded-2xl border border-white/10 bg-zinc-900/60 p-6 shadow-[0_12px_30px_rgba(0,0,0,0.35)]">
+                <div className="rounded-2xl border border-[var(--ds-border-default)] bg-[var(--ds-bg-surface)] p-6 shadow-[0_12px_30px_rgba(0,0,0,0.35)]">
                   <Sheet open={showStatesPanel} onOpenChange={setShowStatesPanel}>
-                    <SheetContent className="w-full border-l border-white/10 bg-zinc-950 p-0 sm:max-w-md">
-                      <SheetHeader className="border-b border-white/10 p-6">
-                        <SheetTitle className="text-white">Selecionar UF</SheetTitle>
-                        <SheetDescription className="text-gray-400">
+                    <SheetContent className="w-full border-l border-[var(--ds-border-default)] bg-[var(--ds-bg-base)] p-0 sm:max-w-md">
+                      <SheetHeader className="border-b border-[var(--ds-border-default)] p-6">
+                        <SheetTitle className="text-[var(--ds-text-primary)]">Selecionar UF</SheetTitle>
+                        <SheetDescription className="text-[var(--ds-text-secondary)]">
                           Escolha os estados para segmentar.
                         </SheetDescription>
                       </SheetHeader>
                       <div className="space-y-4 p-6">
                         {!isBrSelected && (
-                          <div className="rounded-lg border border-amber-400/20 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+                          <div className="rounded-lg border border-amber-400/20 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-200">
                             Selecione BR no DDI para habilitar as UFs.
                           </div>
                         )}
                         <input
-                          className="w-full rounded-xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-sm text-white placeholder:text-gray-600"
+                          className="w-full rounded-xl border border-[var(--ds-border-default)] bg-[var(--ds-bg-elevated)] px-3 py-2 text-sm text-[var(--ds-text-primary)] placeholder:text-[var(--ds-text-muted)]"
                           placeholder="Buscar UF..."
                           value={stateSearch}
                           onChange={(event) => setStateSearch(event.target.value)}
@@ -2099,7 +2099,7 @@ export default function CampaignsNewRealPage() {
                         <div className="max-h-64 overflow-y-auto pr-1">
                           <div className="flex flex-wrap gap-2">
                             {filteredStates.length === 0 && (
-                              <span className="text-xs text-gray-500">Nenhuma UF encontrada.</span>
+                              <span className="text-xs text-[var(--ds-text-muted)]">Nenhuma UF encontrada.</span>
                             )}
                             {filteredStates.map((item) => {
                               const active = selectedStates.includes(item.code)
@@ -2120,12 +2120,12 @@ export default function CampaignsNewRealPage() {
                                   }}
                                   className={`rounded-full border px-3 py-1 text-xs ${
                                     active
-                                      ? 'border-emerald-400/40 bg-emerald-500/10 text-emerald-100'
-                                      : 'border-white/10 bg-zinc-950/40 text-gray-300'
+                                      ? 'border-emerald-600 dark:border-emerald-400/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-100'
+                                      : 'border-[var(--ds-border-default)] bg-[var(--ds-bg-elevated)] text-[var(--ds-text-secondary)]'
                                   } ${disabled ? 'cursor-not-allowed opacity-40' : ''}`}
                                 >
                                   <span>{item.code}</span>
-                                  <sup className="ml-1 text-[8px] leading-none text-amber-300">{item.count}</sup>
+                                  <sup className="ml-1 text-[8px] leading-none text-amber-700 dark:text-amber-300">{item.count}</sup>
                                 </button>
                               )
                             })}
@@ -2137,13 +2137,13 @@ export default function CampaignsNewRealPage() {
                   {collapseQuickSegments ? (
                     <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                       <div>
-                        <div className="text-xs uppercase tracking-widest text-gray-500">Segmentos rapidos</div>
-                        <div className="mt-1 text-sm font-semibold text-white">Resumo aplicado</div>
+                        <div className="text-xs uppercase tracking-widest text-[var(--ds-text-muted)]">Segmentos rapidos</div>
+                        <div className="mt-1 text-sm font-semibold text-[var(--ds-text-primary)]">Resumo aplicado</div>
                       </div>
                       <button
                         type="button"
                         onClick={() => setCollapseQuickSegments(false)}
-                        className="text-xs text-emerald-300"
+                        className="text-xs text-emerald-700 dark:text-emerald-300"
                       >
                         Editar segmentos
                       </button>
@@ -2152,20 +2152,20 @@ export default function CampaignsNewRealPage() {
                     <>
                       <div className="flex items-center justify-between">
                         <div>
-                          <h2 className="text-lg font-semibold text-white">Segmentos rapidos</h2>
-                          <p className="text-sm text-gray-500">Refine sem abrir um construtor completo.</p>
+                          <h2 className="text-lg font-semibold text-[var(--ds-text-primary)]">Segmentos rapidos</h2>
+                          <p className="text-sm text-[var(--ds-text-muted)]">Refine sem abrir um construtor completo.</p>
                         </div>
-                        <button className="text-xs text-gray-400 hover:text-white">Limpar</button>
+                        <button className="text-xs text-[var(--ds-text-secondary)] hover:text-[var(--ds-text-primary)]">Limpar</button>
                       </div>
-                      <div className="mt-4 flex flex-wrap items-center gap-3 text-xs text-gray-400">
-                        <span className="uppercase tracking-widest text-gray-500">Combinacao</span>
+                      <div className="mt-4 flex flex-wrap items-center gap-3 text-xs text-[var(--ds-text-secondary)]">
+                        <span className="uppercase tracking-widest text-[var(--ds-text-muted)]">Combinacao</span>
                         <button
                           type="button"
                           onClick={() => setCombineMode('or')}
                           className={`rounded-full border px-3 py-1 ${
                             combineMode === 'or'
-                              ? 'border-emerald-400/40 bg-emerald-500/10 text-emerald-200'
-                              : 'border-white/10 bg-zinc-950/40 text-gray-300'
+                              ? 'border-emerald-600 dark:border-emerald-400/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-200'
+                              : 'border-[var(--ds-border-default)] bg-[var(--ds-bg-elevated)] text-[var(--ds-text-secondary)]'
                           }`}
                         >
                           Mais alcance
@@ -2175,25 +2175,25 @@ export default function CampaignsNewRealPage() {
                           onClick={() => setCombineMode('and')}
                           className={`rounded-full border px-3 py-1 ${
                             combineMode === 'and'
-                              ? 'border-emerald-400/40 bg-emerald-500/10 text-emerald-200'
-                              : 'border-white/10 bg-zinc-950/40 text-gray-300'
+                              ? 'border-emerald-600 dark:border-emerald-400/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-200'
+                              : 'border-[var(--ds-border-default)] bg-[var(--ds-bg-elevated)] text-[var(--ds-text-secondary)]'
                           }`}
                         >
                           Mais preciso
                         </button>
-                        <span className="text-xs text-gray-500">
+                        <span className="text-xs text-[var(--ds-text-muted)]">
                           {combineModeLabel}: {combinePreview}
                         </span>
-                        <span className="text-xs text-gray-500">
+                        <span className="text-xs text-[var(--ds-text-muted)]">
                           Estimativa: {isSegmentCountLoading ? 'Calculando...' : `${audienceCount} contatos`}
                         </span>
                       </div>
                       <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-3">
                         <div>
-                          <p className="text-xs uppercase tracking-widest text-gray-500">Tags</p>
+                          <p className="text-xs uppercase tracking-widest text-[var(--ds-text-muted)]">Tags</p>
                           <div className="mt-3 flex flex-wrap gap-2">
                             {tagChips.length === 0 && (
-                              <span className="text-xs text-gray-500">Sem tags cadastradas</span>
+                              <span className="text-xs text-[var(--ds-text-muted)]">Sem tags cadastradas</span>
                             )}
                             {tagChips.map((tag) => {
                               const count = tagCounts[tag]
@@ -2205,13 +2205,13 @@ export default function CampaignsNewRealPage() {
                                   onClick={() => toggleSelection(tag, selectedTags, setSelectedTags)}
                                   className={`rounded-full border px-3 py-1 text-xs ${
                                     active
-                                      ? 'border-emerald-400/40 bg-emerald-500/10 text-emerald-100'
-                                      : 'border-white/10 bg-zinc-950/40 text-gray-300'
+                                      ? 'border-emerald-600 dark:border-emerald-400/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-100'
+                                      : 'border-[var(--ds-border-default)] bg-[var(--ds-bg-elevated)] text-[var(--ds-text-secondary)]'
                                   }`}
                                 >
                                   <span>{tag}</span>
                                   {typeof count === 'number' && (
-                                    <sup className="ml-1 text-[8px] leading-none text-amber-300">{count}</sup>
+                                    <sup className="ml-1 text-[8px] leading-none text-amber-700 dark:text-amber-300">{count}</sup>
                                   )}
                                 </button>
                               )
@@ -2219,13 +2219,13 @@ export default function CampaignsNewRealPage() {
                           </div>
                         </div>
                         <div>
-                          <p className="text-xs uppercase tracking-widest text-gray-500">Pais (DDI)</p>
+                          <p className="text-xs uppercase tracking-widest text-[var(--ds-text-muted)]">Pais (DDI)</p>
                           <div className="mt-3 flex flex-wrap gap-2">
                             {countriesQuery.isLoading && (
-                              <span className="text-xs text-gray-500">Carregando DDI...</span>
+                              <span className="text-xs text-[var(--ds-text-muted)]">Carregando DDI...</span>
                             )}
                             {!countriesQuery.isLoading && countryChips.length === 0 && (
-                              <span className="text-xs text-gray-500">Sem DDI cadastrados</span>
+                              <span className="text-xs text-[var(--ds-text-muted)]">Sem DDI cadastrados</span>
                             )}
                             {countryChips.map((chip) => {
                               const active = selectedCountries.includes(chip)
@@ -2246,13 +2246,13 @@ export default function CampaignsNewRealPage() {
                                   }}
                                   className={`rounded-full border px-3 py-1 text-xs ${
                                     active
-                                      ? 'border-emerald-400/40 bg-emerald-500/10 text-emerald-100'
-                                      : 'border-white/10 bg-zinc-950/40 text-gray-300'
+                                      ? 'border-emerald-600 dark:border-emerald-400/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-100'
+                                      : 'border-[var(--ds-border-default)] bg-[var(--ds-bg-elevated)] text-[var(--ds-text-secondary)]'
                                   }`}
                                 >
                                   <span>{chip}</span>
                                   {typeof count === 'number' && (
-                                    <sup className="ml-1 text-[8px] leading-none text-amber-300">{count}</sup>
+                                    <sup className="ml-1 text-[8px] leading-none text-amber-700 dark:text-amber-300">{count}</sup>
                                   )}
                                 </button>
                               )
@@ -2260,13 +2260,13 @@ export default function CampaignsNewRealPage() {
                           </div>
                         </div>
                         <div>
-                          <p className="text-xs uppercase tracking-widest text-gray-500">UF (BR)</p>
+                          <p className="text-xs uppercase tracking-widest text-[var(--ds-text-muted)]">UF (BR)</p>
                           <div className="mt-3 flex items-center gap-2 overflow-hidden">
                             {statesQuery.isLoading && (
-                              <span className="text-xs text-gray-500">Carregando UFs...</span>
+                              <span className="text-xs text-[var(--ds-text-muted)]">Carregando UFs...</span>
                             )}
                             {!statesQuery.isLoading && stateChips.length === 0 && (
-                              <span className="text-xs text-gray-500">Sem UFs cadastrados</span>
+                              <span className="text-xs text-[var(--ds-text-muted)]">Sem UFs cadastrados</span>
                             )}
                             {stateChipsToShow.map((chip) => {
                               const active = selectedStates.includes(chip)
@@ -2288,13 +2288,13 @@ export default function CampaignsNewRealPage() {
                                   }}
                                   className={`rounded-full border px-3 py-1 text-xs ${
                                     active
-                                      ? 'border-emerald-400/40 bg-emerald-500/10 text-emerald-100'
-                                      : 'border-white/10 bg-zinc-950/40 text-gray-300'
+                                      ? 'border-emerald-600 dark:border-emerald-400/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-100'
+                                      : 'border-[var(--ds-border-default)] bg-[var(--ds-bg-elevated)] text-[var(--ds-text-secondary)]'
                                   } ${disabled ? 'cursor-not-allowed opacity-40' : ''}`}
                                 >
                                   <span>{chip}</span>
                                   {typeof count === 'number' && (
-                                    <sup className="ml-1 text-[8px] leading-none text-amber-300">{count}</sup>
+                                    <sup className="ml-1 text-[8px] leading-none text-amber-700 dark:text-amber-300">{count}</sup>
                                   )}
                                 </button>
                               )
@@ -2309,8 +2309,8 @@ export default function CampaignsNewRealPage() {
                                 }}
                                 className={`rounded-full border px-3 py-1 text-xs ${
                                   isBrSelected
-                                    ? 'border-white/10 bg-zinc-950/40 text-gray-300 hover:border-white/30'
-                                    : 'cursor-not-allowed border-white/10 bg-zinc-950/40 text-gray-500'
+                                    ? 'border-[var(--ds-border-default)] bg-[var(--ds-bg-elevated)] text-[var(--ds-text-secondary)] hover:border-white/30'
+                                    : 'cursor-not-allowed border-[var(--ds-border-default)] bg-[var(--ds-bg-elevated)] text-[var(--ds-text-muted)]'
                                 }`}
                               >
                                 +{hiddenStateCount}
@@ -2325,16 +2325,16 @@ export default function CampaignsNewRealPage() {
               )}
 
               {audienceMode === 'teste' && (
-                <div className="rounded-2xl border border-white/10 bg-zinc-900/60 p-6 shadow-[0_12px_30px_rgba(0,0,0,0.35)]">
+                <div className="rounded-2xl border border-[var(--ds-border-default)] bg-[var(--ds-bg-surface)] p-6 shadow-[0_12px_30px_rgba(0,0,0,0.35)]">
                   <div className="space-y-1">
-                    <h2 className="text-lg font-semibold text-white">Contato de teste</h2>
-                    <p className="text-sm text-gray-500">Escolha o contato configurado, outro contato, ou ambos.</p>
+                    <h2 className="text-lg font-semibold text-[var(--ds-text-primary)]">Contato de teste</h2>
+                    <p className="text-sm text-[var(--ds-text-muted)]">Escolha o contato configurado, outro contato, ou ambos.</p>
                   </div>
                   <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
-                    <div className="rounded-2xl border border-white/10 bg-zinc-950/40 p-4">
+                    <div className="rounded-2xl border border-[var(--ds-border-default)] bg-[var(--ds-bg-elevated)] p-4">
                       <div className="flex items-center justify-between">
-                        <label className="text-xs uppercase tracking-widest text-gray-500">Telefone de teste (settings)</label>
-                        <a href="/settings#test-contact" className="text-xs text-emerald-300">
+                        <label className="text-xs uppercase tracking-widest text-[var(--ds-text-muted)]">Telefone de teste (settings)</label>
+                        <a href="/settings#test-contact" className="text-xs text-emerald-700 dark:text-emerald-300">
                           Editar em configuracoes
                         </a>
                       </div>
@@ -2344,38 +2344,38 @@ export default function CampaignsNewRealPage() {
                           if (!hasConfiguredContact) return
                           setSendToConfigured((prev) => !prev)
                         }}
-                        className={`mt-3 w-full rounded-xl border bg-zinc-950/40 px-4 py-3 text-left text-sm ${
+                        className={`mt-3 w-full rounded-xl border bg-[var(--ds-bg-elevated)] px-4 py-3 text-left text-sm ${
                           sendToConfigured && hasConfiguredContact
-                            ? 'border-emerald-400/40 text-white'
-                            : 'border-white/10 text-gray-300'
+                            ? 'border-emerald-600 dark:border-emerald-400/40 text-[var(--ds-text-primary)]'
+                            : 'border-[var(--ds-border-default)] text-[var(--ds-text-secondary)]'
                         } ${!hasConfiguredContact ? 'cursor-not-allowed opacity-60' : ''}`}
                       >
                         {configuredLabel}
                       </button>
                       {hasConfiguredContact ? (
-                        <p className="mt-2 text-xs text-gray-500">Clique para incluir/remover no envio.</p>
+                        <p className="mt-2 text-xs text-[var(--ds-text-muted)]">Clique para incluir/remover no envio.</p>
                       ) : (
-                        <p className="mt-2 text-xs text-amber-300">Nenhum telefone de teste configurado.</p>
+                        <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">Nenhum telefone de teste configurado.</p>
                       )}
                     </div>
-                    <div className="rounded-2xl border border-white/10 bg-zinc-950/40 p-4">
-                      <label className="text-xs uppercase tracking-widest text-gray-500">Usar outro contato</label>
+                    <div className="rounded-2xl border border-[var(--ds-border-default)] bg-[var(--ds-bg-elevated)] p-4">
+                      <label className="text-xs uppercase tracking-widest text-[var(--ds-text-muted)]">Usar outro contato</label>
                       <input
-                        className="mt-2 w-full rounded-xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm text-white placeholder:text-gray-600"
+                        className="mt-2 w-full rounded-xl border border-[var(--ds-border-default)] bg-[var(--ds-bg-elevated)] px-4 py-3 text-sm text-[var(--ds-text-primary)] placeholder:text-[var(--ds-text-muted)]"
                         placeholder="Nome, telefone ou e-mail..."
                         value={testContactSearch}
                         onChange={(event) => setTestContactSearch(event.target.value)}
                       />
                       {testContactSearch.trim().length < 2 && !selectedTestContact && (
-                        <p className="mt-2 text-xs text-gray-600">Digite pelo menos 2 caracteres para buscar.</p>
+                        <p className="mt-2 text-xs text-[var(--ds-text-muted)]">Digite pelo menos 2 caracteres para buscar.</p>
                       )}
                       {contactSearchQuery.isLoading && (
-                        <p className="mt-2 text-xs text-gray-500">Buscando contatos...</p>
+                        <p className="mt-2 text-xs text-[var(--ds-text-muted)]">Buscando contatos...</p>
                       )}
                       {contactSearchQuery.isError && (
-                        <p className="mt-2 text-xs text-amber-300">Erro ao buscar contatos.</p>
+                        <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">Erro ao buscar contatos.</p>
                       )}
-                      <div className="mt-3 space-y-2 text-sm text-gray-400">
+                      <div className="mt-3 space-y-2 text-sm text-[var(--ds-text-secondary)]">
                         {displayTestContacts.map((contact) => {
                           const isSelected = selectedTestContact?.id === contact.id
                           const isActive = isSelected && sendToSelected
@@ -2391,26 +2391,26 @@ export default function CampaignsNewRealPage() {
                                   setSendToSelected(true)
                                 }
                               }}
-                              className={`w-full rounded-xl border bg-zinc-950/40 px-3 py-2 text-left transition ${
+                              className={`w-full rounded-xl border bg-[var(--ds-bg-elevated)] px-3 py-2 text-left transition ${
                                 isActive
-                                  ? 'border-emerald-400/40 text-gray-200'
+                                  ? 'border-emerald-600 dark:border-emerald-400/40 text-[var(--ds-text-primary)]'
                                   : isSelected
-                                    ? 'border-white/20 text-gray-300'
-                                    : 'border-white/10 text-gray-300 hover:border-emerald-400/40'
+                                    ? 'border-[var(--ds-border-default)] text-[var(--ds-text-secondary)]'
+                                    : 'border-[var(--ds-border-default)] text-[var(--ds-text-secondary)] hover:border-emerald-600 dark:hover:border-emerald-400/40'
                               }`}
                             >
                               <div className="flex items-center justify-between">
-                                <span className="font-medium text-white">{contact.name || 'Contato'}</span>
-                                <span className="text-xs text-gray-500">{contact.phone}</span>
+                                <span className="font-medium text-[var(--ds-text-primary)]">{contact.name || 'Contato'}</span>
+                                <span className="text-xs text-[var(--ds-text-muted)]">{contact.phone}</span>
                               </div>
-                              {contact.email && <div className="mt-1 text-xs text-gray-500">{contact.email}</div>}
+                              {contact.email && <div className="mt-1 text-xs text-[var(--ds-text-muted)]">{contact.email}</div>}
                             </button>
                           )
                         })}
                         {!displayTestContacts.length &&
                           testContactSearch.trim().length >= 2 &&
                           !contactSearchQuery.isLoading && (
-                            <div className="rounded-xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-xs text-gray-500">
+                            <div className="rounded-xl border border-[var(--ds-border-default)] bg-[var(--ds-bg-elevated)] px-3 py-2 text-xs text-[var(--ds-text-muted)]">
                               Nenhum contato encontrado.
                             </div>
                           )}
@@ -2418,7 +2418,7 @@ export default function CampaignsNewRealPage() {
                     </div>
                   </div>
                   <div className="mt-4">
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-[var(--ds-text-muted)]">
                       Envio de teste não consome limite diário. Selecione 1 ou 2 contatos.
                     </p>
                   </div>
@@ -2429,26 +2429,26 @@ export default function CampaignsNewRealPage() {
 
           {step === 3 && (
             <div className="space-y-6">
-              <div className="rounded-2xl border border-white/10 bg-zinc-900/60 p-6 shadow-[0_12px_30px_rgba(0,0,0,0.35)]">
+              <div className="rounded-2xl border border-[var(--ds-border-default)] bg-[var(--ds-bg-surface)] p-6 shadow-[0_12px_30px_rgba(0,0,0,0.35)]">
                 <div className="space-y-1">
-                  <h2 className="text-lg font-semibold text-white">Validação de destinatários</h2>
-                  <p className="text-sm text-gray-500">Validação automática antes do disparo.</p>
+                  <h2 className="text-lg font-semibold text-[var(--ds-text-primary)]">Validação de destinatários</h2>
+                  <p className="text-sm text-[var(--ds-text-muted)]">Validação automática antes do disparo.</p>
                 </div>
                 <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
-                  <div className="rounded-xl border border-white/10 bg-zinc-950/40 p-4 text-center">
-                    <p className="text-2xl font-semibold text-white">
+                  <div className="rounded-xl border border-[var(--ds-border-default)] bg-[var(--ds-bg-elevated)] p-4 text-center">
+                    <p className="text-2xl font-semibold text-[var(--ds-text-primary)]">
                       {isPrecheckLoading ? '—' : precheckTotals?.valid ?? '—'}
                     </p>
-                    <p className="text-xs text-gray-500">Válidos</p>
+                    <p className="text-xs text-[var(--ds-text-muted)]">Válidos</p>
                   </div>
-                  <div className="rounded-xl border border-white/10 bg-zinc-950/40 p-4 text-center">
-                    <p className="text-2xl font-semibold text-amber-300">
+                  <div className="rounded-xl border border-[var(--ds-border-default)] bg-[var(--ds-bg-elevated)] p-4 text-center">
+                    <p className="text-2xl font-semibold text-amber-700 dark:text-amber-300">
                       {isPrecheckLoading ? '—' : precheckTotals?.skipped ?? '—'}
                     </p>
-                    <p className="text-xs text-gray-500">Ignorados</p>
+                    <p className="text-xs text-[var(--ds-text-muted)]">Ignorados</p>
                   </div>
-                  <div className="rounded-xl border border-white/10 bg-zinc-950/40 p-4 text-center">
-                    <p className="text-2xl font-semibold text-emerald-300">
+                  <div className="rounded-xl border border-[var(--ds-border-default)] bg-[var(--ds-bg-elevated)] p-4 text-center">
+                    <p className="text-2xl font-semibold text-emerald-700 dark:text-emerald-300">
                       {precheckError
                         ? 'Falhou'
                         : isPrecheckLoading
@@ -2457,19 +2457,19 @@ export default function CampaignsNewRealPage() {
                             ? 'Atencao'
                             : 'OK'}
                     </p>
-                    <p className="text-xs text-gray-500">Status</p>
+                    <p className="text-xs text-[var(--ds-text-muted)]">Status</p>
                   </div>
                 </div>
                 {precheckError && (
-                  <p className="mt-3 text-xs text-amber-300">{precheckError}</p>
+                  <p className="mt-3 text-xs text-amber-700 dark:text-amber-300">{precheckError}</p>
                 )}
 
                 {precheckTotals && precheckTotals.skipped > 0 && (
-                  <div className="mt-5 rounded-xl border border-white/10 bg-zinc-950/30 p-4">
+                  <div className="mt-5 rounded-xl border border-[var(--ds-border-default)] bg-[var(--ds-bg-elevated)] p-4">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm font-semibold text-white">Corrigir ignorados</p>
-                        <p className="text-xs text-gray-500">
+                        <p className="text-sm font-semibold text-[var(--ds-text-primary)]">Corrigir ignorados</p>
+                        <p className="text-xs text-[var(--ds-text-muted)]">
                           Alguns contatos estão sendo ignorados por falta de Nome, E-mail ou campo personalizado. Corrija e a validação destrava.
                         </p>
                       </div>
@@ -2483,17 +2483,17 @@ export default function CampaignsNewRealPage() {
                           }}
                           className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold transition-colors ${
                             bulkKeys.length
-                              ? 'border-amber-500/20 bg-zinc-950/40 text-amber-200 hover:bg-amber-500/10 hover:border-amber-500/40'
-                              : 'border-white/10 bg-zinc-950/30 text-gray-600'
+                              ? 'border-amber-500/20 bg-[var(--ds-bg-elevated)] text-amber-700 dark:text-amber-200 hover:bg-amber-500/10 hover:border-amber-500/40'
+                              : 'border-[var(--ds-border-default)] bg-[var(--ds-bg-elevated)] text-[var(--ds-text-muted)]'
                           }`}
                         >
-                          <Layers size={16} className={bulkKeys.length ? 'text-amber-300' : 'text-gray-600'} />
+                          <Layers size={16} className={bulkKeys.length ? 'text-amber-700 dark:text-amber-300' : 'text-[var(--ds-text-muted)]'} />
                           <span className="whitespace-nowrap">Aplicar em massa</span>
                         </button>
                         <button
                           type="button"
                           onClick={() => runPrecheck()}
-                          className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white px-3 py-2 text-sm font-semibold text-black transition-colors hover:bg-gray-200"
+                          className="inline-flex items-center gap-2 rounded-lg border border-transparent bg-primary-600 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-primary-700 dark:bg-white dark:text-black dark:hover:bg-gray-200"
                         >
                           <RefreshCw size={16} />
                           <span className="whitespace-nowrap">Validar novamente</span>
@@ -2504,26 +2504,26 @@ export default function CampaignsNewRealPage() {
                           onClick={startBatchFix}
                           className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold transition-colors ${
                             fixCandidates.length
-                              ? 'border-primary-500/40 bg-primary-600 text-white hover:bg-primary-500'
-                              : 'border-white/10 bg-zinc-950/30 text-gray-600'
+                              ? 'border-primary-500/40 bg-primary-600 text-[var(--ds-text-primary)] hover:bg-primary-500'
+                              : 'border-[var(--ds-border-default)] bg-[var(--ds-bg-elevated)] text-[var(--ds-text-muted)]'
                           }`}
                         >
-                          <Wand2 size={16} className={fixCandidates.length ? 'text-white' : 'text-gray-600'} />
+                          <Wand2 size={16} className={fixCandidates.length ? 'text-[var(--ds-text-primary)]' : 'text-[var(--ds-text-muted)]'} />
                           <span className="whitespace-nowrap">Corrigir em lote</span>
                         </button>
                       </div>
                     </div>
 
                     {bulkOpen && (
-                      <div className="mt-4 rounded-xl border border-white/10 bg-zinc-950/40 p-4">
+                      <div className="mt-4 rounded-xl border border-[var(--ds-border-default)] bg-[var(--ds-bg-elevated)] p-4">
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                           <div>
-                            <p className="text-sm font-semibold text-white">Aplicar campo personalizado em massa</p>
-                            <p className="mt-1 text-xs text-gray-500">
+                            <p className="text-sm font-semibold text-[var(--ds-text-primary)]">Aplicar campo personalizado em massa</p>
+                            <p className="mt-1 text-xs text-[var(--ds-text-muted)]">
                               Preenche o campo selecionado para todos os contatos ignorados que estão faltando esse dado.
                             </p>
                             {(systemMissingCounts.name > 0 || systemMissingCounts.email > 0) && (
-                              <p className="mt-2 text-xs text-gray-600">
+                              <p className="mt-2 text-xs text-[var(--ds-text-muted)]">
                                 Obs: {systemMissingCounts.name > 0 ? `${systemMissingCounts.name} faltam Nome` : null}
                                 {systemMissingCounts.name > 0 && systemMissingCounts.email > 0 ? ' e ' : null}
                                 {systemMissingCounts.email > 0 ? `${systemMissingCounts.email} faltam E-mail` : null}
@@ -2538,7 +2538,7 @@ export default function CampaignsNewRealPage() {
                               setBulkOpen(false)
                               setBulkError(null)
                             }}
-                            className={`text-sm ${bulkLoading ? 'text-gray-600' : 'text-gray-400 hover:text-white'}`}
+                            className={`text-sm ${bulkLoading ? 'text-[var(--ds-text-muted)]' : 'text-[var(--ds-text-secondary)] hover:text-[var(--ds-text-primary)]'}`}
                           >
                             Fechar
                           </button>
@@ -2546,9 +2546,9 @@ export default function CampaignsNewRealPage() {
 
                         <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
                           <div className="space-y-2">
-                            <label className="text-xs uppercase tracking-widest text-gray-500">Campo</label>
+                            <label className="text-xs uppercase tracking-widest text-[var(--ds-text-muted)]">Campo</label>
                             <select
-                              className="w-full rounded-xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-sm text-white"
+                              className="w-full rounded-xl border border-[var(--ds-border-default)] bg-[var(--ds-bg-elevated)] px-3 py-2 text-sm text-[var(--ds-text-primary)]"
                               value={bulkKey}
                               onChange={(e) => setBulkKey(e.target.value)}
                               disabled={bulkLoading}
@@ -2562,24 +2562,24 @@ export default function CampaignsNewRealPage() {
                           </div>
 
                           <div className="space-y-2 md:col-span-2">
-                            <label className="text-xs uppercase tracking-widest text-gray-500">Valor</label>
+                            <label className="text-xs uppercase tracking-widest text-[var(--ds-text-muted)]">Valor</label>
                             <input
-                              className="w-full rounded-xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-sm text-white placeholder:text-gray-600"
+                              className="w-full rounded-xl border border-[var(--ds-border-default)] bg-[var(--ds-bg-elevated)] px-3 py-2 text-sm text-[var(--ds-text-primary)] placeholder:text-[var(--ds-text-muted)]"
                               placeholder="Ex.: teste"
                               value={bulkValue}
                               onChange={(e) => setBulkValue(e.target.value)}
                               disabled={bulkLoading}
                             />
-                            <p className="text-xs text-gray-600">
-                              Afetados: <span className="text-gray-400">{bulkKey ? (bulkCustomFieldTargets[bulkKey]?.length ?? 0) : 0}</span>
+                            <p className="text-xs text-[var(--ds-text-muted)]">
+                              Afetados: <span className="text-[var(--ds-text-secondary)]">{bulkKey ? (bulkCustomFieldTargets[bulkKey]?.length ?? 0) : 0}</span>
                             </p>
-                            <p className="text-[11px] text-gray-600">
+                            <p className="text-[11px] text-[var(--ds-text-muted)]">
                               Dica: “Aplicar em massa” só resolve campos personalizados. Se algum ignorado pedir Nome/E-mail, ele aparece no “Corrigir em lote”.
                             </p>
                           </div>
                         </div>
 
-                        {bulkError && <p className="mt-3 text-xs text-amber-300">{bulkError}</p>}
+                        {bulkError && <p className="mt-3 text-xs text-amber-700 dark:text-amber-300">{bulkError}</p>}
 
                         <div className="mt-4 flex items-center justify-end gap-2">
                           <button
@@ -2589,7 +2589,7 @@ export default function CampaignsNewRealPage() {
                               setBulkOpen(false)
                               setBulkError(null)
                             }}
-                            className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-zinc-950/40 px-3 py-2 text-sm font-semibold text-gray-200 transition-colors hover:border-white/20"
+                            className="inline-flex items-center gap-2 rounded-lg border border-[var(--ds-border-default)] bg-[var(--ds-bg-elevated)] px-3 py-2 text-sm font-semibold text-[var(--ds-text-primary)] transition-colors hover:border-[var(--ds-border-default)]"
                             disabled={bulkLoading}
                           >
                             Cancelar
@@ -2600,8 +2600,8 @@ export default function CampaignsNewRealPage() {
                             disabled={bulkLoading}
                             className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold transition-colors ${
                               !bulkLoading
-                                ? 'border-amber-500/30 bg-amber-500/10 text-amber-200 hover:bg-amber-500/15 hover:border-amber-500/50'
-                                : 'border-white/10 bg-zinc-950/30 text-gray-600'
+                                ? 'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-200 hover:bg-amber-500/15 hover:border-amber-500/50'
+                                : 'border-[var(--ds-border-default)] bg-[var(--ds-bg-elevated)] text-[var(--ds-text-muted)]'
                             }`}
                           >
                             {bulkLoading ? 'Aplicando...' : 'Aplicar agora'}
@@ -2615,16 +2615,16 @@ export default function CampaignsNewRealPage() {
                         {fixCandidates.map((c) => (
                           <div
                             key={c.contactId}
-                            className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-zinc-950/40 px-3 py-2"
+                            className="flex items-center justify-between gap-3 rounded-xl border border-[var(--ds-border-default)] bg-[var(--ds-bg-elevated)] px-3 py-2"
                           >
                             <div className="min-w-0">
-                              <p className="truncate text-sm font-medium text-white">{c.subtitle}</p>
-                              <p className="truncate text-xs text-gray-500">{c.title}</p>
+                              <p className="truncate text-sm font-medium text-[var(--ds-text-primary)]">{c.subtitle}</p>
+                              <p className="truncate text-xs text-[var(--ds-text-muted)]">{c.title}</p>
                             </div>
                             <button
                               type="button"
                               onClick={() => openQuickEdit({ contactId: c.contactId, focus: c.focus, title: c.title })}
-                              className="shrink-0 rounded-lg border border-white/10 bg-zinc-950/40 px-3 py-1.5 text-xs font-semibold text-gray-200 transition-colors hover:border-white/20"
+                              className="shrink-0 rounded-lg border border-[var(--ds-border-default)] bg-[var(--ds-bg-elevated)] px-3 py-1.5 text-xs font-semibold text-[var(--ds-text-primary)] transition-colors hover:border-[var(--ds-border-default)]"
                             >
                               Corrigir
                             </button>
@@ -2632,7 +2632,7 @@ export default function CampaignsNewRealPage() {
                         ))}
 
                         {fixCandidates.length > 3 && (
-                          <p className="pt-1 text-xs text-gray-500">Role para ver todos ou use “Corrigir em lote”.</p>
+                          <p className="pt-1 text-xs text-[var(--ds-text-muted)]">Role para ver todos ou use “Corrigir em lote”.</p>
                         )}
                       </div>
                     )}
@@ -2644,10 +2644,10 @@ export default function CampaignsNewRealPage() {
 
           {step === 4 && (
             <div className="space-y-6">
-              <div className="rounded-2xl border border-white/10 bg-zinc-900/60 p-6 shadow-[0_12px_30px_rgba(0,0,0,0.35)]">
+              <div className="rounded-2xl border border-[var(--ds-border-default)] bg-[var(--ds-bg-surface)] p-6 shadow-[0_12px_30px_rgba(0,0,0,0.35)]">
                 <div className="space-y-1">
-                  <h2 className="text-lg font-semibold text-white">Agendamento</h2>
-                  <p className="text-sm text-gray-500">Defina se o envio será agora ou programado.</p>
+                  <h2 className="text-lg font-semibold text-[var(--ds-text-primary)]">Agendamento</h2>
+                  <p className="text-sm text-[var(--ds-text-muted)]">Defina se o envio será agora ou programado.</p>
                 </div>
                 <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
                   <button
@@ -2655,8 +2655,8 @@ export default function CampaignsNewRealPage() {
                     onClick={() => setScheduleMode('imediato')}
                     className={`rounded-xl border px-4 py-3 text-left text-sm ${
                       scheduleMode === 'imediato'
-                        ? 'border-emerald-400/40 bg-emerald-500/10 text-emerald-200'
-                        : 'border-white/10 bg-zinc-950/40 text-gray-400'
+                        ? 'border-emerald-600 dark:border-emerald-400/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-200'
+                        : 'border-[var(--ds-border-default)] bg-[var(--ds-bg-elevated)] text-[var(--ds-text-secondary)]'
                     }`}
                   >
                     Imediato
@@ -2666,8 +2666,8 @@ export default function CampaignsNewRealPage() {
                     onClick={() => setScheduleMode('agendar')}
                     className={`rounded-xl border px-4 py-3 text-left text-sm ${
                       scheduleMode === 'agendar'
-                        ? 'border-emerald-400/40 bg-emerald-500/10 text-emerald-200'
-                        : 'border-white/10 bg-zinc-950/40 text-gray-400'
+                        ? 'border-emerald-600 dark:border-emerald-400/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-200'
+                        : 'border-[var(--ds-border-default)] bg-[var(--ds-bg-elevated)] text-[var(--ds-text-secondary)]'
                     }`}
                   >
                     Agendar
@@ -2676,21 +2676,21 @@ export default function CampaignsNewRealPage() {
                 <div className={`mt-4 transition ${scheduleMode === 'agendar' ? 'opacity-100' : 'opacity-40'}`}>
                   <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                     <div className="space-y-2">
-                      <label className="text-xs uppercase tracking-widest text-gray-500">Data</label>
+                      <label className="text-xs uppercase tracking-widest text-[var(--ds-text-muted)]">Data</label>
                       <Dialog.Root open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
                         <Dialog.Trigger asChild>
                           <button
                             type="button"
                             disabled={scheduleMode !== 'agendar'}
-                            className="w-full rounded-xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm text-white flex items-center justify-between gap-3 disabled:opacity-50"
+                            className="w-full rounded-xl border border-[var(--ds-border-default)] bg-[var(--ds-bg-elevated)] px-4 py-3 text-sm text-[var(--ds-text-primary)] flex items-center justify-between gap-3 disabled:opacity-50"
                           >
-                            <span className={scheduleDate ? 'text-white' : 'text-gray-500'}>{formatDateLabel(scheduleDate)}</span>
+                            <span className={scheduleDate ? 'text-[var(--ds-text-primary)]' : 'text-[var(--ds-text-muted)]'}>{formatDateLabel(scheduleDate)}</span>
                             <CalendarIcon size={16} className="text-emerald-400" />
                           </button>
                         </Dialog.Trigger>
                         <Dialog.Portal>
                           <Dialog.Overlay className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm" />
-                          <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-fit max-w-[92vw] -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-emerald-500/20 bg-black p-3 text-white shadow-[0_30px_80px_rgba(0,0,0,0.55)]">
+                          <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-fit max-w-[92vw] -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-emerald-500/20 bg-[var(--ds-bg-base)] p-3 text-[var(--ds-text-primary)] shadow-[0_30px_80px_rgba(0,0,0,0.55)]">
                             <div className="flex justify-center">
                               <Calendar
                                 mode="single"
@@ -2702,7 +2702,7 @@ export default function CampaignsNewRealPage() {
                                 }}
                                 fromDate={new Date()}
                                 locale={ptBR}
-                                className="w-fit rounded-xl border border-emerald-500/10 bg-black p-2"
+                                className="w-fit rounded-xl border border-emerald-500/10 bg-[var(--ds-bg-base)] p-2"
                               />
                             </div>
 
@@ -2720,23 +2720,23 @@ export default function CampaignsNewRealPage() {
                       </Dialog.Root>
                     </div>
                     <div className="space-y-2">
-                      <label className="text-xs uppercase tracking-widest text-gray-500">Horário</label>
+                      <label className="text-xs uppercase tracking-widest text-[var(--ds-text-muted)]">Horário</label>
                       <DateTimePicker value={scheduleTime} onChange={(value) => setScheduleTime(value)} disabled={scheduleMode !== 'agendar'} />
                     </div>
                   </div>
-                  <p className="mt-3 text-xs text-gray-500">Fuso do navegador: {userTimeZone || 'Local'}.</p>
+                  <p className="mt-3 text-xs text-[var(--ds-text-muted)]">Fuso do navegador: {userTimeZone || 'Local'}.</p>
                 </div>
               </div>
 
               {/* Organização - Seleção de Pasta */}
               {folders.length > 0 && (
-                <div className="rounded-2xl border border-white/10 bg-zinc-900/60 p-6 shadow-[0_12px_30px_rgba(0,0,0,0.35)]">
+                <div className="rounded-2xl border border-[var(--ds-border-default)] bg-[var(--ds-bg-surface)] p-6 shadow-[0_12px_30px_rgba(0,0,0,0.35)]">
                   <div className="space-y-1">
-                    <h2 className="text-lg font-semibold text-white">Organização</h2>
-                    <p className="text-sm text-gray-500">Salve em uma pasta para organizar suas campanhas (opcional).</p>
+                    <h2 className="text-lg font-semibold text-[var(--ds-text-primary)]">Organização</h2>
+                    <p className="text-sm text-[var(--ds-text-muted)]">Salve em uma pasta para organizar suas campanhas (opcional).</p>
                   </div>
                   <div className="mt-4">
-                    <label className="text-xs uppercase tracking-widest text-gray-500">Pasta</label>
+                    <label className="text-xs uppercase tracking-widest text-[var(--ds-text-muted)]">Pasta</label>
                     <div className="mt-2 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
                       {/* Opção "Nenhuma" */}
                       <button
@@ -2744,11 +2744,11 @@ export default function CampaignsNewRealPage() {
                         onClick={() => setSelectedFolderId(null)}
                         className={`flex items-center gap-2 rounded-xl border px-4 py-3 text-left text-sm transition ${
                           selectedFolderId === null
-                            ? 'border-emerald-400/40 bg-emerald-500/10 text-emerald-200'
-                            : 'border-white/10 bg-zinc-950/40 text-gray-400 hover:border-white/20'
+                            ? 'border-emerald-600 dark:border-emerald-400/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-200'
+                            : 'border-[var(--ds-border-default)] bg-[var(--ds-bg-elevated)] text-[var(--ds-text-secondary)] hover:border-[var(--ds-border-default)]'
                         }`}
                       >
-                        <FolderIcon size={16} className="text-gray-500" />
+                        <FolderIcon size={16} className="text-[var(--ds-text-muted)]" />
                         <span>Nenhuma</span>
                       </button>
                       {/* Pastas disponíveis */}
@@ -2759,8 +2759,8 @@ export default function CampaignsNewRealPage() {
                           onClick={() => setSelectedFolderId(folder.id)}
                           className={`flex items-center gap-2 rounded-xl border px-4 py-3 text-left text-sm transition ${
                             selectedFolderId === folder.id
-                              ? 'border-emerald-400/40 bg-emerald-500/10 text-emerald-200'
-                              : 'border-white/10 bg-zinc-950/40 text-gray-400 hover:border-white/20'
+                              ? 'border-emerald-600 dark:border-emerald-400/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-200'
+                              : 'border-[var(--ds-border-default)] bg-[var(--ds-bg-elevated)] text-[var(--ds-text-secondary)] hover:border-[var(--ds-border-default)]'
                           }`}
                         >
                           <FolderIcon size={16} style={{ color: folder.color }} />
@@ -2785,7 +2785,7 @@ export default function CampaignsNewRealPage() {
             showNameInFocusedMode={false}
           />
 
-          <div className="rounded-2xl border border-white/10 bg-zinc-900/60 p-4 shadow-[0_12px_30px_rgba(0,0,0,0.35)]">
+          <div className="rounded-2xl border border-[var(--ds-border-default)] bg-[var(--ds-bg-surface)] p-4 shadow-[0_12px_30px_rgba(0,0,0,0.35)]">
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <button
                 type="button"
@@ -2814,12 +2814,12 @@ export default function CampaignsNewRealPage() {
                   setStep(step - 1)
                 }}
                 className={`text-sm transition ${
-                  isLaunching ? 'cursor-not-allowed text-gray-600' : 'text-gray-400 hover:text-white'
+                  isLaunching ? 'cursor-not-allowed text-[var(--ds-text-muted)]' : 'text-[var(--ds-text-secondary)] hover:text-[var(--ds-text-primary)]'
                 }`}
               >
                 Voltar
               </button>
-              <div className="text-center text-sm text-gray-400">
+              <div className="text-center text-sm text-[var(--ds-text-secondary)]">
                 {step === 1 && !templateSelected && 'Selecione um template para continuar'}
                 {step === 1 && templateSelected && missingTemplateVars > 0 && (
                   <>Preencha {missingTemplateVars} variável(is) obrigatória(s)</>
@@ -2841,8 +2841,8 @@ export default function CampaignsNewRealPage() {
                     onClick={handleSaveDraft}
                     className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition ${
                       canContinue && !isLaunching && !isSavingDraft
-                        ? 'border border-white/20 text-gray-300 hover:bg-white/5 hover:text-white'
-                        : 'cursor-not-allowed border border-white/10 text-gray-600'
+                        ? 'border border-[var(--ds-border-default)] text-[var(--ds-text-secondary)] hover:bg-[var(--ds-bg-hover)] hover:text-[var(--ds-text-primary)]'
+                        : 'cursor-not-allowed border border-[var(--ds-border-default)] text-[var(--ds-text-muted)]'
                     }`}
                     disabled={!canContinue || isLaunching || isSavingDraft}
                   >
@@ -2880,8 +2880,8 @@ export default function CampaignsNewRealPage() {
                   }}
                   className={`rounded-full px-5 py-2 text-sm font-semibold transition ${
                     canContinue && !isLaunching && !isSavingDraft
-                      ? 'bg-white text-black'
-                      : 'cursor-not-allowed border border-white/10 bg-white/10 text-gray-500'
+                      ? 'bg-primary-600 text-white dark:bg-white dark:text-black'
+                      : 'cursor-not-allowed border border-[var(--ds-border-default)] bg-[var(--ds-bg-hover)] text-[var(--ds-text-muted)]'
                   }`}
                   disabled={!canContinue || isLaunching || isSavingDraft}
                 >
@@ -2890,16 +2890,16 @@ export default function CampaignsNewRealPage() {
               </div>
             </div>
             {launchError && (
-              <p className="mt-3 text-xs text-amber-300">{launchError}</p>
+              <p className="mt-3 text-xs text-amber-700 dark:text-amber-300">{launchError}</p>
             )}
           </div>
         </div>
 
         <div className={`flex h-full flex-col gap-4 ${step === 2 ? 'lg:sticky lg:top-6' : ''}`}>
-          <div className="rounded-2xl border border-white/10 bg-zinc-900/60 p-6 shadow-[0_12px_30px_rgba(0,0,0,0.35)]">
+          <div className="rounded-2xl border border-[var(--ds-border-default)] bg-[var(--ds-bg-surface)] p-6 shadow-[0_12px_30px_rgba(0,0,0,0.35)]">
             <div className="flex items-center justify-between">
-              <div className="text-xs uppercase tracking-widest text-gray-500">Resumo</div>
-              <button className="rounded-full border border-emerald-400/40 bg-emerald-500/10 px-3 py-1 text-[11px] font-semibold text-emerald-200">
+              <div className="text-xs uppercase tracking-widest text-[var(--ds-text-muted)]">Resumo</div>
+              <button className="rounded-full border border-emerald-600 dark:border-emerald-400/40 bg-emerald-500/10 px-3 py-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-200">
                 Campanha Rapida
               </button>
             </div>
@@ -2908,41 +2908,41 @@ export default function CampaignsNewRealPage() {
               {step >= 2 && (
                 <>
                   <div className="flex items-center justify-between">
-                    <span className="text-gray-500">Contatos</span>
-                    <span className="text-white">{displayAudienceCount}</span>
+                    <span className="text-[var(--ds-text-muted)]">Contatos</span>
+                    <span className="text-[var(--ds-text-primary)]">{displayAudienceCount}</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-gray-500">Custo</span>
-                    <span className="text-emerald-300">{displayAudienceCost}</span>
+                    <span className="text-[var(--ds-text-muted)]">Custo</span>
+                    <span className="text-emerald-700 dark:text-emerald-300">{displayAudienceCost}</span>
                   </div>
                 </>
               )}
               <div className="flex items-center justify-between">
-                <span className="text-gray-500">Custo Base</span>
+                <span className="text-[var(--ds-text-muted)]">Custo Base</span>
                 <div className="text-right">
-                  <div className="text-emerald-300">{basePricePerMessage}/msg</div>
-                  <div className="text-[10px] text-gray-500">
+                  <div className="text-emerald-700 dark:text-emerald-300">{basePricePerMessage}/msg</div>
+                  <div className="text-[10px] text-[var(--ds-text-muted)]">
                     {selectedTemplate?.category || '—'} • {exchangeRateLabel}
                   </div>
                 </div>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-gray-500">Agendamento</span>
-                <span className="text-white">{scheduleSummaryLabel}</span>
+                <span className="text-[var(--ds-text-muted)]">Agendamento</span>
+                <span className="text-[var(--ds-text-primary)]">{scheduleSummaryLabel}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-gray-500">Nome</span>
-                <span className="text-white">{campaignName.trim() || '—'}</span>
+                <span className="text-[var(--ds-text-muted)]">Nome</span>
+                <span className="text-[var(--ds-text-primary)]">{campaignName.trim() || '—'}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-gray-500">Template</span>
-                <span className="text-white">{templateSelected ? selectedTemplate?.name || '—' : '—'}</span>
+                <span className="text-[var(--ds-text-muted)]">Template</span>
+                <span className="text-[var(--ds-text-primary)]">{templateSelected ? selectedTemplate?.name || '—' : '—'}</span>
               </div>
               {/* Público só aparece a partir do Step 2 */}
               {step >= 2 && (
                 <div className="flex items-center justify-between">
-                  <span className="text-gray-500">Público</span>
-                  <span className="text-white">
+                  <span className="text-[var(--ds-text-muted)]">Público</span>
+                  <span className="text-[var(--ds-text-primary)]">
                     {audienceMode === 'teste'
                       ? `${selectedTestCount || 0} contato(s) de teste`
                       : isSegmentCountLoading
@@ -2954,12 +2954,12 @@ export default function CampaignsNewRealPage() {
             </div>
           </div>
 
-          <div className="flex-1 rounded-2xl border border-white/10 bg-zinc-900/60 p-8 shadow-[0_12px_30px_rgba(0,0,0,0.35)]">
+          <div className="flex-1 rounded-2xl border border-[var(--ds-border-default)] bg-[var(--ds-bg-surface)] p-8 shadow-[0_12px_30px_rgba(0,0,0,0.35)]">
             <div className="flex items-center justify-between">
-              <div className="text-xs uppercase tracking-widest text-gray-500">Preview</div>
-              <button className="text-xs text-gray-400 hover:text-white">Expandir</button>
+              <div className="text-xs uppercase tracking-widest text-[var(--ds-text-muted)]">Preview</div>
+              <button className="text-xs text-[var(--ds-text-secondary)] hover:text-[var(--ds-text-primary)]">Expandir</button>
             </div>
-            <div className="mt-6 text-sm text-gray-300">
+            <div className="mt-6 text-sm text-[var(--ds-text-secondary)]">
               {activeTemplate ? (
                 <>
                   <div>
@@ -2978,8 +2978,8 @@ export default function CampaignsNewRealPage() {
                 </>
               ) : (
                 <>
-                  <p className="text-base font-semibold text-white">Selecione um template</p>
-                  <p className="mt-3 text-sm text-gray-500">O preview aparece aqui quando você escolher.</p>
+                  <p className="text-base font-semibold text-[var(--ds-text-primary)]">Selecione um template</p>
+                  <p className="mt-3 text-sm text-[var(--ds-text-muted)]">O preview aparece aqui quando você escolher.</p>
                 </>
               )}
             </div>

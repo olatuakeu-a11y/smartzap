@@ -208,7 +208,7 @@ export function MessagePanel({
       <div
         ref={scrollRef}
         onScroll={handleScroll}
-        className="flex-1 overflow-y-auto px-4 py-3"
+        className="flex-1 overflow-y-auto px-3 py-2"
       >
         {/* Load more indicator */}
         {isLoadingMore && (

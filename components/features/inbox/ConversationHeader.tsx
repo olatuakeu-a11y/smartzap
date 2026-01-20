@@ -221,7 +221,7 @@ export function ConversationHeader({
 
       {/* Actions - compact */}
       <div className="flex items-center gap-1">
-        {/* Mode toggle - minimal pill */}
+        {/* Mode toggle - colored pill */}
         <Tooltip>
           <TooltipTrigger asChild>
             <button
@@ -231,14 +231,14 @@ export function ConversationHeader({
                 'h-6 px-2 rounded-full text-[10px] font-medium flex items-center gap-1 transition-all',
                 isUpdating || !isOpen ? 'opacity-50 cursor-not-allowed' : '',
                 isBotMode
-                  ? 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/15'
-                  : 'bg-amber-500/10 text-amber-400 hover:bg-amber-500/15'
+                  ? 'bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25'
+                  : 'bg-amber-500/15 text-amber-400 hover:bg-amber-500/25'
               )}
             >
               {isBotMode ? (
                 <>
                   <Bot className="h-2.5 w-2.5" />
-                  <span className="max-w-[50px] truncate">{agentName || 'Bot'}</span>
+                  <span className="max-w-[60px] truncate">{agentName || 'Bot'}</span>
                 </>
               ) : (
                 <>

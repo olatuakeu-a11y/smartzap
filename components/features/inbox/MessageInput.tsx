@@ -151,16 +151,16 @@ export function MessageInput({
 
   return (
     <div className={cn(
-      'border-t transition-colors duration-200',
-      isFocused ? 'border-zinc-800' : 'border-zinc-800/30',
+      'border-t transition-colors duration-150',
+      isFocused ? 'border-zinc-700/80' : 'border-zinc-800/50',
       'bg-zinc-950'
     )}>
-      {/* AI Suggestion notes - elegant banner */}
+      {/* AI Suggestion notes - subtle inline banner */}
       {suggestionNotes && (
-        <div className="px-4 py-2.5 bg-emerald-500/5 border-b border-emerald-500/10">
+        <div className="px-3 py-2 bg-zinc-900/50 border-b border-zinc-800/50">
           <div className="flex items-start gap-2">
-            <Sparkles className="h-3.5 w-3.5 text-emerald-400/70 mt-0.5 shrink-0" />
-            <p className="text-xs text-zinc-400 leading-relaxed">{suggestionNotes}</p>
+            <Sparkles className="h-3 w-3 text-zinc-500 mt-0.5 shrink-0" />
+            <p className="text-[11px] text-zinc-500 leading-relaxed">{suggestionNotes}</p>
           </div>
         </div>
       )}
@@ -182,10 +182,10 @@ export function MessageInput({
                 disabled={!canSuggest}
                 className={cn(
                   'h-9 w-9 shrink-0 rounded-lg flex items-center justify-center',
-                  'transition-all duration-200',
+                  'transition-all duration-150',
                   isLoadingSuggestion && 'animate-pulse',
                   canSuggest
-                    ? 'text-emerald-400/70 hover:text-emerald-400 hover:bg-emerald-500/10'
+                    ? 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800'
                     : 'text-zinc-600 cursor-not-allowed'
                 )}
               >
@@ -216,16 +216,16 @@ export function MessageInput({
             rows={1}
             className={cn(
               'min-h-[36px] max-h-[100px] resize-none py-2 px-3',
-              'bg-zinc-900 border-zinc-800/50 rounded-lg',
-              'text-[13px] text-zinc-200 placeholder:text-zinc-600',
-              'focus:border-zinc-700 focus:ring-0',
-              'transition-all duration-150',
+              'bg-zinc-900/50 border-zinc-800/30 rounded-lg',
+              'text-sm text-zinc-200 placeholder:text-zinc-500',
+              'focus:border-zinc-700 focus:ring-0 focus:bg-zinc-900',
+              'transition-all duration-100',
               disabled && 'opacity-40 cursor-not-allowed'
             )}
           />
         </div>
 
-        {/* Send button */}
+        {/* Send button - monochrome when disabled, subtle when active */}
         <Tooltip>
           <TooltipTrigger asChild>
             <button
@@ -233,10 +233,10 @@ export function MessageInput({
               disabled={!canSend}
               className={cn(
                 'h-9 w-9 shrink-0 rounded-lg flex items-center justify-center',
-                'transition-all duration-200',
+                'transition-all duration-150',
                 canSend
                   ? 'bg-emerald-600 text-white hover:bg-emerald-500 active:scale-95'
-                  : 'bg-zinc-800 text-zinc-600 cursor-not-allowed'
+                  : 'bg-zinc-800/50 text-zinc-600 cursor-not-allowed'
               )}
             >
               {isSending ? (

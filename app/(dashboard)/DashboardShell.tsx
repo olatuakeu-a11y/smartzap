@@ -423,15 +423,13 @@ export function DashboardShell({
     const queryClient = useQueryClient()
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
     const [isLoggingOut, setIsLoggingOut] = useState(false)
-    // Start as null to avoid flash - will be set on mount
-    const [isSidebarExpanded, setIsSidebarExpanded] = useState<boolean | null>(null)
+    const [isSidebarExpanded, setIsSidebarExpanded] = useState(false)
 
-    // Sync sidebar state with localStorage on mount
+    // Read sidebar preference from localStorage on mount
     useEffect(() => {
         if (typeof window === 'undefined') return
-        const stored = window.localStorage.getItem('app-sidebar-collapsed')
-        // Default to expanded if no preference saved
-        setIsSidebarExpanded(stored !== 'true')
+        const isCollapsed = window.localStorage.getItem('app-sidebar-collapsed') === 'true'
+        setIsSidebarExpanded(!isCollapsed)
     }, [])
 
     const updateSidebarExpanded = useCallback((value: boolean) => {
@@ -611,11 +609,11 @@ export function DashboardShell({
     // Sidebar props - memoized callbacks
     const handleCloseMobileMenu = useCallback(() => setIsMobileMenuOpen(false), [])
 
-    // Sidebar component props - default to true (expanded) if state not yet loaded
+    // Sidebar component props
     const sidebarProps = {
         pathname,
         navItems: navItems as NavItem[],
-        isSidebarExpanded: isSidebarExpanded ?? true,
+        isSidebarExpanded,
         isMobileMenuOpen,
         isLoggingOut,
         companyName: companyName || null,
@@ -670,13 +668,11 @@ export function DashboardShell({
                     <DashboardSidebar {...sidebarProps} />
 
                     {/* Main Content - no header on desktop, compact mobile header */}
-                    <div
-                        className={cn(
-                            "flex-1 flex flex-col min-w-0 h-screen overflow-hidden",
-                            // Use pl-14 (compact) as default until state is known to avoid flash
-                            isSidebarExpanded === true ? "lg:pl-56" : "lg:pl-14"
-                        )}
-                    >
+                    {/* CompactSidebar is lg:static (in flow), ExpandedSidebar is fixed (needs padding) */}
+                    <div className={cn(
+                        "flex-1 flex flex-col min-w-0 h-screen overflow-hidden transition-[padding] duration-200",
+                        isSidebarExpanded && "lg:pl-56"
+                    )}>
                         {/* Compact mobile header - only menu button */}
                         <header className="lg:hidden h-12 flex items-center px-4 border-b border-zinc-800/50 bg-zinc-950 shrink-0">
                             <button
@@ -722,13 +718,11 @@ export function DashboardShell({
             {/* Sidebar - extracted component with memoization */}
             <DashboardSidebar {...sidebarProps} />
 
-            {/* Main Content */}
-            <div
-                className={cn(
-                    "flex-1 flex flex-col min-w-0 h-screen overflow-hidden",
-                    isSidebarExpanded === true ? "lg:pl-56" : "lg:pl-14"
-                )}
-            >
+            {/* Main Content - padding only when expanded (ExpandedSidebar is fixed) */}
+            <div className={cn(
+                "flex-1 flex flex-col min-w-0 h-screen overflow-hidden transition-[padding] duration-200",
+                isSidebarExpanded && "lg:pl-56"
+            )}>
                 {/* Header */}
                 <header className="h-20 flex items-center justify-between px-6 lg:px-10 shrink-0">
                     <div className="flex items-center">

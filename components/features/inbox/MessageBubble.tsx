@@ -1,14 +1,14 @@
 'use client'
 
 /**
- * MessageBubble - Editorial Minimal Design
+ * MessageBubble - Vercel AI Chat Inspired
  *
  * Design Philosophy:
- * - Clean, almost monochromatic palette
- * - No redundant avatars/names (grouped messages handle this)
- * - Subtle color differentiation
- * - Tight spacing within message groups
- * - Typography-focused with refined details
+ * - Almost monochromatic - grays dominate
+ * - Color only for status indicators
+ * - Compact, tight spacing
+ * - Angular but soft borders
+ * - Typography-first, minimal chrome
  */
 
 import React, { memo } from 'react'
@@ -33,32 +33,32 @@ export interface MessageBubbleProps {
   isLastInGroup?: boolean
 }
 
-// Delivery status - minimal, icon-only
+// Delivery status - ultra minimal
 function DeliveryStatusIcon({ status }: { status: DeliveryStatus }) {
-  const base = 'h-3 w-3 opacity-50'
+  const base = 'h-2.5 w-2.5'
   switch (status) {
     case 'pending':
-      return <Clock className={cn(base, 'text-zinc-400')} />
+      return <Clock className={cn(base, 'text-zinc-500')} />
     case 'sent':
-      return <Check className={cn(base, 'text-zinc-400')} />
+      return <Check className={cn(base, 'text-zinc-500')} />
     case 'delivered':
-      return <CheckCheck className={cn(base, 'text-zinc-400')} />
+      return <CheckCheck className={cn(base, 'text-zinc-500')} />
     case 'read':
-      return <CheckCheck className={cn(base, 'text-emerald-400 opacity-100')} />
+      return <CheckCheck className={cn(base, 'text-blue-400')} />
     case 'failed':
-      return <AlertCircle className={cn(base, 'text-rose-400 opacity-100')} />
+      return <AlertCircle className={cn(base, 'text-red-400')} />
     default:
       return null
   }
 }
 
-// Sentiment - ultra minimal dot indicator
+// Sentiment - subtle underline indicator
 function SentimentIndicator({ sentiment }: { sentiment: Sentiment }) {
   const colors: Record<Sentiment, string> = {
-    positive: 'bg-emerald-400',
-    neutral: 'bg-zinc-400',
-    negative: 'bg-amber-400',
-    frustrated: 'bg-rose-400',
+    positive: 'bg-emerald-500/60',
+    neutral: 'bg-zinc-500/60',
+    negative: 'bg-amber-500/60',
+    frustrated: 'bg-red-500/60',
   }
   const labels: Record<Sentiment, string> = {
     positive: 'Positivo',
@@ -70,7 +70,7 @@ function SentimentIndicator({ sentiment }: { sentiment: Sentiment }) {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <span className={cn('w-1.5 h-1.5 rounded-full', colors[sentiment])} />
+        <span className={cn('w-1 h-1 rounded-full', colors[sentiment])} />
       </TooltipTrigger>
       <TooltipContent side="left" className="text-xs">
         {labels[sentiment]}
@@ -92,7 +92,7 @@ function parseHandoffMessage(content: string): { title: string; reason: string; 
   const summaryMatch = content.match(/\*\*Resumo:\*\*\s*(.+?)(?=\n|$)/s)
 
   return {
-    title: 'Transferência para atendente',
+    title: 'Transferido para humano',
     reason: reasonMatch?.[1]?.trim() || '',
     summary: summaryMatch?.[1]?.trim() || '',
   }
@@ -122,94 +122,102 @@ export const MessageBubble = memo(function MessageBubble({
     ? format(new Date(created_at), 'HH:mm', { locale: ptBR })
     : ''
 
-  // Special rendering for handoff messages
+  // Special rendering for handoff messages - system message style
   if (handoffData) {
+    const hasDetails = handoffData.reason || handoffData.summary
+
     return (
-      <div className="flex justify-center my-3 animate-in fade-in slide-in-from-bottom-2 duration-200">
-        <div className="max-w-md px-4 py-3 rounded-xl bg-amber-500/5 border border-amber-500/20">
-          <div className="flex items-center gap-2 text-amber-500 mb-2">
-            <ArrowRightLeft className="h-3.5 w-3.5" />
-            <span className="text-xs font-medium">{handoffData.title}</span>
+      <div className="flex justify-center my-3 animate-in fade-in duration-150">
+        <div className={cn(
+          'bg-zinc-800/50 border border-zinc-700/50',
+          hasDetails ? 'px-4 py-3 rounded-xl max-w-md' : 'px-4 py-2 rounded-full'
+        )}>
+          {/* Header */}
+          <div className="flex items-center gap-2">
+            <ArrowRightLeft className="h-3.5 w-3.5 text-amber-500/70" />
+            <span className="text-xs font-medium text-zinc-300">{handoffData.title}</span>
+            <span className="text-[10px] text-zinc-600">·</span>
+            <span className="text-[10px] text-zinc-500">{time}</span>
           </div>
-          {handoffData.reason && (
-            <p className="text-xs text-zinc-400 mb-1">
-              <span className="text-zinc-500">Motivo:</span> {handoffData.reason}
-            </p>
+
+          {/* Details (if available) */}
+          {hasDetails && (
+            <div className="mt-2 pt-2 border-t border-zinc-700/50 space-y-1">
+              {handoffData.reason && (
+                <p className="text-xs text-zinc-400">
+                  <span className="text-zinc-500">Motivo:</span> {handoffData.reason}
+                </p>
+              )}
+              {handoffData.summary && (
+                <p className="text-xs text-zinc-400">
+                  <span className="text-zinc-500">Resumo:</span> {handoffData.summary}
+                </p>
+              )}
+            </div>
           )}
-          {handoffData.summary && (
-            <p className="text-xs text-zinc-400">
-              <span className="text-zinc-500">Resumo:</span> {handoffData.summary}
-            </p>
-          )}
-          <span className="text-[10px] text-zinc-500 mt-2 block">{time}</span>
         </div>
       </div>
     )
   }
 
-  // Calculate border radius based on position in group
+  // Border radius - more angular, modern feel
   const getBorderRadius = () => {
     if (isInbound) {
-      // Left side messages
-      if (isFirstInGroup && isLastInGroup) return 'rounded-2xl rounded-bl-md'
-      if (isFirstInGroup) return 'rounded-2xl rounded-bl-lg'
-      if (isLastInGroup) return 'rounded-2xl rounded-tl-lg rounded-bl-md'
-      return 'rounded-2xl rounded-l-lg'
+      if (isFirstInGroup && isLastInGroup) return 'rounded-2xl rounded-bl-sm'
+      if (isFirstInGroup) return 'rounded-2xl rounded-bl-md'
+      if (isLastInGroup) return 'rounded-xl rounded-tl-md rounded-bl-sm'
+      return 'rounded-xl rounded-l-md'
     } else {
-      // Right side messages
-      if (isFirstInGroup && isLastInGroup) return 'rounded-2xl rounded-br-md'
-      if (isFirstInGroup) return 'rounded-2xl rounded-br-lg'
-      if (isLastInGroup) return 'rounded-2xl rounded-tr-lg rounded-br-md'
-      return 'rounded-2xl rounded-r-lg'
+      if (isFirstInGroup && isLastInGroup) return 'rounded-2xl rounded-br-sm'
+      if (isFirstInGroup) return 'rounded-2xl rounded-br-md'
+      if (isLastInGroup) return 'rounded-xl rounded-tr-md rounded-br-sm'
+      return 'rounded-xl rounded-r-md'
     }
   }
 
   return (
     <div
       className={cn(
-        'flex items-end gap-2',
-        'animate-in fade-in slide-in-from-bottom-1 duration-150',
+        'flex items-end gap-1.5',
+        'animate-in fade-in duration-100',
         isInbound ? 'self-start' : 'self-end flex-row-reverse',
-        // Tighter spacing for grouped messages
+        // Spacing within and between groups
         !isLastInGroup && 'mb-0.5',
         isLastInGroup && 'mb-2'
       )}
     >
       <div className={cn(
-        'flex flex-col max-w-[70%]',
+        'flex flex-col max-w-[75%]',
         isInbound ? 'items-start' : 'items-end'
       )}>
-        {/* Bubble */}
+        {/* Bubble - subtle colors */}
         <div
           className={cn(
             'relative px-3.5 py-2',
             getBorderRadius(),
-            // Inbound: subtle gray
-            isInbound && 'bg-zinc-800/60 text-zinc-100',
-            // Outbound from human: refined emerald (not saturated)
-            !isInbound && !isAIResponse && 'bg-emerald-600/90 text-white',
-            // AI Response: slightly different to distinguish
-            isAIResponse && 'bg-zinc-700/80 text-zinc-100 ring-1 ring-zinc-600/50'
+            // Inbound (cliente): cinza escuro sutil
+            isInbound && 'bg-zinc-800/70 text-zinc-200',
+            // Outbound humano: verde desaturado, elegante
+            !isInbound && !isAIResponse && 'bg-emerald-600/80 text-white',
+            // AI Response: verde mais escuro para diferenciar
+            isAIResponse && 'bg-emerald-700/70 text-emerald-50'
           )}
         >
-          {/* AI indicator removed - header already shows agent info */}
-
           {/* Message content */}
-          <p className="text-[13px] leading-relaxed whitespace-pre-wrap break-words">
+          <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
             {content}
           </p>
 
-          {/* AI Sources - ultra minimal */}
+          {/* AI Sources - inline, minimal */}
           {isAIResponse && ai_sources && ai_sources.length > 0 && isLastInGroup && (
             <Tooltip>
               <TooltipTrigger asChild>
-                <button className="inline-flex items-center gap-1 mt-1.5 text-[10px] text-emerald-400/60 hover:text-emerald-400/90 transition-colors">
+                <button className="inline-flex items-center gap-1 mt-1.5 text-[10px] text-zinc-400 hover:text-zinc-300 transition-colors">
                   <Sparkles className="h-2.5 w-2.5" />
-                  <span>{ai_sources.length}</span>
+                  <span>{ai_sources.length} fontes</span>
                 </button>
               </TooltipTrigger>
               <TooltipContent side="top" className="max-w-xs">
-                <p className="font-medium mb-1 text-xs">Fontes:</p>
                 <ul className="text-xs space-y-0.5 text-zinc-400">
                   {ai_sources.map((source, i) => (
                     <li key={i} className="truncate">• {source.title}</li>
