@@ -29,14 +29,14 @@ export function QuickReplyButtonList({
 
   return (
     <div className="space-y-3">
-      <div className="text-xs text-gray-400">
-        Resposta rapida <span className="text-gray-500">* Opcional</span>
+      <div className="text-xs text-[var(--ds-text-secondary)]">
+        Resposta rapida <span className="text-[var(--ds-text-muted)]">* Opcional</span>
       </div>
 
       <div className="space-y-3">
         <div className="grid grid-cols-[18px_minmax(0,1fr)_40px] gap-3 items-center">
           <div />
-          <div className="text-xs font-medium text-gray-300">Texto do botao</div>
+          <div className="text-xs font-medium text-[var(--ds-text-secondary)]">Texto do botao</div>
           <div />
         </div>
 
@@ -47,7 +47,7 @@ export function QuickReplyButtonList({
             
             return (
               <div key={idx} className="grid grid-cols-[18px_minmax(0,1fr)_40px] gap-3 items-center">
-                <GripVertical className="w-4 h-4 text-gray-500" />
+                <GripVertical className="w-4 h-4 text-[var(--ds-text-muted)]" />
 
                 <div className="relative">
                   <Input
@@ -57,22 +57,22 @@ export function QuickReplyButtonList({
                       next[idx] = { ...b, text: clampText(e.target.value, maxButtonText) }
                       updateButtons(next)
                     }}
-                    className="h-11 bg-zinc-950/40 border-white/10 text-white pr-16"
+                    className="h-11 bg-[var(--ds-bg-elevated)] border-[var(--ds-border-default)] text-[var(--ds-text-primary)] pr-16"
                     maxLength={maxButtonText}
                     placeholder="Quick Reply"
                   />
-                  <div className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-500">
+                  <div className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-[var(--ds-text-muted)]">
                     {countChars(text)}/{maxButtonText}
                   </div>
                   {hasTextError && (
-                    <div className="mt-1 text-xs text-amber-300">Informe o texto do botao.</div>
+                    <div className="mt-1 text-xs text-amber-700 dark:text-amber-300">Informe o texto do botao.</div>
                   )}
                 </div>
 
                 <button
                   type="button"
                   onClick={() => updateButtons(buttons.filter((_, i) => i !== idx))}
-                  className="h-9 w-9 inline-flex items-center justify-center rounded-md text-gray-400 hover:text-white hover:bg-white/5"
+                  className="h-9 w-9 inline-flex items-center justify-center rounded-md text-[var(--ds-text-secondary)] hover:text-[var(--ds-text-primary)] hover:bg-[var(--ds-bg-hover)]"
                   title="Remover"
                 >
                   <X className="w-4 h-4" />

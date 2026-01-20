@@ -57,9 +57,9 @@ export function UrlButtonFields({
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
       <div className="space-y-1">
-        <div className="text-xs font-medium text-gray-300">Tipo de URL</div>
+        <div className="text-xs font-medium text-[var(--ds-text-secondary)]">Tipo de URL</div>
         <Select value={isDynamic ? 'dynamic' : 'static'} onValueChange={handleUrlTypeChange}>
-          <SelectTrigger className="h-11 w-full bg-zinc-950/40 border-white/10 text-white">
+          <SelectTrigger className="h-11 w-full bg-[var(--ds-bg-elevated)] border-[var(--ds-border-default)] text-[var(--ds-text-primary)]">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -70,11 +70,11 @@ export function UrlButtonFields({
       </div>
 
       <div className="space-y-1">
-        <div className="text-xs font-medium text-gray-300">URL do site</div>
+        <div className="text-xs font-medium text-[var(--ds-text-secondary)]">URL do site</div>
         <Input
           value={url}
           onChange={handleUrlChange}
-          className="h-11 bg-zinc-950/40 border-white/10 text-white"
+          className="h-11 bg-[var(--ds-bg-elevated)] border-[var(--ds-border-default)] text-[var(--ds-text-primary)]"
           placeholder="https://www.exemplo.com"
         />
       </div>
@@ -82,15 +82,15 @@ export function UrlButtonFields({
       {isDynamic && (
         <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-1">
-            <div className="text-xs font-medium text-gray-300">Exemplo</div>
+            <div className="text-xs font-medium text-[var(--ds-text-secondary)]">Exemplo</div>
             <Input
               value={example}
               onChange={handleExampleChange}
-              className="h-11 bg-zinc-950/40 border-white/10 text-white"
+              className="h-11 bg-[var(--ds-bg-elevated)] border-[var(--ds-border-default)] text-[var(--ds-text-primary)]"
               placeholder="Exemplo 1"
             />
           </div>
-          <div className="text-xs text-gray-500 self-end">
+          <div className="text-xs text-[var(--ds-text-muted)] self-end">
             Use <span className="font-mono">{'{{1}}'}</span> para URL dinamica.
           </div>
         </div>

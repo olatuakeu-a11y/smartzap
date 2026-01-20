@@ -55,15 +55,15 @@ export function AddButtonDropdown({ addButton, canAddButtonType }: AddButtonDrop
       <DropdownMenuTrigger asChild>
         <Button
           variant="outline"
-          className="border-white/10 bg-zinc-950/40 hover:bg-white/5"
+          className="border-[var(--ds-border-default)] bg-[var(--ds-bg-elevated)] hover:bg-[var(--ds-bg-hover)]"
         >
           <Plus className="w-4 h-4" />
           Adicionar botao
           <ChevronDown className="w-4 h-4 opacity-70" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="bg-zinc-900 border-white/10 text-white min-w-60">
-        <DropdownMenuLabel className="text-xs text-gray-500 uppercase tracking-wider">
+      <DropdownMenuContent align="end" className="bg-[var(--ds-bg-elevated)] border-[var(--ds-border-default)] text-[var(--ds-text-primary)] min-w-60">
+        <DropdownMenuLabel className="text-xs text-[var(--ds-text-muted)] uppercase tracking-wider">
           Acoes
         </DropdownMenuLabel>
         
@@ -72,26 +72,26 @@ export function AddButtonDropdown({ addButton, canAddButtonType }: AddButtonDrop
             key={item.type}
             onClick={() => addButton(item.type)}
             disabled={!canAddButtonType(item.type).ok}
-            className="cursor-pointer hover:bg-white/5 focus:bg-white/5"
+            className="cursor-pointer hover:bg-[var(--ds-bg-hover)] focus:bg-[var(--ds-bg-hover)]"
           >
             {item.label}
             {item.shortcut && <DropdownMenuShortcut>{item.shortcut}</DropdownMenuShortcut>}
           </DropdownMenuItem>
         ))}
 
-        <DropdownMenuSeparator className="bg-white/10" />
+        <DropdownMenuSeparator className="bg-[var(--ds-border-default)]" />
 
         <DropdownMenuSub>
-          <DropdownMenuSubTrigger className="cursor-pointer hover:bg-white/5 focus:bg-white/5">
+          <DropdownMenuSubTrigger className="cursor-pointer hover:bg-[var(--ds-bg-hover)] focus:bg-[var(--ds-bg-hover)]">
             Avancado
           </DropdownMenuSubTrigger>
-          <DropdownMenuSubContent className="bg-zinc-900 border-white/10 text-white min-w-56">
+          <DropdownMenuSubContent className="bg-[var(--ds-bg-elevated)] border-[var(--ds-border-default)] text-[var(--ds-text-primary)] min-w-56">
             {ADVANCED_ITEMS.map((item) => (
               <DropdownMenuItem
                 key={item.type}
                 onClick={() => addButton(item.type)}
                 disabled={!canAddButtonType(item.type).ok}
-                className="cursor-pointer hover:bg-white/5 focus:bg-white/5"
+                className="cursor-pointer hover:bg-[var(--ds-bg-hover)] focus:bg-[var(--ds-bg-hover)]"
               >
                 {item.label}
               </DropdownMenuItem>

@@ -193,8 +193,8 @@ export function StepContent({
     <>
       <Container variant="default" padding="lg" className="space-y-2 min-h-140">
         <div>
-          <div className="text-base font-semibold text-white">Conteudo</div>
-          <div className="text-xs text-gray-400 mt-1">
+          <div className="text-base font-semibold text-[var(--ds-text-primary)]">Conteudo</div>
+          <div className="text-xs text-[var(--ds-text-secondary)] mt-1">
             Adicione um cabecalho, corpo de texto e rodape para o seu modelo. A Meta analisa variaveis e conteudo antes da aprovacao.
           </div>
         </div>
@@ -203,7 +203,7 @@ export function StepContent({
             <Button
               type="button"
               variant="outline"
-              className="border-white/10 bg-zinc-950/40 hover:bg-white/5 h-8 px-3 text-xs"
+              className="border-[var(--ds-border-default)] bg-[var(--ds-bg-elevated)] hover:bg-[var(--ds-bg-hover)] h-8 px-3 text-xs"
               onClick={() => {
                 const next: Partial<Spec> = {}
                 if (headerType === 'TEXT') {
@@ -237,12 +237,12 @@ export function StepContent({
         {/* CABECALHO */}
         <div className="pt-1">
           <div className="flex items-center justify-between">
-            <div className="text-sm font-semibold text-white">Cabecalho <span className="text-xs text-gray-500 font-normal">* Opcional</span></div>
+            <div className="text-sm font-semibold text-[var(--ds-text-primary)]">Cabecalho <span className="text-xs text-[var(--ds-text-muted)] font-normal">* Opcional</span></div>
             {headerType !== 'NONE' ? (
               <Button
                 type="button"
                 variant="ghost"
-                className="h-8 px-2 text-gray-400 hover:text-white hover:bg-white/5"
+                className="h-8 px-2 text-[var(--ds-text-secondary)] hover:text-[var(--ds-text-primary)] hover:bg-[var(--ds-bg-hover)]"
                 onClick={() => update({ header: null })}
               >
                 Remover
@@ -251,12 +251,12 @@ export function StepContent({
           </div>
 
           {headerType === 'NONE' ? (
-            <div className="mt-2 flex items-center justify-between rounded-xl border border-white/10 bg-zinc-950/40 p-2">
-              <div className="text-xs text-gray-400">Sem cabecalho configurado.</div>
+            <div className="mt-2 flex items-center justify-between rounded-xl border border-[var(--ds-border-default)] bg-[var(--ds-bg-elevated)] p-2">
+              <div className="text-xs text-[var(--ds-text-secondary)]">Sem cabecalho configurado.</div>
               <Button
                 type="button"
                 variant="outline"
-                className="border-white/10 bg-zinc-950/40 hover:bg-white/5"
+                className="border-[var(--ds-border-default)] bg-[var(--ds-bg-elevated)] hover:bg-[var(--ds-bg-hover)]"
                 onClick={() =>
                   updateHeader(
                     isLimitedTimeOffer
@@ -271,7 +271,7 @@ export function StepContent({
           ) : (
             <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <label className="text-xs font-medium text-gray-300">Tipo</label>
+                <label className="text-xs font-medium text-[var(--ds-text-secondary)]">Tipo</label>
                 <Select
                   value={headerType}
                   onValueChange={(v) => {
@@ -285,7 +285,7 @@ export function StepContent({
                     else updateHeader({ format, example: { header_handle: [''] } })
                   }}
                 >
-                  <SelectTrigger className="w-full bg-zinc-950/40 border-white/10 text-white">
+                  <SelectTrigger className="w-full bg-[var(--ds-bg-elevated)] border-[var(--ds-border-default)] text-[var(--ds-text-primary)]">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -300,12 +300,12 @@ export function StepContent({
                 </Select>
 
                 {headerType === 'GIF' ? (
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-[var(--ds-text-muted)]">
                     Observacao: GIF no header e documentado como disponivel para Marketing Messages (GIF = mp4, max 3.5MB).
                   </p>
                 ) : null}
                 {!isMarketingCategory ? (
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-[var(--ds-text-muted)]">
                     Dica: a opcao GIF fica disponivel apenas em templates MARKETING.
                   </p>
                 ) : null}
@@ -323,8 +323,8 @@ export function StepContent({
           {headerType === 'TEXT' ? (
             <div className="mt-1 space-y-2">
               <div className="flex items-center justify-between">
-                <label className="text-xs font-medium text-gray-300">Texto</label>
-                <div className="text-xs text-gray-500">{headerTextCount}/60</div>
+                <label className="text-xs font-medium text-[var(--ds-text-secondary)]">Texto</label>
+                <div className="text-xs text-[var(--ds-text-muted)]">{headerTextCount}/60</div>
               </div>
               <Input
                 ref={headerTextRef as any}
@@ -335,37 +335,37 @@ export function StepContent({
                   if (cleaned !== raw) notifySanitized()
                   updateHeader({ ...header, format: 'TEXT', text: cleaned })
                 }}
-                className="bg-zinc-950/40 border-white/10 text-white"
+                className="bg-[var(--ds-bg-elevated)] border-[var(--ds-border-default)] text-[var(--ds-text-primary)]"
                 placeholder="Texto do cabecalho"
                 maxLength={60}
               />
               {headerLengthExceeded ? (
-                <p className="text-xs text-amber-300">Cabecalho excede 60 caracteres.</p>
+                <p className="text-xs text-amber-700 dark:text-amber-300">Cabecalho excede 60 caracteres.</p>
               ) : null}
               {!isHeaderVariableValid ? (
-                <p className="text-xs text-amber-300">O cabecalho permite apenas 1 variavel.</p>
+                <p className="text-xs text-amber-700 dark:text-amber-300">O cabecalho permite apenas 1 variavel.</p>
               ) : null}
               {namedHeaderChecks?.invalid.length ? (
-                <p className="text-xs text-amber-300">Variaveis devem ser minusculas com underscore (ex: first_name).</p>
+                <p className="text-xs text-amber-700 dark:text-amber-300">Variaveis devem ser minusculas com underscore (ex: first_name).</p>
               ) : null}
               {namedHeaderChecks?.duplicates.length ? (
-                <p className="text-xs text-amber-300">Nomes de variavel no cabecalho devem ser unicos.</p>
+                <p className="text-xs text-amber-700 dark:text-amber-300">Nomes de variavel no cabecalho devem ser unicos.</p>
               ) : null}
               {headerTextMissing ? (
-                <p className="text-xs text-amber-300">Cabecalho de texto e obrigatorio.</p>
+                <p className="text-xs text-amber-700 dark:text-amber-300">Cabecalho de texto e obrigatorio.</p>
               ) : null}
               {positionalHeaderInvalid.length ? (
-                <p className="text-xs text-amber-300">
+                <p className="text-xs text-amber-700 dark:text-amber-300">
                   No modo numerico, use apenas {'{{1}}'}, {'{{2}}'}...
                 </p>
               ) : null}
               {positionalHeaderMissing.length ? (
-                <p className="text-xs text-amber-300">
+                <p className="text-xs text-amber-700 dark:text-amber-300">
                   Sequencia posicional deve comecar em {'{{1}}'} e nao ter buracos.
                 </p>
               ) : null}
               {headerEdgeParameter.starts || headerEdgeParameter.ends ? (
-                <p className="text-xs text-amber-300">O cabecalho nao pode comecar nem terminar com variavel.</p>
+                <p className="text-xs text-amber-700 dark:text-amber-300">O cabecalho nao pode comecar nem terminar com variavel.</p>
               ) : null}
               <div className="flex items-center justify-end">
                 <Button
@@ -373,7 +373,7 @@ export function StepContent({
                   variant="ghost"
                   onClick={() => addVariable('header')}
                   disabled={headerVariableCount >= 1}
-                  className="h-8 px-2 text-gray-300 hover:bg-white/5 disabled:opacity-40 disabled:hover:bg-transparent"
+                  className="h-8 px-2 text-[var(--ds-text-secondary)] hover:bg-[var(--ds-bg-hover)] disabled:opacity-40 disabled:hover:bg-transparent"
                 >
                   <Plus className="w-4 h-4" />
                   Adicionar variavel
@@ -385,16 +385,16 @@ export function StepContent({
           {canShowMediaSample ? (
             <div className="mt-2 space-y-2">
               <div className="flex items-center justify-between">
-                <label className="text-xs font-medium text-gray-300">Midia do cabecalho</label>
+                <label className="text-xs font-medium text-[var(--ds-text-secondary)]">Midia do cabecalho</label>
 
                 <div className="flex items-center gap-2">
                   {isUploadingHeaderMedia ? (
-                    <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-zinc-950/40 px-2 py-1 text-[11px] text-gray-200">
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--ds-border-default)] bg-[var(--ds-bg-elevated)] px-2 py-1 text-[11px] text-[var(--ds-text-secondary)]">
                       <Loader2 className="w-3.5 h-3.5 animate-spin" />
                       Enviando...
                     </span>
                   ) : headerMediaHandleValue ? (
-                    <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/30 bg-emerald-500/10 px-2 py-1 text-[11px] text-emerald-200">
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-600 dark:border-emerald-400/30 bg-emerald-100 dark:bg-emerald-500/10 px-2 py-1 text-[11px] text-emerald-700 dark:text-emerald-200">
                       <CheckCircle2 className="w-3.5 h-3.5" />
                       Pronto
                     </span>
@@ -433,12 +433,12 @@ export function StepContent({
                 }}
               />
 
-              <div className="rounded-xl border border-white/10 bg-zinc-950/40 p-3 flex items-center justify-between gap-3">
+              <div className="rounded-xl border border-[var(--ds-border-default)] bg-[var(--ds-bg-elevated)] p-3 flex items-center justify-between gap-3">
                 <div className="min-w-0">
-                  <div className="text-sm font-medium text-white truncate">
+                  <div className="text-sm font-medium text-[var(--ds-text-primary)] truncate">
                     {headerMediaPreview?.name || 'Escolha um arquivo'}
                   </div>
-                  <div className="mt-0.5 text-xs text-gray-400">
+                  <div className="mt-0.5 text-xs text-[var(--ds-text-secondary)]">
                     {headerMediaPreview ? (
                       `${formatBytes(headerMediaPreview.size)} * ${String(headerType).toLowerCase()}`
                     ) : (
@@ -454,7 +454,7 @@ export function StepContent({
                     disabled={isUploadingHeaderMedia}
                     className={cn(
                       headerMediaPreview
-                        ? 'border-white/10 bg-zinc-950/40 hover:bg-white/5'
+                        ? 'border-[var(--ds-border-default)] bg-[var(--ds-bg-elevated)] hover:bg-[var(--ds-bg-hover)]'
                         : 'bg-emerald-500 hover:bg-emerald-400 text-black',
                     )}
                     onClick={() => headerMediaFileInputRef.current?.click()}
@@ -468,7 +468,7 @@ export function StepContent({
                       type="button"
                       variant="ghost"
                       disabled={isUploadingHeaderMedia}
-                      className="text-gray-300 hover:bg-white/5"
+                      className="text-[var(--ds-text-secondary)] hover:bg-[var(--ds-bg-hover)]"
                       onClick={() => {
                         setHeaderMediaPreview(null)
                         updateHeader({
@@ -489,11 +489,11 @@ export function StepContent({
               </div>
 
               {uploadHeaderMediaError ? (
-                <p className="text-xs text-amber-300">{uploadHeaderMediaError}</p>
+                <p className="text-xs text-amber-700 dark:text-amber-300">{uploadHeaderMediaError}</p>
               ) : null}
 
               {isHeaderMediaHandleMissing ? (
-                <p className="text-xs text-amber-300">
+                <p className="text-xs text-amber-700 dark:text-amber-300">
                   {headerMediaPreview ? 'Finalize o envio da midia para continuar.' : 'Selecione um arquivo para o cabecalho.'}
                 </p>
               ) : null}
@@ -504,11 +504,11 @@ export function StepContent({
         {/* CORPO */}
         <div className="pt-1">
           <div className="flex items-center justify-between">
-            <div className="text-sm font-semibold text-white">Corpo</div>
-            <div className="text-xs text-gray-500">{bodyTextCount}/{bodyMaxLength}</div>
+            <div className="text-sm font-semibold text-[var(--ds-text-primary)]">Corpo</div>
+            <div className="text-xs text-[var(--ds-text-muted)]">{bodyTextCount}/{bodyMaxLength}</div>
           </div>
 
-          <div className="mt-2 rounded-xl border border-white/10 bg-zinc-950/40">
+          <div className="mt-2 rounded-xl border border-[var(--ds-border-default)] bg-[var(--ds-bg-elevated)]">
             <div className="p-2">
               <Textarea
                 ref={bodyRef as any}
@@ -520,23 +520,23 @@ export function StepContent({
                   const example = defaultBodyExamples(cleaned)
                   update({ body: { ...(spec.body || {}), text: cleaned, example: example ? { body_text: example } : undefined } })
                 }}
-                className="bg-transparent border-none text-white min-h-24 focus-visible:ring-0 focus-visible:ring-offset-0"
+                className="bg-transparent border-none text-[var(--ds-text-primary)] min-h-24 focus-visible:ring-0 focus-visible:ring-offset-0"
                 placeholder="Digite o corpo (obrigatorio)"
                 maxLength={bodyMaxLength}
               />
             </div>
 
-            <div className="flex items-center gap-1 px-2 py-1.5 border-t border-white/10">
-              <Button type="button" variant="ghost" onClick={() => applyBodyFormat('bold')} className="h-7 px-2 text-gray-200 hover:bg-white/5">
+            <div className="flex items-center gap-1 px-2 py-1.5 border-t border-[var(--ds-border-default)]">
+              <Button type="button" variant="ghost" onClick={() => applyBodyFormat('bold')} className="h-7 px-2 text-[var(--ds-text-secondary)] hover:bg-[var(--ds-bg-hover)]">
                 <Bold className="w-4 h-4" />
               </Button>
-              <Button type="button" variant="ghost" onClick={() => applyBodyFormat('italic')} className="h-7 px-2 text-gray-200 hover:bg-white/5">
+              <Button type="button" variant="ghost" onClick={() => applyBodyFormat('italic')} className="h-7 px-2 text-[var(--ds-text-secondary)] hover:bg-[var(--ds-bg-hover)]">
                 <Italic className="w-4 h-4" />
               </Button>
-              <Button type="button" variant="ghost" onClick={() => applyBodyFormat('strike')} className="h-7 px-2 text-gray-200 hover:bg-white/5">
+              <Button type="button" variant="ghost" onClick={() => applyBodyFormat('strike')} className="h-7 px-2 text-[var(--ds-text-secondary)] hover:bg-[var(--ds-bg-hover)]">
                 <Strikethrough className="w-4 h-4" />
               </Button>
-              <Button type="button" variant="ghost" onClick={() => applyBodyFormat('code')} className="h-7 px-2 text-gray-200 hover:bg-white/5">
+              <Button type="button" variant="ghost" onClick={() => applyBodyFormat('code')} className="h-7 px-2 text-[var(--ds-text-secondary)] hover:bg-[var(--ds-bg-hover)]">
                 <Code className="w-4 h-4" />
               </Button>
 
@@ -546,7 +546,7 @@ export function StepContent({
                 type="button"
                 variant="ghost"
                 onClick={() => addVariable('body')}
-                className="h-7 px-2 text-gray-200 hover:bg-white/5"
+                className="h-7 px-2 text-[var(--ds-text-secondary)] hover:bg-[var(--ds-bg-hover)]"
               >
                 <Plus className="w-4 h-4" />
                 Adicionar variavel
@@ -555,37 +555,37 @@ export function StepContent({
           </div>
 
           {namedBodyChecks?.invalid.length ? (
-            <div className="mt-2 text-xs text-amber-300">Use apenas minusculas e underscore nas variaveis do corpo.</div>
+            <div className="mt-2 text-xs text-amber-700 dark:text-amber-300">Use apenas minusculas e underscore nas variaveis do corpo.</div>
           ) : null}
           {namedBodyChecks?.duplicates.length ? (
-            <div className="mt-2 text-xs text-amber-300">Nomes de variavel no corpo devem ser unicos.</div>
+            <div className="mt-2 text-xs text-amber-700 dark:text-amber-300">Nomes de variavel no corpo devem ser unicos.</div>
           ) : null}
           {positionalBodyInvalid.length ? (
-            <div className="mt-2 text-xs text-amber-300">
+            <div className="mt-2 text-xs text-amber-700 dark:text-amber-300">
               No modo numerico, use apenas {'{{1}}'}, {'{{2}}'}...
             </div>
           ) : null}
           {positionalBodyMissing.length ? (
-            <div className="mt-2 text-xs text-amber-300">
+            <div className="mt-2 text-xs text-amber-700 dark:text-amber-300">
               Sequencia posicional deve comecar em {'{{1}}'} e nao ter buracos.
             </div>
           ) : null}
           {bodyLengthExceeded ? (
-            <div className="mt-2 text-xs text-amber-300">Corpo excede {bodyMaxLength} caracteres.</div>
+            <div className="mt-2 text-xs text-amber-700 dark:text-amber-300">Corpo excede {bodyMaxLength} caracteres.</div>
           ) : null}
           {bodyEdgeParameter.starts || bodyEdgeParameter.ends ? (
-            <div className="mt-2 text-xs text-amber-300">O corpo nao pode comecar nem terminar com variavel.</div>
+            <div className="mt-2 text-xs text-amber-700 dark:text-amber-300">O corpo nao pode comecar nem terminar com variavel.</div>
           ) : null}
           {!bodyText.trim() ? (
-            <div className="mt-2 text-xs text-amber-300">O corpo e obrigatorio.</div>
+            <div className="mt-2 text-xs text-amber-700 dark:text-amber-300">O corpo e obrigatorio.</div>
           ) : null}
         </div>
 
         {/* RODAPE */}
         <div className="pt-2">
           <div className="flex items-center justify-between">
-            <div className="text-sm font-semibold text-white">Rodape <span className="text-xs text-gray-500 font-normal">* Opcional</span></div>
-            <div className="text-xs text-gray-500">{footerTextCount}/60</div>
+            <div className="text-sm font-semibold text-[var(--ds-text-primary)]">Rodape <span className="text-xs text-[var(--ds-text-muted)] font-normal">* Opcional</span></div>
+            <div className="text-xs text-[var(--ds-text-muted)]">{footerTextCount}/60</div>
           </div>
 
           <div className="mt-2 space-y-2">
@@ -601,7 +601,7 @@ export function StepContent({
             </div>
 
             {isLimitedTimeOffer ? (
-              <div className="text-xs text-amber-300">Limited Time Offer nao permite rodape.</div>
+              <div className="text-xs text-amber-700 dark:text-amber-300">Limited Time Offer nao permite rodape.</div>
             ) : null}
 
             {spec.footer ? (
@@ -614,21 +614,21 @@ export function StepContent({
                     if (nextText !== e.target.value) notifySanitized()
                     updateFooter({ ...(spec.footer || {}), text: nextText })
                   }}
-                  className="bg-zinc-950/40 border-white/10 text-white"
+                  className="bg-[var(--ds-bg-elevated)] border-[var(--ds-border-default)] text-[var(--ds-text-primary)]"
                   placeholder="Inserir texto"
                   maxLength={60}
                 />
                 {footerLengthExceeded ? (
-                  <div className="text-xs text-amber-300">Rodape excede 60 caracteres.</div>
+                  <div className="text-xs text-amber-700 dark:text-amber-300">Rodape excede 60 caracteres.</div>
                 ) : null}
                 {footerHasVariables ? (
-                  <div className="text-xs text-amber-300">Rodape nao permite variaveis.</div>
+                  <div className="text-xs text-amber-700 dark:text-amber-300">Rodape nao permite variaveis.</div>
                 ) : null}
                 {namedFooterChecks?.invalid.length ? (
-                  <div className="text-xs text-amber-300">Use apenas minusculas e underscore nas variaveis do rodape.</div>
+                  <div className="text-xs text-amber-700 dark:text-amber-300">Use apenas minusculas e underscore nas variaveis do rodape.</div>
                 ) : null}
                 {namedFooterChecks?.duplicates.length ? (
-                  <div className="text-xs text-amber-300">Nomes de variavel no rodape devem ser unicos.</div>
+                  <div className="text-xs text-amber-700 dark:text-amber-300">Nomes de variavel no rodape devem ser unicos.</div>
                 ) : null}
               </div>
             ) : null}
@@ -644,7 +644,7 @@ export function StepContent({
             <DialogDescription>Use apenas minusculas, numeros e underscore.</DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
-            <label className="text-xs font-medium text-gray-300">Nome da variavel</label>
+            <label className="text-xs font-medium text-[var(--ds-text-secondary)]">Nome da variavel</label>
             <Input
               value={namedVarName}
               onChange={(e) => {
@@ -658,10 +658,10 @@ export function StepContent({
                 }
               }}
               placeholder="ex: first_name"
-              className="bg-zinc-950/40 border-white/10 text-white"
+              className="bg-[var(--ds-bg-elevated)] border-[var(--ds-border-default)] text-[var(--ds-text-primary)]"
               autoFocus
             />
-            {namedVarError ? <p className="text-xs text-amber-300">{namedVarError}</p> : null}
+            {namedVarError ? <p className="text-xs text-amber-700 dark:text-amber-300">{namedVarError}</p> : null}
           </div>
           <DialogFooter className="gap-2">
             <Button type="button" variant="ghost" onClick={() => setNamedVarDialogOpen(false)}>

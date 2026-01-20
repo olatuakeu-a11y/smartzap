@@ -25,7 +25,7 @@ function FlowStatusBadge({ status }: { status: string }) {
       ? 'bg-emerald-500/15 text-emerald-200 border-emerald-500/20'
       : status === 'DRAFT'
         ? 'bg-amber-500/15 text-amber-200 border-amber-500/20'
-        : 'bg-white/5 text-gray-300 border-white/10'
+        : 'bg-[var(--ds-bg-hover)] text-[var(--ds-text-secondary)] border-[var(--ds-border-default)]'
 
   return (
     <span className={`shrink-0 rounded-md border px-2 py-0.5 text-[10px] ${cls}`}>
@@ -67,13 +67,13 @@ export function FlowButtonFields({
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-end">
       <div className="space-y-1">
-        <div className="text-xs font-medium text-gray-300">Escolher MiniApp publicado</div>
+        <div className="text-xs font-medium text-[var(--ds-text-secondary)]">Escolher MiniApp publicado</div>
         <Select
           value={selectValue}
           onValueChange={handleFlowChange}
           disabled={flowsQueryIsLoading || publishedFlows.length === 0}
         >
-          <SelectTrigger className="h-11 w-full bg-zinc-950/40 border-white/10 text-white">
+          <SelectTrigger className="h-11 w-full bg-[var(--ds-bg-elevated)] border-[var(--ds-border-default)] text-[var(--ds-text-primary)]">
             <SelectValue placeholder={getPlaceholder()} />
           </SelectTrigger>
           <SelectContent>
@@ -89,19 +89,19 @@ export function FlowButtonFields({
         </Select>
 
         {!hasMatch && currentFlowId && (
-          <div className="mt-3 text-[11px] text-amber-300">
+          <div className="mt-3 text-[11px] text-amber-700 dark:text-amber-300">
             O MiniApp atual nao esta publicado. Selecione um da lista.
           </div>
         )}
-        <div className="mt-3 text-[11px] text-gray-500">
+        <div className="mt-3 text-[11px] text-[var(--ds-text-muted)]">
           Dica: publique o MiniApp no Builder para aparecer na lista.
         </div>
       </div>
 
       <div className="space-y-1">
-        <div className="text-xs font-medium text-gray-300">flow_action</div>
+        <div className="text-xs font-medium text-[var(--ds-text-secondary)]">flow_action</div>
         <Select value={button.flow_action || 'navigate'} onValueChange={handleFlowActionChange}>
-          <SelectTrigger className="h-11 w-full bg-zinc-950/40 border-white/10 text-white">
+          <SelectTrigger className="h-11 w-full bg-[var(--ds-bg-elevated)] border-[var(--ds-border-default)] text-[var(--ds-text-primary)]">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>

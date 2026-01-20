@@ -125,10 +125,20 @@ function listMigrationFiles(): string[] {
   }
 }
 
+export interface MigrationProgress {
+  stage: 'connecting' | 'waiting_storage' | 'applying' | 'done';
+  message: string;
+  current?: number;
+  total?: number;
+}
+
 /**
  * Executa todas as migrations em ordem.
  */
-export async function runSchemaMigration(dbUrl: string) {
+export async function runSchemaMigration(
+  dbUrl: string,
+  onProgress?: (progress: MigrationProgress) => void
+) {
   const migrationFiles = listMigrationFiles();
 
   if (migrationFiles.length === 0) {
@@ -145,10 +155,12 @@ export async function runSchemaMigration(dbUrl: string) {
       ssl: needsSsl(dbUrl) ? { rejectUnauthorized: false } : undefined,
     });
 
+  onProgress?.({ stage: 'connecting', message: 'Conectando ao banco de dados...' });
   const client = await connectClientWithRetry(createClient, { maxAttempts: 5, initialDelayMs: 3000 });
 
   try {
     // Aguarda storage ficar pronto antes de rodar migrations
+    onProgress?.({ stage: 'waiting_storage', message: 'Aguardando Supabase Storage...' });
     await waitForStorageReady(client);
 
     // Cria tabela de tracking de migrations se não existir
@@ -167,11 +179,22 @@ export async function runSchemaMigration(dbUrl: string) {
     const appliedSet = new Set(appliedRows.map((r) => r.name));
 
     // Aplica migrations pendentes
+    const pendingMigrations = migrationFiles.filter(f => !appliedSet.has(f));
+    let applied = 0;
+
     for (const file of migrationFiles) {
       if (appliedSet.has(file)) {
         console.log(`[migrations] Pulando ${file} (já aplicada)`);
         continue;
       }
+
+      applied++;
+      onProgress?.({
+        stage: 'applying',
+        message: `Aplicando ${file}...`,
+        current: applied,
+        total: pendingMigrations.length,
+      });
 
       console.log(`[migrations] Aplicando ${file}...`);
       const filePath = path.join(MIGRATIONS_DIR, file);
@@ -199,6 +222,7 @@ export async function runSchemaMigration(dbUrl: string) {
       }
     }
 
+    onProgress?.({ stage: 'done', message: 'Migrations concluídas!' });
     console.log('[migrations] Todas as migrations aplicadas com sucesso!');
   } finally {
     await client.end();

@@ -33,15 +33,15 @@ export function CopyCodeButtonFields({
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-end">
       <div className="space-y-1">
-        <div className="text-xs font-medium text-gray-300">Codigo da oferta (max {maxCodeLength})</div>
+        <div className="text-xs font-medium text-[var(--ds-text-secondary)]">Codigo da oferta (max {maxCodeLength})</div>
         <Input
           value={code}
           onChange={handleCodeChange}
-          className="h-11 bg-zinc-950/40 border-white/10 text-white"
+          className="h-11 bg-[var(--ds-bg-elevated)] border-[var(--ds-border-default)] text-[var(--ds-text-primary)]"
           placeholder="1234"
         />
       </div>
-      <div className="text-xs text-gray-500">
+      <div className="text-xs text-[var(--ds-text-muted)]">
         O codigo e exibido ao usuario e pode ser copiado.
       </div>
     </div>

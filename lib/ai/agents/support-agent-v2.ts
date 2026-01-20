@@ -1,13 +1,14 @@
 /**
  * Support Agent V2 - Using AI SDK v6 patterns
- * Uses streamText + tools for structured output
+ * Uses generateText + tools for structured output
  * Includes File Search (RAG) integration for knowledge base queries
  */
 
-import { streamText, tool } from 'ai'
+import { generateText, tool } from 'ai'
 import { z } from 'zod'
 import { createGoogleGenerativeAI, type GoogleGenerativeAIProviderMetadata } from '@ai-sdk/google'
 import { createClient } from '@/lib/supabase-server'
+import { withDevTools } from '@/lib/ai/devtools'
 import type { AIAgent, InboxConversation, InboxMessage } from '@/types'
 
 // =============================================================================
@@ -236,10 +237,11 @@ export async function processSupportAgentV2(
   // Convert messages to AI SDK format (last 10 for context)
   const aiMessages = convertToAIMessages(messages.slice(-10))
 
-  // Create model provider
+  // Create model provider with DevTools support
   const google = createGoogleGenerativeAI({ apiKey })
   const modelId = agent.model || DEFAULT_MODEL_ID
-  const model = google(modelId)
+  const baseModel = google(modelId)
+  const model = await withDevTools(baseModel, { name: `support-agent:${agent.name}` })
 
   // Check if agent has a knowledge base configured
   const hasKnowledgeBase = !!agent.file_search_store_id
@@ -265,9 +267,9 @@ export async function processSupportAgentV2(
       },
     })
 
-    // Use streamText with tools for structured output
+    // Use generateText with tools for structured output (simpler than streaming)
     // File Search tool is added conditionally when agent has knowledge base
-    const result = streamText({
+    const result = await generateText({
       model,
       system: buildSystemPrompt(agent, conversation, hasKnowledgeBase),
       messages: aiMessages,
@@ -288,14 +290,8 @@ export async function processSupportAgentV2(
       maxOutputTokens: DEFAULT_MAX_TOKENS,
     })
 
-    // Consume the stream completely (we don't need streaming, just the result)
-    // This processes the tool call and triggers the execute function
-    for await (const _part of result.fullStream) {
-      // Just consume the stream
-    }
-
     // Extract grounding metadata if available (from File Search)
-    const providerMetadata = (await result.providerMetadata) as GoogleGenerativeAIProviderMetadata | undefined
+    const providerMetadata = result.providerMetadata as GoogleGenerativeAIProviderMetadata | undefined
     const groundingMetadata = providerMetadata?.groundingMetadata
 
     if (groundingMetadata?.groundingChunks) {
@@ -309,9 +305,9 @@ export async function processSupportAgentV2(
       console.log(`[AI Agent V2] Found ${groundingSources.length} grounding sources from knowledge base`)
     }
 
-    // If no response was captured, something went wrong
+    // If no response was captured via tool execute, something went wrong
     if (!response) {
-      throw new Error('No response generated from AI')
+      throw new Error('No response generated from AI - tool was not called')
     }
 
     // Merge grounding sources with any sources from the response

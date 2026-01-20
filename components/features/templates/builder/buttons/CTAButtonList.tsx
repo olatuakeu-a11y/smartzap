@@ -157,8 +157,8 @@ export function CTAButtonList({
 
   return (
     <div className="space-y-3">
-      <div className="text-xs text-gray-400">
-        Chamada para acao <span className="text-gray-500">* Opcional</span>
+      <div className="text-xs text-[var(--ds-text-secondary)]">
+        Chamada para acao <span className="text-[var(--ds-text-muted)]">* Opcional</span>
       </div>
 
       <div className="space-y-4">
@@ -168,7 +168,7 @@ export function CTAButtonList({
           const hasTextError = REQUIRES_BUTTON_TEXT.has(type) && !buttonText.trim()
           const rowClassName = rowIndex === 0
             ? 'relative pb-4 pr-12'
-            : 'relative border-t border-white/10 pt-4 pb-4 pr-12'
+            : 'relative border-t border-[var(--ds-border-default)] pt-4 pb-4 pr-12'
 
           const bodyFields = renderBodyFields(b, idx)
 
@@ -177,7 +177,7 @@ export function CTAButtonList({
               <button
                 type="button"
                 onClick={() => handleRemove(idx)}
-                className="absolute right-4 top-4 h-9 w-9 inline-flex items-center justify-center rounded-md text-gray-400 hover:text-white hover:bg-white/5"
+                className="absolute right-4 top-4 h-9 w-9 inline-flex items-center justify-center rounded-md text-[var(--ds-text-secondary)] hover:text-[var(--ds-text-primary)] hover:bg-[var(--ds-bg-hover)]"
                 title="Remover"
                 aria-label="Remover"
               >
@@ -188,18 +188,18 @@ export function CTAButtonList({
                 {/* Header Row */}
                 <div className="grid grid-cols-[18px_minmax(0,1fr)] gap-4">
                   <div className="pt-6">
-                    <GripVertical className="w-4 h-4 text-gray-500" />
+                    <GripVertical className="w-4 h-4 text-[var(--ds-text-muted)]" />
                   </div>
 
                   <div className="space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className="space-y-1">
-                        <div className="text-xs font-medium text-gray-300">Tipo de acao</div>
+                        <div className="text-xs font-medium text-[var(--ds-text-secondary)]">Tipo de acao</div>
                         <Select
                           value={type}
                           onValueChange={(v) => handleTypeChange(idx, b, v as ButtonType)}
                         >
-                          <SelectTrigger className="h-11 w-full bg-zinc-950/40 border-white/10 text-white">
+                          <SelectTrigger className="h-11 w-full bg-[var(--ds-bg-elevated)] border-[var(--ds-border-default)] text-[var(--ds-text-primary)]">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -219,20 +219,20 @@ export function CTAButtonList({
                       </div>
 
                       <div className="space-y-1">
-                        <div className="text-xs font-medium text-gray-300">Texto do botao</div>
+                        <div className="text-xs font-medium text-[var(--ds-text-secondary)]">Texto do botao</div>
                         <div className="relative">
                           <Input
                             value={buttonText}
                             onChange={(e) => handleTextChange(idx, b, e.target.value)}
-                            className="h-11 bg-zinc-950/40 border-white/10 text-white pr-16"
+                            className="h-11 bg-[var(--ds-bg-elevated)] border-[var(--ds-border-default)] text-[var(--ds-text-primary)] pr-16"
                             maxLength={maxButtonText}
                             placeholder={type === 'URL' ? 'Visualizar' : 'Texto'}
                           />
-                          <div className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-500">
+                          <div className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-[var(--ds-text-muted)]">
                             {countChars(buttonText)}/{maxButtonText}
                           </div>
                           {hasTextError && (
-                            <div className="mt-1 text-xs text-amber-300">Informe o texto do botao.</div>
+                            <div className="mt-1 text-xs text-amber-700 dark:text-amber-300">Informe o texto do botao.</div>
                           )}
                         </div>
                       </div>
@@ -251,7 +251,7 @@ export function CTAButtonList({
           )
         })}
 
-        <div className="text-xs text-gray-500">
+        <div className="text-xs text-[var(--ds-text-muted)]">
           Regras: URL max 2, Ligar max 1, Copiar codigo max 1, OTP max 1; Respostas rapidas ficam agrupadas.
         </div>
       </div>

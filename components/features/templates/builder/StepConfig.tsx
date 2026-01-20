@@ -83,26 +83,26 @@ export function StepConfig({
     <Container variant="default" padding="lg" className="min-h-140">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <div className="text-base font-semibold text-white">Nome e idioma do modelo</div>
-          <div className="text-xs text-gray-400 mt-0.5">Defina como o modelo sera identificado.</div>
+          <div className="text-base font-semibold text-[var(--ds-text-primary)]">Nome e idioma do modelo</div>
+          <div className="text-xs text-[var(--ds-text-secondary)] mt-0.5">Defina como o modelo sera identificado.</div>
         </div>
       </div>
 
       <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
-          <label className="text-xs font-medium text-gray-300">Nome</label>
+          <label className="text-xs font-medium text-[var(--ds-text-secondary)]">Nome</label>
           <Input
             value={spec.name || ''}
             onChange={(e) => update({ name: e.target.value })}
-            className={`bg-zinc-950/40 text-white ${
-              isNameValid ? 'border-white/10' : 'border-amber-400/40'
+            className={`bg-[var(--ds-bg-elevated)] text-[var(--ds-text-primary)] ${
+              isNameValid ? 'border-[var(--ds-border-default)]' : 'border-amber-600 dark:border-amber-400/40'
             }`}
           />
-          <p className="text-xs text-gray-500">Apenas <span className="font-mono">a-z 0-9 _</span></p>
+          <p className="text-xs text-[var(--ds-text-muted)]">Apenas <span className="font-mono">a-z 0-9 _</span></p>
         </div>
 
         <div className="space-y-2">
-          <label className="text-xs font-medium text-gray-300">Categoria</label>
+          <label className="text-xs font-medium text-[var(--ds-text-secondary)]">Categoria</label>
           <Select
             value={spec.category}
             onValueChange={(v) => {
@@ -138,7 +138,7 @@ export function StepConfig({
               })
             }}
           >
-            <SelectTrigger className="w-full bg-zinc-950/40 border-white/10 text-white">
+            <SelectTrigger className="w-full bg-[var(--ds-bg-elevated)] border-[var(--ds-border-default)] text-[var(--ds-text-primary)]">
               <SelectValue placeholder="Selecione" />
             </SelectTrigger>
             <SelectContent>
@@ -150,9 +150,9 @@ export function StepConfig({
         </div>
 
         <div className="space-y-2">
-          <label className="text-xs font-medium text-gray-300">Idioma</label>
+          <label className="text-xs font-medium text-[var(--ds-text-secondary)]">Idioma</label>
           <Select value={spec.language} onValueChange={(v) => update({ language: v })}>
-            <SelectTrigger className="w-full bg-zinc-950/40 border-white/10 text-white">
+            <SelectTrigger className="w-full bg-[var(--ds-bg-elevated)] border-[var(--ds-border-default)] text-[var(--ds-text-primary)]">
               <SelectValue placeholder="Selecione" />
             </SelectTrigger>
             <SelectContent>
@@ -164,7 +164,7 @@ export function StepConfig({
         </div>
 
         <div className="space-y-2">
-          <label className="text-xs font-medium text-gray-300">Tipo de variavel</label>
+          <label className="text-xs font-medium text-[var(--ds-text-secondary)]">Tipo de variavel</label>
           <Select
             value={variableMode}
             onValueChange={(v) => {
@@ -193,7 +193,7 @@ export function StepConfig({
               update(next)
             }}
           >
-            <SelectTrigger className="w-full bg-zinc-950/40 border-white/10 text-white">
+            <SelectTrigger className="w-full bg-[var(--ds-bg-elevated)] border-[var(--ds-border-default)] text-[var(--ds-text-primary)]">
               <SelectValue placeholder="Selecione" />
             </SelectTrigger>
             <SelectContent>
@@ -204,7 +204,7 @@ export function StepConfig({
         </div>
       </div>
 
-      <div className="mt-3 text-xs text-gray-500">
+      <div className="mt-3 text-xs text-[var(--ds-text-muted)]">
         ID do rascunho: <span className="font-mono">{id}</span>
       </div>
     </Container>

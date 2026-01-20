@@ -73,11 +73,11 @@ export function StepNavigation({
           type="button"
           onClick={() => setStep((prev) => Math.max(1, prev - 1))}
           disabled={step === 1}
-          className={`text-sm transition ${step === 1 ? 'text-gray-600 cursor-not-allowed' : 'text-gray-400 hover:text-white'}`}
+          className={`text-sm transition ${step === 1 ? 'text-[var(--ds-text-disabled)] cursor-not-allowed' : 'text-[var(--ds-text-secondary)] hover:text-[var(--ds-text-primary)]'}`}
         >
           Voltar
         </button>
-        <div className="text-center text-xs text-gray-500">
+        <div className="text-center text-xs text-[var(--ds-text-muted)]">
           {step === 1 && !isConfigComplete && 'Complete a configuracao para continuar'}
           {step === 2 && !isContentComplete && (
             !isHeaderFormatValid
@@ -134,8 +134,8 @@ export function StepNavigation({
           disabled={!canContinue || !!isFinishing}
           className={`rounded-full px-5 py-2 text-sm font-semibold transition ${
             !isFinishing && canContinue
-              ? 'bg-white text-black hover:bg-gray-200'
-              : 'cursor-not-allowed border border-white/10 bg-white/10 text-gray-500'
+              ? 'bg-primary-600 text-white dark:bg-white dark:text-black hover:bg-primary-500 dark:hover:bg-gray-200'
+              : 'cursor-not-allowed border border-[var(--ds-border-default)] bg-[var(--ds-bg-elevated)] text-[var(--ds-text-muted)]'
           }`}
         >
           {step < 3 ? (

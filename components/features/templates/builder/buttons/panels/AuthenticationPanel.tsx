@@ -36,26 +36,26 @@ export function AuthenticationPanel({ spec, update }: AuthenticationPanelProps) 
 
   return (
     <Container variant="subtle" padding="md" className="space-y-3">
-      <div className="text-sm font-semibold text-white">Autenticacao (Auth)</div>
+      <div className="text-sm font-semibold text-[var(--ds-text-primary)]">Autenticacao (Auth)</div>
       
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="space-y-2">
-          <label className="text-xs font-medium text-gray-300">message_send_ttl_seconds</label>
+          <label className="text-xs font-medium text-[var(--ds-text-secondary)]">message_send_ttl_seconds</label>
           <Input
             value={spec.message_send_ttl_seconds ?? ''}
             onChange={handleTtlChange}
-            className="bg-zinc-950/40 border-white/10 text-white"
+            className="bg-[var(--ds-bg-elevated)] border-[var(--ds-border-default)] text-[var(--ds-text-primary)]"
             placeholder="ex: 300"
           />
         </div>
 
         <div className="space-y-2">
-          <label className="text-xs font-medium text-gray-300">add_security_recommendation</label>
+          <label className="text-xs font-medium text-[var(--ds-text-secondary)]">add_security_recommendation</label>
           <Select
             value={String(!!spec.add_security_recommendation)}
             onValueChange={handleSecurityChange}
           >
-            <SelectTrigger className="w-full bg-zinc-950/40 border-white/10 text-white">
+            <SelectTrigger className="w-full bg-[var(--ds-bg-elevated)] border-[var(--ds-border-default)] text-[var(--ds-text-primary)]">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -66,11 +66,11 @@ export function AuthenticationPanel({ spec, update }: AuthenticationPanelProps) 
         </div>
 
         <div className="space-y-2">
-          <label className="text-xs font-medium text-gray-300">code_expiration_minutes</label>
+          <label className="text-xs font-medium text-[var(--ds-text-secondary)]">code_expiration_minutes</label>
           <Input
             value={spec.code_expiration_minutes ?? ''}
             onChange={handleExpirationChange}
-            className="bg-zinc-950/40 border-white/10 text-white"
+            className="bg-[var(--ds-bg-elevated)] border-[var(--ds-border-default)] text-[var(--ds-text-primary)]"
             placeholder="ex: 10"
           />
         </div>

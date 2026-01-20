@@ -45,9 +45,9 @@ export function PhoneButtonFields({
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
       <div className="space-y-1">
-        <div className="text-xs font-medium text-gray-300">Pais</div>
+        <div className="text-xs font-medium text-[var(--ds-text-secondary)]">Pais</div>
         <Select value={country} onValueChange={handleCountryChange}>
-          <SelectTrigger className="h-11 w-full bg-zinc-950/40 border-white/10 text-white">
+          <SelectTrigger className="h-11 w-full bg-[var(--ds-bg-elevated)] border-[var(--ds-border-default)] text-[var(--ds-text-primary)]">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -58,11 +58,11 @@ export function PhoneButtonFields({
       </div>
 
       <div className="space-y-1">
-        <div className="text-xs font-medium text-gray-300">Telefone</div>
+        <div className="text-xs font-medium text-[var(--ds-text-secondary)]">Telefone</div>
         <Input
           value={number}
           onChange={handleNumberChange}
-          className="h-11 bg-zinc-950/40 border-white/10 text-white"
+          className="h-11 bg-[var(--ds-bg-elevated)] border-[var(--ds-border-default)] text-[var(--ds-text-primary)]"
           placeholder="(11) 99999-7777"
         />
       </div>

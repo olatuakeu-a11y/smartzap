@@ -66,11 +66,11 @@ export function TemplatePreview({ spec, headerMediaPreview }: TemplatePreviewPro
 
   return (
     <Container variant="default" padding="none" className="overflow-hidden">
-      <div className="px-6 py-4 flex items-center justify-between border-b border-white/10">
-        <div className="text-sm font-semibold text-white">Previa do modelo</div>
+      <div className="px-6 py-4 flex items-center justify-between border-b border-[var(--ds-border-default)]">
+        <div className="text-sm font-semibold text-[var(--ds-text-primary)]">Previa do modelo</div>
         <button
           type="button"
-          className="h-8 w-8 inline-flex items-center justify-center rounded-md border border-white/10 bg-zinc-950/40 hover:bg-white/5 text-gray-200"
+          className="h-8 w-8 inline-flex items-center justify-center rounded-md border border-[var(--ds-border-default)] bg-[var(--ds-bg-elevated)] hover:bg-[var(--ds-bg-hover)] text-[var(--ds-text-secondary)]"
           title="Visualizar"
         >
           <Play className="w-4 h-4" />
@@ -79,8 +79,8 @@ export function TemplatePreview({ spec, headerMediaPreview }: TemplatePreviewPro
 
       <div className="p-6">
         {/* "telefone" */}
-        <div className="rounded-2xl border border-white/10 bg-zinc-950/40 p-3">
-          <div className="rounded-2xl overflow-hidden border border-white/10 bg-[#efeae2]">
+        <div className="rounded-2xl border border-[var(--ds-border-default)] bg-[var(--ds-bg-elevated)] p-3">
+          <div className="rounded-2xl overflow-hidden border border-[var(--ds-border-default)] bg-[#efeae2]">
             {/* header da conversa */}
             <div className="h-11 px-3 flex items-center gap-2 bg-[#075e54] text-white">
               <div className="h-7 w-7 rounded-full bg-white/20" />

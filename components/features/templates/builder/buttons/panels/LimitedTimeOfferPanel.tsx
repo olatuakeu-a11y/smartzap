@@ -65,12 +65,12 @@ export function LimitedTimeOfferPanel({
 
   return (
     <Container variant="subtle" padding="md" className="space-y-3">
-      <div className="text-sm font-semibold text-white">Limited Time Offer</div>
+      <div className="text-sm font-semibold text-[var(--ds-text-primary)]">Limited Time Offer</div>
       
       <div className="flex items-center gap-2">
         <Button
           variant="outline"
-          className="border-white/10 bg-zinc-950/40 hover:bg-white/5"
+          className="border-[var(--ds-border-default)] bg-[var(--ds-bg-elevated)] hover:bg-[var(--ds-bg-hover)]"
           onClick={handleToggle}
         >
           {spec.limited_time_offer ? 'Remover' : 'Adicionar'}
@@ -81,21 +81,21 @@ export function LimitedTimeOfferPanel({
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <label className="text-xs font-medium text-gray-300">Texto (max 16)</label>
+              <label className="text-xs font-medium text-[var(--ds-text-secondary)]">Texto (max 16)</label>
               <Input
                 value={spec.limited_time_offer.text || ''}
                 onChange={handleTextChange}
-                className="bg-zinc-950/40 border-white/10 text-white"
+                className="bg-[var(--ds-bg-elevated)] border-[var(--ds-border-default)] text-[var(--ds-text-primary)]"
                 maxLength={16}
               />
             </div>
             <div className="space-y-2">
-              <label className="text-xs font-medium text-gray-300">has_expiration</label>
+              <label className="text-xs font-medium text-[var(--ds-text-secondary)]">has_expiration</label>
               <Select
                 value={String(!!spec.limited_time_offer.has_expiration)}
                 onValueChange={handleExpirationChange}
               >
-                <SelectTrigger className="w-full bg-zinc-950/40 border-white/10 text-white">
+                <SelectTrigger className="w-full bg-[var(--ds-bg-elevated)] border-[var(--ds-border-default)] text-[var(--ds-text-primary)]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -106,18 +106,18 @@ export function LimitedTimeOfferPanel({
             </div>
           </div>
 
-          <div className="text-xs text-gray-500">
+          <div className="text-xs text-[var(--ds-text-muted)]">
             Regras: body max 600, cabecalho so imagem/video, sem rodape, COPY_CODE max 15.
           </div>
 
           {limitedTimeOfferTextTooLong && (
-            <div className="text-xs text-amber-300">Texto do LTO deve ter ate 16 caracteres.</div>
+            <div className="text-xs text-amber-700 dark:text-amber-300">Texto do LTO deve ter ate 16 caracteres.</div>
           )}
           {limitedTimeOfferTextMissing && (
-            <div className="text-xs text-amber-300">Texto do LTO e obrigatorio.</div>
+            <div className="text-xs text-amber-700 dark:text-amber-300">Texto do LTO e obrigatorio.</div>
           )}
           {limitedTimeOfferCategoryInvalid && (
-            <div className="text-xs text-amber-300">Limited Time Offer so e permitido em Marketing.</div>
+            <div className="text-xs text-amber-700 dark:text-amber-300">Limited Time Offer so e permitido em Marketing.</div>
           )}
         </>
       )}
