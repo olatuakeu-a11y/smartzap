@@ -122,7 +122,7 @@ const renderInline = (text: string, keyPrefix: string): React.ReactNode[] => {
         nodes.push(
           <code
             key={`${keyPrefix}-code-${key++}`}
-            className="rounded bg-zinc-950/60 px-1 py-0.5 font-mono text-[12px] text-gray-100 border border-white/10"
+            className="rounded bg-[var(--ds-bg-elevated)] px-1 py-0.5 font-mono text-[12px] text-[var(--ds-text-secondary)] border border-[var(--ds-border-default)]"
           >
             {code}
           </code>
@@ -141,19 +141,19 @@ const renderInline = (text: string, keyPrefix: string): React.ReactNode[] => {
 
         if (ch === '*') {
           nodes.push(
-            <strong key={`${keyPrefix}-b-${key++}`} className="font-semibold text-white">
+            <strong key={`${keyPrefix}-b-${key++}`} className="font-semibold text-[var(--ds-text-primary)]">
               {innerNodes}
             </strong>
           )
         } else if (ch === '_') {
           nodes.push(
-            <em key={`${keyPrefix}-i-${key++}`} className="italic text-gray-100">
+            <em key={`${keyPrefix}-i-${key++}`} className="italic text-[var(--ds-text-secondary)]">
               {innerNodes}
             </em>
           )
         } else {
           nodes.push(
-            <s key={`${keyPrefix}-s-${key++}`} className="line-through text-gray-200/80">
+            <s key={`${keyPrefix}-s-${key++}`} className="line-through text-[var(--ds-text-muted)]">
               {innerNodes}
             </s>
           )
@@ -226,8 +226,8 @@ const renderInlineWithPlaceholders = (text: string, keyPrefix: string) => {
             key={k}
             className={cn(
               'inline-flex items-center justify-center align-baseline',
-              'rounded-2xl border border-white/10 bg-zinc-950/70 px-4 py-2',
-              'font-mono text-[14px] text-white',
+              'rounded-2xl border border-[var(--ds-border-default)] bg-[var(--ds-bg-elevated)] px-4 py-2',
+              'font-mono text-[14px] text-[var(--ds-text-primary)]',
               'tracking-[0.28em]',
               'shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]'
             )}
@@ -251,7 +251,7 @@ const renderRichText = (text: string, keyPrefix: string) => {
           return (
             <pre
               key={k}
-              className="overflow-x-auto whitespace-pre-wrap rounded-xl border border-white/10 bg-zinc-950/60 p-4 font-mono text-[12px] leading-relaxed text-gray-100"
+              className="overflow-x-auto whitespace-pre-wrap rounded-xl border border-[var(--ds-border-default)] bg-[var(--ds-bg-elevated)] p-4 font-mono text-[12px] leading-relaxed text-[var(--ds-text-secondary)]"
             >
               <code>{t.value.replace(/^\n+|\n+$/g, '')}</code>
             </pre>
@@ -260,7 +260,7 @@ const renderRichText = (text: string, keyPrefix: string) => {
 
         const lines = t.value.split(/\r?\n/)
         return (
-          <div key={k} className="text-[15px] leading-7 text-gray-100">
+          <div key={k} className="text-[15px] leading-7 text-[var(--ds-text-secondary)]">
             {lines.map((line, lineIdx) => (
               <React.Fragment key={`${k}-ln-${lineIdx}`}>
                 {renderInlineWithPlaceholders(line, `${k}-ln-${lineIdx}`)}
@@ -349,20 +349,20 @@ export const TemplatePreviewCard: React.FC<TemplatePreviewCardProps> = ({
       variant="glass"
       padding="lg"
       className={cn(
-        'shadow-[0_18px_45px_rgba(0,0,0,0.45)] overflow-hidden',
+        'shadow-[0_18px_45px_rgba(0,0,0,0.1)] dark:shadow-[0_18px_45px_rgba(0,0,0,0.45)] overflow-hidden',
         className
       )}
       aria-label={`Preview do template ${templateName}`}
     >
       {showTitle ? (
         <div className="mb-6">
-          <div className="text-xs uppercase tracking-widest text-gray-500">{titleKicker}</div>
-          <div className="mt-2 text-2xl font-semibold tracking-tight text-white">{templateName}</div>
+          <div className="text-xs uppercase tracking-widest text-[var(--ds-text-muted)]">{titleKicker}</div>
+          <div className="mt-2 text-2xl font-semibold tracking-tight text-[var(--ds-text-primary)]">{templateName}</div>
         </div>
       ) : null}
 
       {showHeaderMedia ? (
-        <div className="mb-5 overflow-hidden rounded-xl border border-white/10 bg-white/5">
+        <div className="mb-5 overflow-hidden rounded-xl border border-[var(--ds-border-default)] bg-[var(--ds-bg-hover)]">
           {headerFormat === 'DOCUMENT' ? (
             <a
               href={resolvedHeaderMediaPreviewUrl || '#'}
@@ -393,8 +393,8 @@ export const TemplatePreviewCard: React.FC<TemplatePreviewCardProps> = ({
       ) : null}
 
       {showHeaderPlaceholder ? (
-        <div className="mb-5 flex h-40 items-center justify-center rounded-xl border border-white/10 bg-white/5">
-          <div className="flex items-center gap-2 text-xs text-gray-400">
+        <div className="mb-5 flex h-40 items-center justify-center rounded-xl border border-[var(--ds-border-default)] bg-[var(--ds-bg-hover)]">
+          <div className="flex items-center gap-2 text-xs text-[var(--ds-text-secondary)]">
             {headerFormat === 'DOCUMENT' ? (
               <FileText size={18} />
             ) : headerFormat === 'VIDEO' || headerFormat === 'GIF' ? (
@@ -409,20 +409,20 @@ export const TemplatePreviewCard: React.FC<TemplatePreviewCardProps> = ({
 
       {headerText ? (
         <div className="mb-5 border-l-2 border-primary-500/40 pl-4">
-          <div className="text-[13px] font-semibold text-white">
+          <div className="text-[13px] font-semibold text-[var(--ds-text-primary)]">
             {renderInlineWithPlaceholders(replaceText(headerText, 'header'), 'tpl-hdr')}
           </div>
         </div>
       ) : null}
 
       {bodyText ? (
-        <div className={cn('text-gray-100', otpEnabled ? 'text-gray-300' : null)}>
+        <div className={cn('text-[var(--ds-text-secondary)]', otpEnabled ? 'text-[var(--ds-text-secondary)]' : null)}>
           {renderRichText(replaceText(bodyText, 'body'), 'tpl-body')}
         </div>
       ) : null}
 
       {footerText ? (
-        <div className="mt-5 border-t border-white/10 pt-4 text-xs text-gray-400">
+        <div className="mt-5 border-t border-[var(--ds-border-default)] pt-4 text-xs text-[var(--ds-text-secondary)]">
           {renderInlineWithPlaceholders(replaceText(footerText, 'body'), 'tpl-ftr')}
         </div>
       ) : null}
@@ -444,14 +444,14 @@ export const TemplatePreviewCard: React.FC<TemplatePreviewCardProps> = ({
                 className={cn(
                   'group flex items-center justify-between gap-3',
                   'w-full max-w-full overflow-hidden',
-                  'rounded-xl border border-white/10 bg-white/5 px-4 py-3',
-                  'transition-colors hover:bg-white/7'
+                  'rounded-xl border border-[var(--ds-border-default)] bg-[var(--ds-bg-hover)] px-4 py-3',
+                  'transition-colors hover:bg-[var(--ds-bg-hover)]'
                 )}
               >
                 <div className="min-w-0 flex-1">
-                  <div className="truncate text-sm font-semibold text-white">{b.text}</div>
+                  <div className="truncate text-sm font-semibold text-[var(--ds-text-primary)]">{b.text}</div>
                   {meta ? (
-                    <div className="mt-1 max-w-full overflow-hidden text-ellipsis whitespace-nowrap text-xs text-gray-500">
+                    <div className="mt-1 max-w-full overflow-hidden text-ellipsis whitespace-nowrap text-xs text-[var(--ds-text-muted)]">
                       {String(meta)}
                     </div>
                   ) : null}

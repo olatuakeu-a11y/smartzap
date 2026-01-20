@@ -52,6 +52,7 @@ function InboxPageContent() {
         // Quick Replies
         quickReplies={inbox.quickReplies}
         quickRepliesLoading={inbox.quickRepliesLoading}
+        onRefreshQuickReplies={inbox.refetchQuickReplies}
         // Filters
         search={inbox.search}
         onSearchChange={inbox.onSearchChange}

@@ -261,6 +261,7 @@ export function useInbox(options: UseInboxOptions = {}) {
     // Quick Replies
     quickReplies,
     quickRepliesLoading: isLoadingQuickReplies,
+    refetchQuickReplies,
 
     // Filters
     search,

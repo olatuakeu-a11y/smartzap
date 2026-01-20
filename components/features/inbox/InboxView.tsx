@@ -60,6 +60,7 @@ export interface InboxViewProps {
   // Quick Replies
   quickReplies: InboxQuickReply[]
   quickRepliesLoading: boolean
+  onRefreshQuickReplies?: () => void
 
   // Filters
   search: string
@@ -109,6 +110,7 @@ export function InboxView({
   labels,
   quickReplies,
   quickRepliesLoading,
+  onRefreshQuickReplies,
   search,
   onSearchChange,
   statusFilter,
@@ -223,6 +225,7 @@ export function InboxView({
                 isLoadingMore={isLoadingMoreMessages}
                 isSending={isSending}
                 quickRepliesLoading={quickRepliesLoading}
+                onRefreshQuickReplies={onRefreshQuickReplies}
                 hasMoreMessages={hasMoreMessages}
                 onLoadMore={onLoadMoreMessages}
                 onSendMessage={onSendMessage}
