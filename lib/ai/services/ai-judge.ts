@@ -1,17 +1,41 @@
 import { generateObject } from 'ai'
-import { createGoogleGenerativeAI } from '@ai-sdk/google'
 import { JudgmentSchema, type Judgment } from '../schemas/template-schemas'
 import { buildUtilityJudgePrompt } from '../prompts/utility-judge'
 import { getAiPromptsConfig } from '../ai-center-config'
+import { getProviderFromModel, type AIProvider } from '../provider-factory'
+import { DEFAULT_MODEL_ID } from '../model'
 
 // ============================================================================
 // AI JUDGE SERVICE
 // Usa LLM para analisar se template será aprovado como UTILITY pela Meta
+// Suporta Google (Gemini), OpenAI (GPT), Anthropic (Claude)
 // ============================================================================
 
 export interface JudgeOptions {
     apiKey: string
     model?: string
+}
+
+/**
+ * Cria um modelo de linguagem baseado no provider detectado
+ */
+async function createModelFromProvider(modelId: string, apiKey: string, provider: AIProvider) {
+    switch (provider) {
+        case 'google': {
+            const { createGoogleGenerativeAI } = await import('@ai-sdk/google')
+            return createGoogleGenerativeAI({ apiKey })(modelId)
+        }
+        case 'openai': {
+            const { createOpenAI } = await import('@ai-sdk/openai')
+            return createOpenAI({ apiKey })(modelId)
+        }
+        case 'anthropic': {
+            const { createAnthropic } = await import('@ai-sdk/anthropic')
+            return createAnthropic({ apiKey })(modelId)
+        }
+        default:
+            throw new Error(`Provider não suportado: ${provider}`)
+    }
 }
 
 /**
@@ -22,8 +46,11 @@ export async function judgeTemplate(
     options: JudgeOptions,
     promptTemplate?: string
 ): Promise<Judgment> {
-    const google = createGoogleGenerativeAI({ apiKey: options.apiKey })
-    const model = google(options.model || 'gemini-2.5-flash')
+    const modelId = options.model || DEFAULT_MODEL_ID
+    const provider = getProviderFromModel(modelId)
+    const model = await createModelFromProvider(modelId, options.apiKey, provider)
+
+    console.log(`[AI_JUDGE] Using provider: ${provider}, model: ${modelId}`)
 
     const prompt = buildUtilityJudgePrompt(template.header, template.body, promptTemplate)
     const templateName = template.name || 'unknown'

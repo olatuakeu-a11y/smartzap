@@ -1,5 +1,6 @@
 import { generateText } from 'ai'
-import { createGoogleGenerativeAI } from '@ai-sdk/google'
+import { getProviderFromModel, type AIProvider } from '../provider-factory'
+import { DEFAULT_MODEL_ID } from '../model'
 
 // ============================================================================
 // TEMPLATE CATEGORIES
@@ -163,14 +164,39 @@ export interface AgentOptions {
     strategy?: AIStrategy // DEFAULT: 'bypass'
 }
 
+/**
+ * Cria um modelo de linguagem baseado no provider detectado
+ */
+async function createModelFromProvider(modelId: string, apiKey: string, provider: AIProvider) {
+    switch (provider) {
+        case 'google': {
+            const { createGoogleGenerativeAI } = await import('@ai-sdk/google')
+            return createGoogleGenerativeAI({ apiKey })(modelId)
+        }
+        case 'openai': {
+            const { createOpenAI } = await import('@ai-sdk/openai')
+            return createOpenAI({ apiKey })(modelId)
+        }
+        case 'anthropic': {
+            const { createAnthropic } = await import('@ai-sdk/anthropic')
+            return createAnthropic({ apiKey })(modelId)
+        }
+        default:
+            throw new Error(`Provider não suportado: ${provider}`)
+    }
+}
+
 export async function generateTemplatesWithAgent(
     userPrompt: string,
     quantity: number,
     options: AgentOptions
 ): Promise<AgentGenerationResult> {
     const startTime = Date.now()
-    const google = createGoogleGenerativeAI({ apiKey: options.apiKey })
-    const model = google(options.model || 'gemini-2.5-flash')
+    const modelId = options.model || DEFAULT_MODEL_ID
+    const provider = getProviderFromModel(modelId)
+    const model = await createModelFromProvider(modelId, options.apiKey, provider)
+
+    console.log(`[TEMPLATE_AGENT] Using provider: ${provider}, model: ${modelId}`)
 
     // Default to 'bypass' if not provided
     const strategy = options.strategy || 'bypass'

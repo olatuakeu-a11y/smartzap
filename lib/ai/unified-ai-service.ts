@@ -12,9 +12,6 @@
  */
 
 import { generateText as vercelGenerateText, streamText as vercelStreamText } from 'ai';
-import { createGoogleGenerativeAI } from '@ai-sdk/google';
-import { createOpenAI } from '@ai-sdk/openai';
-import { createAnthropic } from '@ai-sdk/anthropic';
 
 import { supabase } from '@/lib/supabase';
 import { type AIProvider, getDefaultModel } from './providers';
@@ -159,25 +156,26 @@ export function clearSettingsCache() {
 
 // =============================================================================
 // PROVIDER FACTORY - AI SDK v6 uses direct provider functions
+// Dynamic imports for better code splitting
 // =============================================================================
 
-function getLanguageModel(providerId: AIProvider, modelId: string, apiKey: string) {
+async function getLanguageModel(providerId: AIProvider, modelId: string, apiKey: string) {
     if (!apiKey) {
         throw new MissingAIKeyError(providerId);
     }
 
     switch (providerId) {
         case 'google': {
-            const google = createGoogleGenerativeAI({ apiKey });
-            return google(modelId);
+            const { createGoogleGenerativeAI } = await import('@ai-sdk/google');
+            return createGoogleGenerativeAI({ apiKey })(modelId);
         }
         case 'openai': {
-            const openai = createOpenAI({ apiKey });
-            return openai(modelId);
+            const { createOpenAI } = await import('@ai-sdk/openai');
+            return createOpenAI({ apiKey })(modelId);
         }
         case 'anthropic': {
-            const anthropic = createAnthropic({ apiKey });
-            return anthropic(modelId);
+            const { createAnthropic } = await import('@ai-sdk/anthropic');
+            return createAnthropic({ apiKey })(modelId);
         }
         default:
             throw new Error(`Unknown provider: ${providerId}`);
@@ -204,7 +202,7 @@ export async function generateText(options: GenerateTextOptions): Promise<Genera
     const modelId = options.model || settings.model;
 
     const runGeneration = async (provider: AIProvider, modelIdOverride: string, apiKey: string) => {
-        const model = getLanguageModel(provider, modelIdOverride, apiKey);
+        const model = await getLanguageModel(provider, modelIdOverride, apiKey);
 
         console.log(`[AI Service] Generating with ${provider}/${modelIdOverride}`);
 
@@ -279,7 +277,7 @@ export async function streamText(options: StreamTextOptions): Promise<GenerateTe
     const providerId = options.provider || settings.provider;
     const modelId = options.model || settings.model;
 
-    const model = getLanguageModel(providerId, modelId, settings.apiKey);
+    const model = await getLanguageModel(providerId, modelId, settings.apiKey);
 
     console.log(`[AI Service] Streaming with ${providerId}/${modelId}`);
 

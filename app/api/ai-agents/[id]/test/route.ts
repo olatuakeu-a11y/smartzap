@@ -26,7 +26,7 @@ const EMBEDDING_API_KEY_MAP: Record<EmbeddingProvider, { settingKey: string; env
 }
 
 // =============================================================================
-// Response Schema (same as support-agent-v2)
+// Response Schema (same as chat-agent)
 // =============================================================================
 
 const testResponseSchema = z.object({
@@ -122,33 +122,31 @@ export async function POST(request: NextRequest, context: RouteContext) {
     console.log(`[ai-agents/test] hasKnowledgeBase: ${hasKnowledgeBase}, indexed files: ${indexedFilesCount}`)
 
     // Import AI dependencies dynamically
-    const { createGoogleGenerativeAI } = await import('@ai-sdk/google')
     const { generateText, tool, stepCountIs } = await import('ai')
     const { withDevTools } = await import('@/lib/ai/devtools')
+    const { createLanguageModel, getProviderFromModel } = await import('@/lib/ai/provider-factory')
 
-    // Get Gemini API key
-    const { data: geminiSetting } = await supabase
-      .from('settings')
-      .select('value')
-      .eq('key', 'gemini_api_key')
-      .maybeSingle()
+    // Get model configuration - supports Google, OpenAI, Anthropic
+    const modelId = agent.model || DEFAULT_MODEL_ID
+    const provider = getProviderFromModel(modelId)
 
-    const apiKey = geminiSetting?.value || process.env.GEMINI_API_KEY
-
-    if (!apiKey) {
+    let baseModel
+    let llmApiKey: string
+    try {
+      const result = await createLanguageModel(modelId)
+      baseModel = result.model
+      llmApiKey = result.apiKey
+    } catch (err) {
       return NextResponse.json(
-        { error: 'API key do Gemini não configurada' },
+        { error: err instanceof Error ? err.message : 'Erro ao criar modelo de IA' },
         { status: 500 }
       )
     }
 
-    // Create Google provider with DevTools support
-    const google = createGoogleGenerativeAI({ apiKey })
-    const modelId = agent.model || DEFAULT_MODEL_ID
-    const baseModel = google(modelId)
+    // Create model with DevTools support
     const model = await withDevTools(baseModel, { name: `agente:${agent.name}` })
 
-    console.log(`[ai-agents/test] Using model: ${modelId}`)
+    console.log(`[ai-agents/test] Using provider: ${provider}, model: ${modelId}`)
 
     // Generate response
     const startTime = Date.now()

@@ -7,7 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase-server'
-import { cancelDebounce } from '@/lib/ai/agents/support-agent'
+import { cancelDebounce } from '@/lib/ai/agents/chat-agent'
 import type { ConversationMode } from '@/types'
 
 // Request body schema

@@ -733,7 +733,7 @@ export interface CreateInboxQuickReplyDTO {
   shortcut?: string;
 }
 
-// AI Response Schema (from support-agent)
+// AI Response Schema (from chat-agent)
 export interface AIAgentResponse {
   text: string;
   sentiment: Sentiment;

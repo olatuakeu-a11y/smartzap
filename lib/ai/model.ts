@@ -1,9 +1,8 @@
 /**
- * T042: AI Model Configuration
- * Gemini model configuration for support agent
+ * AI Model Configuration
+ * Model definitions and schemas for AI agents
  */
 
-import { createGoogleGenerativeAI } from '@ai-sdk/google'
 import { z } from 'zod'
 
 // =============================================================================
@@ -28,29 +27,11 @@ export const callOptionsSchema = z.object({
 export type CallOptions = z.infer<typeof callOptionsSchema>
 
 // =============================================================================
-// Model Factory
+// Default Model
 // =============================================================================
 
 /**
- * Get Gemini model instance
- * Uses environment variables for API key
- */
-export function getGeminiModel(modelId: string = 'gemini-2.5-flash') {
-  const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GEMINI_API_KEY
-
-  if (!apiKey) {
-    throw new Error('Missing GOOGLE_GENERATIVE_AI_API_KEY or GEMINI_API_KEY environment variable')
-  }
-
-  const google = createGoogleGenerativeAI({
-    apiKey,
-  })
-
-  return google(modelId)
-}
-
-/**
- * Default model for support agent
+ * Default model for AI agents
  * gemini-3-flash-preview is the latest generation
  */
 export const DEFAULT_MODEL_ID = 'gemini-3-flash-preview'

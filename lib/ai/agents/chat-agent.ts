@@ -1,5 +1,8 @@
 /**
- * Support Agent V2 - Tool-based RAG (Vercel AI SDK pattern)
+ * Chat Agent - Tool-based RAG (Vercel AI SDK pattern)
+ *
+ * Agente de chat que processa conversas do inbox usando IA.
+ * Suporta múltiplos providers: Google (Gemini), OpenAI (GPT), Anthropic (Claude).
  *
  * Usa RAG próprio com Supabase pgvector seguindo o padrão recomendado pela Vercel:
  * - O LLM recebe uma tool `searchKnowledgeBase` e DECIDE quando usá-la
@@ -16,9 +19,88 @@ import { z } from 'zod'
 import { getSupabaseAdmin } from '@/lib/supabase'
 import type { AIAgent, InboxConversation, InboxMessage } from '@/types'
 
-// NOTE: AI dependencies are imported DYNAMICALLY inside processSupportAgentV2
+// NOTE: AI dependencies are imported DYNAMICALLY inside processChatAgent
 // This is required because static imports can cause issues when called from
 // background contexts (like debounced webhook handlers)
+
+// =============================================================================
+// Debounce Manager
+// =============================================================================
+
+/**
+ * Track pending responses to implement debounce
+ * Key: conversationId, Value: timeout handle and last message timestamp
+ */
+const pendingResponses = new Map<
+  string,
+  {
+    timeout: NodeJS.Timeout
+    lastMessageAt: number
+    messageIds: string[]
+  }
+>()
+
+/**
+ * Check if we should wait for more messages (debounce)
+ * Returns true if we should delay processing
+ */
+export function shouldDebounce(
+  conversationId: string,
+  debounceSec: number = 5
+): boolean {
+  const pending = pendingResponses.get(conversationId)
+  if (!pending) return false
+
+  const elapsed = Date.now() - pending.lastMessageAt
+  return elapsed < debounceSec * 1000
+}
+
+/**
+ * Schedule agent processing with debounce
+ * Returns a promise that resolves when processing should begin
+ */
+export function scheduleWithDebounce(
+  conversationId: string,
+  messageId: string,
+  debounceSec: number = 5
+): Promise<string[]> {
+  return new Promise((resolve) => {
+    const pending = pendingResponses.get(conversationId)
+
+    // Clear existing timeout
+    if (pending?.timeout) {
+      clearTimeout(pending.timeout)
+    }
+
+    // Accumulate message IDs
+    const messageIds = pending?.messageIds || []
+    messageIds.push(messageId)
+
+    // Set new timeout
+    const timeout = setTimeout(() => {
+      const accumulated = pendingResponses.get(conversationId)
+      pendingResponses.delete(conversationId)
+      resolve(accumulated?.messageIds || messageIds)
+    }, debounceSec * 1000)
+
+    pendingResponses.set(conversationId, {
+      timeout,
+      lastMessageAt: Date.now(),
+      messageIds,
+    })
+  })
+}
+
+/**
+ * Cancel pending debounce for a conversation
+ */
+export function cancelDebounce(conversationId: string): void {
+  const pending = pendingResponses.get(conversationId)
+  if (pending?.timeout) {
+    clearTimeout(pending.timeout)
+    pendingResponses.delete(conversationId)
+  }
+}
 
 // =============================================================================
 // Types
@@ -113,7 +195,7 @@ async function persistAILog(data: {
   try {
     const supabase = getSupabaseAdmin()
     if (!supabase) {
-      console.error('[support-agent] Supabase admin client not available')
+      console.error('[chat-agent] Supabase admin client not available')
       return undefined
     }
     const { data: log, error } = await supabase
@@ -140,12 +222,12 @@ async function persistAILog(data: {
       .single()
 
     if (error) {
-      console.error('[support-agent] Failed to persist log:', error)
+      console.error('[chat-agent] Failed to persist log:', error)
       return undefined
     }
     return log?.id
   } catch (err) {
-    console.error('[support-agent] Log error:', err)
+    console.error('[chat-agent] Log error:', err)
     return undefined
   }
 }
@@ -154,16 +236,16 @@ async function persistAILog(data: {
 // Main Function
 // =============================================================================
 
-export async function processSupportAgentV2(
+export async function processChatAgent(
   config: SupportAgentConfig
 ): Promise<SupportAgentResult> {
   const { agent, conversation, messages } = config
   const startTime = Date.now()
 
   // Dynamic imports - required for background execution context
-  const { createGoogleGenerativeAI } = await import('@ai-sdk/google')
   const { generateText, tool, stepCountIs } = await import('ai')
   const { withDevTools } = await import('@/lib/ai/devtools')
+  const { createLanguageModel, getProviderFromModel } = await import('@/lib/ai/provider-factory')
   const {
     findRelevantContent,
     hasIndexedContent,
@@ -171,48 +253,40 @@ export async function processSupportAgentV2(
     buildRerankConfigFromAgent,
   } = await import('@/lib/ai/rag-store')
 
-  // Get API key from database only (never use env vars for multi-tenant SaaS)
-  const supabase = getSupabaseAdmin()
-  if (!supabase) {
-    return {
-      success: false,
-      error: 'Database connection not available',
-      latencyMs: Date.now() - startTime,
-    }
-  }
-
-  const { data: geminiSetting } = await supabase
-    .from('settings')
-    .select('value')
-    .eq('key', 'gemini_api_key')
-    .maybeSingle()
-
-  const apiKey = geminiSetting?.value
-  if (!apiKey) {
-    return {
-      success: false,
-      error: 'API key não configurada. Configure em Configurações > IA.',
-      latencyMs: Date.now() - startTime,
-    }
-  }
-
-  // Setup
+  // Setup message context
   const lastUserMessage = messages.filter((m) => m.direction === 'inbound').slice(-1)[0]
   const inputText = lastUserMessage?.content || ''
   const messageIds = messages.map((m) => m.id)
   const aiMessages = convertToAIMessages(messages.slice(-10))
 
-  const google = createGoogleGenerativeAI({ apiKey })
+  // Get model configuration - supports Google, OpenAI, Anthropic
   const modelId = agent.model || DEFAULT_MODEL_ID
-  const baseModel = google(modelId)
+  const provider = getProviderFromModel(modelId)
+
+  let baseModel
+  let apiKey: string
+  try {
+    const result = await createLanguageModel(modelId)
+    baseModel = result.model
+    apiKey = result.apiKey
+  } catch (err) {
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : 'Erro ao criar modelo de IA',
+      latencyMs: Date.now() - startTime,
+    }
+  }
+
   const model = await withDevTools(baseModel, { name: `agente:${agent.name}` })
+
+  console.log(`[chat-agent] Using provider: ${provider}, model: ${modelId}`)
 
   // Check if agent has indexed content in pgvector
   const hasKnowledgeBase = await hasIndexedContent(agent.id)
 
-  console.log(`[support-agent] Processing: model=${modelId}, hasKnowledgeBase=${hasKnowledgeBase}`)
-  console.log(`[support-agent] Total messages received: ${messages.length}`)
-  console.log(`[support-agent] Last user message: "${inputText.slice(0, 100)}..."`)
+  console.log(`[chat-agent] Processing: model=${modelId}, hasKnowledgeBase=${hasKnowledgeBase}`)
+  console.log(`[chat-agent] Total messages received: ${messages.length}`)
+  console.log(`[chat-agent] Last user message: "${inputText.slice(0, 100)}..."`)
 
   let response: SupportResponse | undefined
   let error: string | null = null
@@ -250,7 +324,7 @@ export async function processSupportAgentV2(
           query: z.string().describe('A pergunta ou termos de busca para encontrar informações relevantes'),
         }),
         execute: async ({ query }) => {
-          console.log(`[support-agent] LLM requested knowledge search: "${query.slice(0, 100)}..."`)
+          console.log(`[chat-agent] LLM requested knowledge search: "${query.slice(0, 100)}..."`)
           const ragStartTime = Date.now()
 
           // Build configs
@@ -267,7 +341,7 @@ export async function processSupportAgentV2(
             threshold: agent.rag_similarity_threshold || 0.5,
           })
 
-          console.log(`[support-agent] RAG search completed in ${Date.now() - ragStartTime}ms, found ${relevantContent.length} chunks`)
+          console.log(`[chat-agent] RAG search completed in ${Date.now() - ragStartTime}ms, found ${relevantContent.length} chunks`)
 
           if (relevantContent.length === 0) {
             return { found: false, message: 'Nenhuma informação relevante encontrada na base de conhecimento.' }
@@ -300,7 +374,7 @@ export async function processSupportAgentV2(
       tools.searchKnowledgeBase = searchKnowledgeBaseTool
     }
 
-    console.log(`[support-agent] Generating response with tools: ${Object.keys(tools).join(', ')}`)
+    console.log(`[chat-agent] Generating response with tools: ${Object.keys(tools).join(', ')}`)
 
     // Generate with multi-step support (LLM can search, then respond)
     await generateText({
@@ -317,16 +391,16 @@ export async function processSupportAgentV2(
       throw new Error('No response generated - LLM did not call respond tool')
     }
 
-    console.log(`[support-agent] Response generated: "${response.message.slice(0, 100)}..."`)
+    console.log(`[chat-agent] Response generated: "${response.message.slice(0, 100)}..."`)
     if (sources) {
-      console.log(`[support-agent] Used ${sources.length} knowledge base sources`)
+      console.log(`[chat-agent] Used ${sources.length} knowledge base sources`)
     } else {
-      console.log(`[support-agent] No knowledge base search performed`)
+      console.log(`[chat-agent] No knowledge base search performed`)
     }
 
   } catch (err) {
     error = err instanceof Error ? err.message : 'Unknown error'
-    console.error('[support-agent] Error:', error)
+    console.error('[chat-agent] Error:', error)
   }
 
   const latencyMs = Date.now() - startTime

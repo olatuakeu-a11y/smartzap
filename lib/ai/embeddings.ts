@@ -56,7 +56,6 @@ export const EMBEDDING_PROVIDERS: EmbeddingProviderInfo[] = [
     name: 'Google (Recomendado)',
     models: [
       { id: 'gemini-embedding-001', name: 'Gemini Embedding 001', dimensions: 768, pricePerMillion: 0.025 },
-      { id: 'text-embedding-004', name: 'Text Embedding 004', dimensions: 768, pricePerMillion: 0.025 },
     ],
   },
   {

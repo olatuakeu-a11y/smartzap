@@ -12,8 +12,8 @@ import { inboxDb } from './inbox-db'
 import {
   scheduleWithDebounce,
   cancelDebounce,
-} from '@/lib/ai/agents/support-agent'
-import { processSupportAgentV2 } from '@/lib/ai/agents/support-agent-v2'
+  processChatAgent,
+} from '@/lib/ai/agents/chat-agent'
 import { sendWhatsAppMessage } from '@/lib/whatsapp-send'
 import type {
   ConversationMode,
@@ -207,7 +207,7 @@ async function processAIResponse(
   const { messages } = await inboxDb.listMessages(conversation.id, { limit: 20 })
 
   // Process with support agent V2 (AI SDK v6 patterns)
-  const result = await processSupportAgentV2({
+  const result = await processChatAgent({
     agent,
     conversation: currentConversation,
     messages,

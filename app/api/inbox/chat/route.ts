@@ -10,8 +10,9 @@ import {
   type UIMessage,
 } from 'ai'
 import { z } from 'zod'
-import { createGoogleGenerativeAI } from '@ai-sdk/google'
 import { createClient } from '@/lib/supabase-server'
+import { createLanguageModel, getProviderFromModel } from '@/lib/ai/provider-factory'
+import { DEFAULT_MODEL_ID } from '@/lib/ai/model'
 import { sendMessage as sendWhatsAppMessageToDB } from '@/lib/inbox/inbox-service'
 import { getConversationById } from '@/lib/inbox/inbox-db'
 import type { AIAgent, InboxConversation } from '@/types'
@@ -194,18 +195,22 @@ export async function POST(req: Request) {
       .slice(-1)[0]
     const inputText = lastUserMessage?.content || ''
 
-    // Create Google AI model
-    const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GEMINI_API_KEY
-    if (!apiKey) {
+    // Create AI model using provider factory (supports Google, OpenAI, Anthropic)
+    const modelId = agent.model || DEFAULT_MODEL_ID
+    const provider = getProviderFromModel(modelId)
+
+    let model
+    try {
+      const result = await createLanguageModel(modelId)
+      model = result.model
+    } catch (err) {
       return new Response(
-        JSON.stringify({ error: 'AI API key not configured' }),
+        JSON.stringify({ error: err instanceof Error ? err.message : 'Erro ao criar modelo de IA' }),
         { status: 500, headers: { 'Content-Type': 'application/json' } }
       )
     }
 
-    const google = createGoogleGenerativeAI({ apiKey })
-    const modelId = agent.model || 'gemini-2.5-flash'
-    const model = google(modelId)
+    console.log(`[inbox/chat] Using provider: ${provider}, model: ${modelId}`)
 
     // Convert messages to model format
     const modelMessages = await convertToModelMessages(messages as UIMessage[])
