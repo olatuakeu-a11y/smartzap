@@ -21,7 +21,21 @@ import { processInboxAIWorkflow } from '@/lib/inbox/inbox-ai-workflow'
 // Permite até 60 segundos para cada invocação do workflow (requer Vercel Pro)
 export const maxDuration = 60
 
+// URL base para callbacks do workflow - prioriza env var configurada manualmente
+const getWorkflowUrl = () => {
+  const url = process.env.UPSTASH_WORKFLOW_URL
+    || process.env.NEXT_PUBLIC_APP_URL
+    || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null)
+
+  if (url) {
+    return `${url}/api/inbox/ai-workflow`
+  }
+  return undefined // deixa o SDK detectar automaticamente
+}
+
 export const { POST } = serve(processInboxAIWorkflow, {
   // Retry com backoff exponencial
   retries: 3,
+  // URL explícita para callbacks (resolve problemas de detecção automática)
+  url: getWorkflowUrl(),
 })
