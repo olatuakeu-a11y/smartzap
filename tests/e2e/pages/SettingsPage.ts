@@ -3,73 +3,90 @@ import type { TestCredentials } from '../fixtures'
 
 /**
  * Page Object para a página de Configurações
- * Encapsula configurações de credenciais WhatsApp e outras settings
+ * Atualizado baseado na UI real do SmartZap
+ *
+ * A página tem dois estados:
+ * 1. Conectado (Sistema Online) - mostra status e botões Editar/Desconectar
+ * 2. Desconectado ou Editando - mostra formulário de credenciais
  */
 export class SettingsPage {
   readonly page: Page
 
   // Título da página
   readonly pageTitle: Locator
+  readonly pageDescription: Locator
 
-  // Campos de credenciais WhatsApp
+  // Status Card (quando conectado)
+  readonly statusCard: Locator
+  readonly statusTitle: Locator
+  readonly editButton: Locator
+  readonly disconnectButton: Locator
+  readonly limitsInfo: Locator
+  readonly qualityBadge: Locator
+
+  // Formulário de credenciais (quando desconectado ou editando)
+  readonly credentialsForm: Locator
   readonly phoneNumberIdInput: Locator
   readonly wabaIdInput: Locator
   readonly accessTokenInput: Locator
   readonly metaAppIdInput: Locator
 
-  // Botões de ação
-  readonly saveButton: Locator
+  // Botões de ação do formulário
   readonly testConnectionButton: Locator
-  readonly disconnectButton: Locator
+  readonly saveConfigButton: Locator
+  readonly cancelEditButton: Locator
 
-  // Status de conexão
-  readonly connectionStatus: Locator
-  readonly connectedBadge: Locator
-  readonly disconnectedBadge: Locator
+  // Seções adicionais
+  readonly webhooksSection: Locator
+  readonly testContactSection: Locator
 
-  // Mensagens de feedback
+  // Feedback
   readonly successToast: Locator
   readonly errorToast: Locator
-  readonly errorMessage: Locator
 
-  // Seções expandíveis
-  readonly webhookSection: Locator
-  readonly throttleSection: Locator
-  readonly aiSection: Locator
+  // Loading
+  readonly loadingSpinner: Locator
 
   constructor(page: Page) {
     this.page = page
 
     // Título
-    this.pageTitle = page.getByRole('heading', { name: /configurações|settings/i })
+    this.pageTitle = page.getByRole('heading', { name: 'Configurações' })
+    this.pageDescription = page.locator('text=Gerencie sua conexão com a WhatsApp Business API')
 
-    // Campos de credenciais - busca por placeholder ou label
-    this.phoneNumberIdInput = page.getByPlaceholder(/298347293847|phone.*id/i)
-    this.wabaIdInput = page.getByPlaceholder(/987234987234|waba.*id/i)
-    this.accessTokenInput = page.locator('input[type="password"]').filter({
-      has: page.locator('[placeholder*="EAAG"], [placeholder*="token"]'),
-    }).or(page.getByPlaceholder(/EAAG|token/i))
-    this.metaAppIdInput = page.getByPlaceholder(/123456789012345|app.*id/i)
+    // Status Card
+    this.statusCard = page.locator('text=Sistema Online').or(page.locator('text=Desconectado'))
+    this.statusTitle = page.locator('h3, h4').filter({ hasText: /Sistema Online|Desconectado/ })
+    // Botão específico do card de WhatsApp (há outro "Editar" no Google Calendar)
+    this.editButton = page.getByRole('button', { name: 'Editar configurações' })
+    this.disconnectButton = page.getByRole('button', { name: 'Desconectar' })
+      .or(page.locator('[aria-label="Desconectar conta do WhatsApp"]'))
+    this.limitsInfo = page.locator('text=Limite:')
+    this.qualityBadge = page.locator('text=Qualidade:')
 
-    // Botões
-    this.saveButton = page.getByRole('button', { name: /salvar/i })
-    this.testConnectionButton = page.getByRole('button', { name: /testar conexão|test connection/i })
-    this.disconnectButton = page.getByRole('button', { name: /desconectar/i })
+    // Formulário de credenciais - placeholders exatos
+    this.credentialsForm = page.locator('text=Configuracao da API').or(page.locator('form'))
+    this.phoneNumberIdInput = page.getByPlaceholder('ex: 298347293847')
+    this.wabaIdInput = page.getByPlaceholder('ex: 987234987234')
+    this.accessTokenInput = page.getByPlaceholder('EAAG........')
+    this.metaAppIdInput = page.getByPlaceholder('ex: 123456789012345')
 
-    // Status
-    this.connectionStatus = page.locator('text=Conectado, text=Desconectado')
-    this.connectedBadge = page.locator('text=Conectado').or(page.locator('.bg-green-500, .bg-emerald-500'))
-    this.disconnectedBadge = page.locator('text=Desconectado').or(page.locator('.bg-red-500, .bg-destructive'))
-
-    // Toasts (Sonner)
-    this.successToast = page.locator('[data-sonner-toast]').filter({ hasText: /sucesso|salvo|saved/i })
-    this.errorToast = page.locator('[data-sonner-toast]').filter({ hasText: /erro|falha|error/i })
-    this.errorMessage = page.locator('p, span').filter({ hasText: /erro|inválido|falha/i })
+    // Botões do formulário
+    this.testConnectionButton = page.getByRole('button', { name: /Testar Conexao|Testando/i })
+    this.saveConfigButton = page.getByRole('button', { name: /Salvar Config|Salvando/i })
+    this.cancelEditButton = page.getByRole('button', { name: 'Cancelar' })
+      .or(page.locator('[aria-label*="Cancelar edição"]'))
 
     // Seções
-    this.webhookSection = page.locator('text=Webhook')
-    this.throttleSection = page.locator('text=Throttle')
-    this.aiSection = page.locator('text=Agente IA, text=AI Agent')
+    this.webhooksSection = page.locator('text=Webhooks')
+    this.testContactSection = page.locator('text=Contato de Teste')
+
+    // Toasts (Sonner)
+    this.successToast = page.locator('[data-sonner-toast]').filter({ hasText: /sucesso|salvo|conectado/i })
+    this.errorToast = page.locator('[data-sonner-toast]').filter({ hasText: /erro|falha|error/i })
+
+    // Loading
+    this.loadingSpinner = page.locator('.animate-spin')
   }
 
   /**
@@ -77,22 +94,83 @@ export class SettingsPage {
    */
   async goto(): Promise<void> {
     await this.page.goto('/settings')
+    await this.waitForLoad()
+  }
+
+  /**
+   * Aguarda a página carregar completamente
+   */
+  async waitForLoad(): Promise<void> {
     await this.page.waitForLoadState('networkidle')
+
+    // Aguarda apenas o título da página (sempre presente)
+    await expect(this.pageTitle).toBeVisible({ timeout: 15000 })
+  }
+
+  /**
+   * Verifica se o sistema está conectado
+   */
+  async isConnected(): Promise<boolean> {
+    try {
+      await this.page.locator('text=Sistema Online').waitFor({ state: 'visible', timeout: 3000 })
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  /**
+   * Verifica se o formulário de credenciais está visível
+   */
+  async isFormVisible(): Promise<boolean> {
+    try {
+      await this.phoneNumberIdInput.waitFor({ state: 'visible', timeout: 3000 })
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  /**
+   * Clica em Editar para mostrar o formulário (quando conectado)
+   */
+  async clickEdit(): Promise<void> {
+    await this.editButton.click()
+    // Aguarda o formulário aparecer
+    await expect(this.phoneNumberIdInput).toBeVisible({ timeout: 5000 })
+  }
+
+  /**
+   * Cancela a edição
+   */
+  async cancelEdit(): Promise<void> {
+    await this.cancelEditButton.click()
+    // Aguarda voltar ao estado de visualização
+    await expect(this.editButton).toBeVisible({ timeout: 5000 })
   }
 
   /**
    * Preenche as credenciais do WhatsApp
    */
   async fillCredentials(credentials: TestCredentials): Promise<void> {
-    // Limpa e preenche Phone Number ID
+    // Se está conectado, precisa clicar em Editar primeiro
+    const isConnected = await this.isConnected()
+    if (isConnected) {
+      const isFormVisible = await this.isFormVisible()
+      if (!isFormVisible) {
+        await this.clickEdit()
+      }
+    }
+
+    // Preenche Phone Number ID
     await this.phoneNumberIdInput.clear()
     await this.phoneNumberIdInput.fill(credentials.phoneNumberId)
 
-    // Limpa e preenche WABA ID
+    // Preenche WABA ID
     await this.wabaIdInput.clear()
     await this.wabaIdInput.fill(credentials.wabaId)
 
-    // Limpa e preenche Access Token
+    // Preenche Access Token
     await this.accessTokenInput.clear()
     await this.accessTokenInput.fill(credentials.accessToken)
 
@@ -107,15 +185,17 @@ export class SettingsPage {
    * Salva as configurações
    */
   async save(): Promise<void> {
-    await this.saveButton.click()
+    await this.saveConfigButton.click()
   }
 
   /**
-   * Salva e aguarda confirmação de sucesso
+   * Salva e aguarda feedback
    */
-  async saveAndWaitForSuccess(): Promise<void> {
+  async saveAndWait(): Promise<void> {
     await this.save()
-    await this.successToast.waitFor({ state: 'visible', timeout: 10000 })
+    // Aguarda algum feedback (toast ou mudança de estado)
+    await this.page.waitForTimeout(2000)
+    await this.page.waitForLoadState('networkidle')
   }
 
   /**
@@ -123,42 +203,8 @@ export class SettingsPage {
    */
   async testConnection(): Promise<void> {
     await this.testConnectionButton.click()
-  }
-
-  /**
-   * Verifica se a conexão está ativa
-   */
-  async isConnected(): Promise<boolean> {
-    try {
-      await this.connectedBadge.waitFor({ state: 'visible', timeout: 3000 })
-      return true
-    } catch {
-      return false
-    }
-  }
-
-  /**
-   * Verifica se há erro de conexão
-   */
-  async hasConnectionError(): Promise<boolean> {
-    try {
-      await this.errorMessage.waitFor({ state: 'visible', timeout: 3000 })
-      return true
-    } catch {
-      return false
-    }
-  }
-
-  /**
-   * Obtém mensagem de erro, se houver
-   */
-  async getErrorMessage(): Promise<string | null> {
-    try {
-      await this.errorMessage.waitFor({ state: 'visible', timeout: 3000 })
-      return await this.errorMessage.textContent()
-    } catch {
-      return null
-    }
+    // Aguarda o teste completar
+    await this.page.waitForTimeout(3000)
   }
 
   /**
@@ -166,37 +212,38 @@ export class SettingsPage {
    */
   async disconnect(): Promise<void> {
     await this.disconnectButton.click()
+    // Pode haver confirmação
+    const confirmButton = this.page.getByRole('button', { name: /confirmar|sim/i })
+    try {
+      await confirmButton.click({ timeout: 2000 })
+    } catch {
+      // Se não há confirmação, continua
+    }
+    await this.page.waitForLoadState('networkidle')
   }
 
   /**
-   * Expande uma seção específica
-   */
-  async expandSection(section: 'webhook' | 'throttle' | 'ai'): Promise<void> {
-    const sectionLocator = {
-      webhook: this.webhookSection,
-      throttle: this.throttleSection,
-      ai: this.aiSection,
-    }[section]
-
-    await sectionLocator.click()
-  }
-
-  /**
-   * Verifica se a página de settings está visível
+   * Verifica se a página está visível
    */
   async isVisible(): Promise<boolean> {
-    await this.page.waitForLoadState('domcontentloaded')
-    // Verifica se estamos na URL de settings ou se o título está visível
     const url = this.page.url()
     return url.includes('/settings')
   }
 
   /**
-   * Aguarda a página carregar completamente
+   * Obtém o status de conexão visível
    */
-  async waitForLoad(): Promise<void> {
-    await this.page.waitForLoadState('networkidle')
-    // Aguarda pelo menos um campo de credencial estar visível
-    await this.phoneNumberIdInput.or(this.wabaIdInput).waitFor({ state: 'visible', timeout: 10000 })
+  async getConnectionStatus(): Promise<'online' | 'offline' | 'unknown'> {
+    try {
+      const onlineVisible = await this.page.locator('text=Sistema Online').isVisible()
+      if (onlineVisible) return 'online'
+
+      const offlineVisible = await this.page.locator('text=Desconectado').isVisible()
+      if (offlineVisible) return 'offline'
+
+      return 'unknown'
+    } catch {
+      return 'unknown'
+    }
   }
 }

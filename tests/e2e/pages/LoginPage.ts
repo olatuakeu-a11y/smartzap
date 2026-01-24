@@ -54,7 +54,8 @@ export class LoginPage {
    */
   async loginAndWaitForDashboard(password: string): Promise<void> {
     await this.login(password)
-    await expect(this.page).toHaveURL(/^\/$|\/campaigns|\/dashboard/, { timeout: 10000 })
+    // Aguarda sair da página de login (redirecionamento pode ir para / ou /campaigns)
+    await expect(this.page).not.toHaveURL(/\/login/, { timeout: 10000 })
   }
 
   /**

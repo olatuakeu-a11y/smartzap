@@ -1,4 +1,19 @@
 import { defineConfig, devices } from '@playwright/test'
+import dotenv from 'dotenv'
+import path from 'path'
+import { fileURLToPath } from 'url'
+
+// ESM: recria __dirname
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
+
+// Carrega variáveis de ambiente do .env.local (mesmo arquivo usado pelo Next.js)
+dotenv.config({ path: path.resolve(__dirname, '.env.local') })
+
+// Verifica se a senha está configurada
+if (!process.env.MASTER_PASSWORD && !process.env.TEST_PASSWORD) {
+  console.warn('⚠️  MASTER_PASSWORD ou TEST_PASSWORD não encontrada no .env.local')
+}
 
 /**
  * Playwright E2E Test Configuration
@@ -10,6 +25,9 @@ import { defineConfig, devices } from '@playwright/test'
  * - tests/e2e/*.spec.ts - Arquivos de teste
  */
 export default defineConfig({
+  // Global setup - carrega .env.local antes dos testes
+  globalSetup: './tests/e2e/global-setup.ts',
+
   // Directory where tests are located - isolado do Vitest
   testDir: './tests/e2e',
 

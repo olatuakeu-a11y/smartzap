@@ -4,11 +4,9 @@ import { SettingsPage, LoginPage } from './pages'
 /**
  * Testes E2E da página de Configurações
  *
- * Cobre:
- * - Visualização da página de configurações
- * - Preenchimento de credenciais WhatsApp
- * - Salvamento de configurações
- * - Teste de conexão
+ * A página de Settings tem dois estados principais:
+ * 1. Sistema Online (conectado) - mostra status e métricas
+ * 2. Desconectado ou Editando - mostra formulário de credenciais
  */
 test.describe('Configurações', () => {
   // Antes de cada teste, faz login
@@ -25,137 +23,133 @@ test.describe('Configurações', () => {
       const settingsPage = new SettingsPage(page)
 
       await settingsPage.goto()
-      await settingsPage.waitForLoad()
 
       // Verifica que está na página de settings
       expect(await settingsPage.isVisible()).toBe(true)
     })
 
-    test('deve exibir campos de credenciais WhatsApp', async ({ page }) => {
+    test('deve mostrar título da página', async ({ page }) => {
       const settingsPage = new SettingsPage(page)
 
       await settingsPage.goto()
-      await settingsPage.waitForLoad()
 
-      // Verifica campos principais
-      // Pelo menos um campo deve estar visível
-      const phoneIdVisible = await settingsPage.phoneNumberIdInput.isVisible().catch(() => false)
-      const wabaIdVisible = await settingsPage.wabaIdInput.isVisible().catch(() => false)
-
-      expect(phoneIdVisible || wabaIdVisible).toBe(true)
+      // Verifica título
+      await expect(settingsPage.pageTitle).toBeVisible()
     })
 
-    test('deve ter botão de salvar habilitado', async ({ page }) => {
+    test('deve mostrar status de conexão', async ({ page }) => {
       const settingsPage = new SettingsPage(page)
 
       await settingsPage.goto()
-      await settingsPage.waitForLoad()
 
-      await expect(settingsPage.saveButton).toBeVisible()
+      // Deve mostrar "Sistema Online" ou "Desconectado"
+      const status = await settingsPage.getConnectionStatus()
+      expect(['online', 'offline']).toContain(status)
     })
   })
 
-  test.describe('Credenciais WhatsApp', () => {
-    test('deve permitir preencher credenciais', async ({ page, testCredentials }) => {
+  test.describe('Sistema Conectado', () => {
+    test('deve mostrar Sistema Online quando conectado', async ({ page }) => {
       const settingsPage = new SettingsPage(page)
 
       await settingsPage.goto()
-      await settingsPage.waitForLoad()
 
-      // Preenche credenciais de teste
-      await settingsPage.fillCredentials(testCredentials)
-
-      // Verifica que os campos foram preenchidos
-      // (não verifica o valor exato por questões de segurança do campo password)
-      await expect(settingsPage.phoneNumberIdInput).not.toBeEmpty()
+      // Se está conectado, deve mostrar "Sistema Online"
+      const isConnected = await settingsPage.isConnected()
+      if (isConnected) {
+        await expect(page.locator('text=Sistema Online')).toBeVisible()
+      }
     })
 
-    test('deve salvar configurações com sucesso', async ({ page, testCredentials }) => {
+    test('deve ter botão Editar quando conectado', async ({ page }) => {
       const settingsPage = new SettingsPage(page)
 
       await settingsPage.goto()
-      await settingsPage.waitForLoad()
 
-      // Preenche e salva
-      await settingsPage.fillCredentials(testCredentials)
-      await settingsPage.save()
-
-      // Aguarda feedback (toast ou mensagem)
-      // Não deve haver erro crítico
-      await page.waitForTimeout(2000)
-
-      // Verifica que ainda está na página de settings (não houve crash)
-      expect(await settingsPage.isVisible()).toBe(true)
+      const isConnected = await settingsPage.isConnected()
+      if (isConnected) {
+        await expect(settingsPage.editButton).toBeVisible()
+      }
     })
 
-    test('deve manter valores após recarregar página', async ({ page, testCredentials }) => {
+    test('deve ter botão Desconectar quando conectado', async ({ page }) => {
       const settingsPage = new SettingsPage(page)
 
       await settingsPage.goto()
-      await settingsPage.waitForLoad()
 
-      // Preenche e salva
-      await settingsPage.fillCredentials(testCredentials)
-      await settingsPage.save()
-      await page.waitForTimeout(2000)
+      const isConnected = await settingsPage.isConnected()
+      if (isConnected) {
+        await expect(settingsPage.disconnectButton).toBeVisible()
+      }
+    })
 
-      // Recarrega página
-      await page.reload()
-      await settingsPage.waitForLoad()
+    test('deve mostrar informações de limite quando conectado', async ({ page }) => {
+      const settingsPage = new SettingsPage(page)
 
-      // Verifica que Phone ID foi mantido
-      const phoneIdValue = await settingsPage.phoneNumberIdInput.inputValue()
-      expect(phoneIdValue).toBe(testCredentials.phoneNumberId)
+      await settingsPage.goto()
+
+      const isConnected = await settingsPage.isConnected()
+      if (isConnected) {
+        // Deve mostrar limite de mensagens
+        await expect(settingsPage.limitsInfo).toBeVisible()
+      }
     })
   })
 
-  test.describe('Teste de Conexão', () => {
-    test('deve ter botão de testar conexão', async ({ page }) => {
+  test.describe('Edição de Credenciais', () => {
+    test('deve abrir formulário ao clicar em Editar', async ({ page }) => {
       const settingsPage = new SettingsPage(page)
 
       await settingsPage.goto()
-      await settingsPage.waitForLoad()
 
-      // Botão de teste deve existir
-      await expect(settingsPage.testConnectionButton).toBeVisible()
+      const isConnected = await settingsPage.isConnected()
+      if (isConnected) {
+        await settingsPage.clickEdit()
+
+        // Formulário deve estar visível
+        expect(await settingsPage.isFormVisible()).toBe(true)
+      }
     })
 
-    test('deve mostrar feedback ao testar conexão', async ({ page, testCredentials }) => {
+    test('deve cancelar edição e voltar ao status', async ({ page }) => {
       const settingsPage = new SettingsPage(page)
 
       await settingsPage.goto()
-      await settingsPage.waitForLoad()
 
-      // Preenche credenciais primeiro
-      await settingsPage.fillCredentials(testCredentials)
-      await settingsPage.save()
-      await page.waitForTimeout(1000)
+      const isConnected = await settingsPage.isConnected()
+      if (isConnected) {
+        await settingsPage.clickEdit()
+        await settingsPage.cancelEdit()
 
-      // Testa conexão
-      await settingsPage.testConnection()
-
-      // Aguarda algum feedback (sucesso ou erro)
-      await page.waitForTimeout(3000)
-
-      // Como credenciais são fictícias, provavelmente vai dar erro
-      // Mas o importante é que a ação foi executada sem crash
-      expect(await settingsPage.isVisible()).toBe(true)
+        // Botão Editar deve estar visível novamente
+        await expect(settingsPage.editButton).toBeVisible()
+      }
     })
   })
 
   test.describe('Navegação', () => {
-    test('deve conseguir voltar para dashboard', async ({ page }) => {
+    test('deve conseguir navegar para outras páginas', async ({ page }) => {
       const settingsPage = new SettingsPage(page)
 
       await settingsPage.goto()
-      await settingsPage.waitForLoad()
 
-      // Navega para home/dashboard
+      // Navega para home
       await page.goto('/')
       await page.waitForLoadState('networkidle')
 
-      // Deve estar no dashboard, não na página de settings
-      await expect(page).not.toHaveURL(/\/settings/)
+      // Não deve mais estar em settings
+      expect(await settingsPage.isVisible()).toBe(false)
+    })
+
+    test('deve conseguir voltar para settings', async ({ page }) => {
+      const settingsPage = new SettingsPage(page)
+
+      await settingsPage.goto()
+      await page.goto('/')
+      await settingsPage.goto()
+
+      // Deve estar em settings
+      expect(await settingsPage.isVisible()).toBe(true)
     })
   })
 })

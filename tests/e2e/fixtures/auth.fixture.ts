@@ -1,4 +1,13 @@
 import { test as base, expect, Page } from '@playwright/test'
+import dotenv from 'dotenv'
+import path from 'path'
+
+// Carrega .env.local nos workers usando process.cwd() (raiz do projeto)
+const envPath = path.join(process.cwd(), '.env.local')
+dotenv.config({ path: envPath, override: true })
+
+// Debug: verifica o que foi carregado
+console.log('🔑 MASTER_PASSWORD:', process.env.MASTER_PASSWORD ? `${process.env.MASTER_PASSWORD.length} chars` : 'NOT SET')
 
 /**
  * Fixture de autenticação para testes E2E
