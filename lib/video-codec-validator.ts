@@ -268,6 +268,9 @@ function isAACCodec(codec: string): boolean {
 // Mensagens de erro user-friendly
 // ============================================================================
 
+/** Link para conversor online de vídeo */
+export const VIDEO_CONVERTER_URL = 'https://cloudconvert.com/mp4-converter'
+
 /**
  * Gera mensagem de erro user-friendly para problemas de codec
  */
@@ -293,6 +296,19 @@ export function getCodecErrorMessage(result: VideoValidationResult): string {
   }
 
   return 'Formato de vídeo incompatível. Exporte o vídeo novamente no formato H.264 com áudio AAC.'
+}
+
+/**
+ * Gera mensagem de erro com link para conversor
+ */
+export function getCodecErrorMessageWithLink(result: VideoValidationResult): {
+  message: string
+  converterUrl: string
+} {
+  return {
+    message: getCodecErrorMessage(result),
+    converterUrl: VIDEO_CONVERTER_URL,
+  }
 }
 
 /**

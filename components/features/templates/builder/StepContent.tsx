@@ -26,7 +26,9 @@ import {
   CheckCircle2,
   Trash2,
   MapPin,
+  ExternalLink,
 } from 'lucide-react'
+import { VIDEO_CONVERTER_URL } from '@/lib/video-codec-validator'
 import {
   Select,
   SelectContent,
@@ -678,7 +680,24 @@ export function StepContent({
               </div>
 
               {uploadHeaderMediaError ? (
-                <p className="text-xs text-amber-700 dark:text-amber-300">{uploadHeaderMediaError}</p>
+                <div className="text-xs text-amber-700 dark:text-amber-300 space-y-1">
+                  <p>{uploadHeaderMediaError}</p>
+                  {/* Mostrar link do conversor se for erro de codec */}
+                  {(uploadHeaderMediaError.includes('formato') ||
+                    uploadHeaderMediaError.includes('H.264') ||
+                    uploadHeaderMediaError.includes('AAC') ||
+                    uploadHeaderMediaError.includes('incompatível')) && (
+                    <a
+                      href={VIDEO_CONVERTER_URL}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-primary-400 hover:text-primary-300 underline"
+                    >
+                      <ExternalLink className="w-3 h-3" />
+                      Converter vídeo online (CloudConvert)
+                    </a>
+                  )}
+                </div>
               ) : isHeaderMediaHandleMissing ? (
                 <p className="text-xs text-amber-700 dark:text-amber-300">
                   {headerMediaPreview ? 'Finalize o envio da midia para continuar.' : 'Selecione um arquivo para o cabecalho.'}
