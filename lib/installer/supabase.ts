@@ -5,6 +5,52 @@
 
 const SUPABASE_API_BASE = 'https://api.supabase.com';
 
+/**
+ * Mapeamento de regiões Vercel para regiões Supabase mais próximas.
+ * Vercel: https://vercel.com/docs/edge-network/regions
+ * Supabase: https://supabase.com/docs/guides/platform/regions
+ */
+const VERCEL_TO_SUPABASE_REGION: Record<string, string> = {
+  // Americas
+  'iad1': 'us-east-1',      // Washington D.C. -> N. Virginia
+  'cle1': 'us-east-1',      // Cleveland -> N. Virginia
+  'bos1': 'us-east-1',      // Boston -> N. Virginia
+  'sfo1': 'us-west-1',      // San Francisco -> N. California
+  'pdx1': 'us-west-2',      // Portland -> Oregon
+  'gru1': 'sa-east-1',      // São Paulo -> São Paulo
+  'cpt1': 'sa-east-1',      // Cape Town -> São Paulo (mais próximo)
+
+  // Europe
+  'lhr1': 'eu-west-2',      // London -> London
+  'cdg1': 'eu-west-3',      // Paris -> Paris
+  'fra1': 'eu-central-1',   // Frankfurt -> Frankfurt
+  'arn1': 'eu-north-1',     // Stockholm -> Stockholm
+  'dub1': 'eu-west-1',      // Dublin -> Ireland
+
+  // Asia/Pacific
+  'hnd1': 'ap-northeast-1', // Tokyo -> Tokyo
+  'icn1': 'ap-northeast-2', // Seoul -> Seoul
+  'sin1': 'ap-southeast-1', // Singapore -> Singapore
+  'syd1': 'ap-southeast-2', // Sydney -> Sydney
+  'bom1': 'ap-south-1',     // Mumbai -> Mumbai
+  'hkg1': 'ap-southeast-1', // Hong Kong -> Singapore (mais próximo)
+};
+
+/**
+ * Detecta a região Supabase ideal baseado na região Vercel.
+ * Usa VERCEL_REGION env var ou fallback para us-east-1.
+ */
+export function detectSupabaseRegion(): string {
+  const vercelRegion = process.env.VERCEL_REGION?.toLowerCase();
+
+  if (vercelRegion && VERCEL_TO_SUPABASE_REGION[vercelRegion]) {
+    return VERCEL_TO_SUPABASE_REGION[vercelRegion];
+  }
+
+  // Fallback: us-east-1 é a região mais estável e comum
+  return 'us-east-1';
+}
+
 type SupabaseApiKeyItem = {
   api_key?: string;
   name?: string;

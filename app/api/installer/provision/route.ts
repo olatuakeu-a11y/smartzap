@@ -29,6 +29,7 @@ import {
   waitForSupabaseProjectReady,
   listSupabaseProjects,
   createSupabaseProject,
+  detectSupabaseRegion,
 } from '@/lib/installer/supabase';
 import type { InstallStep } from '@/lib/installer/types';
 
@@ -260,14 +261,17 @@ async function findOrCreateSupabaseProject(
   await onProgress(0.4);
 
   // Create project
-  // Usa us-east-1 para co-localização com Vercel (região padrão: iad1/Washington D.C.)
-  // Isso minimiza latência e acelera propagação de DNS após criação do projeto
+  // Detecta automaticamente a região Supabase mais próxima da Vercel
+  // Ex: gru1 (São Paulo Vercel) -> sa-east-1 (São Paulo Supabase)
+  const supabaseRegion = detectSupabaseRegion();
+  console.log(`[provision] Região detectada: Vercel=${process.env.VERCEL_REGION || 'unknown'} -> Supabase=${supabaseRegion}`);
+
   const createResult = await createSupabaseProject({
     accessToken: pat,
     organizationSlug: org.slug || org.id,
     name: projectName,
     dbPass,
-    region: 'us-east-1',
+    region: supabaseRegion,
   });
 
   if (!createResult.ok) {
@@ -280,7 +284,7 @@ async function findOrCreateSupabaseProject(
         organizationSlug: org.slug || org.id,
         name: fallbackName,
         dbPass,
-        region: 'us-east-1',
+        region: supabaseRegion,
       });
 
       if (!retryResult.ok) {
