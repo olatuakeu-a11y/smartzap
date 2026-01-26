@@ -59,6 +59,21 @@ export async function GET() {
 }
 
 /**
+ * Salva setting diretamente no Supabase
+ */
+async function setSettingDirect(key: string, value: string): Promise<void> {
+  const now = new Date().toISOString()
+  const { error } = await supabase
+    .from('settings')
+    .upsert({ key, value, updated_at: now }, { onConflict: 'key' })
+  
+  if (error) {
+    console.error(`[onboarding] setSettingDirect('${key}') error:`, error.message)
+    throw error
+  }
+}
+
+/**
  * POST /api/settings/onboarding
  * Salva configurações do onboarding
  * Body: { onboardingCompleted?: boolean, permanentTokenConfirmed?: boolean }
@@ -71,11 +86,11 @@ export async function POST(request: Request) {
     const updates: Promise<void>[] = []
 
     if (typeof onboardingCompleted === 'boolean') {
-      updates.push(settingsDb.set(KEYS.onboardingCompleted, onboardingCompleted ? 'true' : 'false'))
+      updates.push(setSettingDirect(KEYS.onboardingCompleted, onboardingCompleted ? 'true' : 'false'))
     }
 
     if (typeof permanentTokenConfirmed === 'boolean') {
-      updates.push(settingsDb.set(KEYS.permanentTokenConfirmed, permanentTokenConfirmed ? 'true' : 'false'))
+      updates.push(setSettingDirect(KEYS.permanentTokenConfirmed, permanentTokenConfirmed ? 'true' : 'false'))
     }
 
     if (updates.length === 0) {
