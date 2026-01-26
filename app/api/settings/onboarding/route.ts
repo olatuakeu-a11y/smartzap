@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { settingsDb } from '@/lib/supabase-db'
+import { supabase } from '@/lib/supabase'
 
 const KEYS = {
   onboardingCompleted: 'onboarding_completed',
@@ -7,15 +7,33 @@ const KEYS = {
 }
 
 /**
+ * Busca setting diretamente do Supabase (sem cache Redis)
+ * Isso garante que sempre retorna o valor mais recente
+ */
+async function getSettingDirect(key: string): Promise<string | null> {
+  const { data, error } = await supabase
+    .from('settings')
+    .select('value')
+    .eq('key', key)
+    .single()
+
+  if (error || !data) return null
+  return data.value
+}
+
+/**
  * GET /api/settings/onboarding
  * Retorna o status do onboarding (completo + token permanente)
+ * SEMPRE busca direto do banco - sem cache
  */
 export async function GET() {
   try {
     const [onboardingCompleted, permanentTokenConfirmed] = await Promise.all([
-      settingsDb.get(KEYS.onboardingCompleted),
-      settingsDb.get(KEYS.permanentTokenConfirmed),
+      getSettingDirect(KEYS.onboardingCompleted),
+      getSettingDirect(KEYS.permanentTokenConfirmed),
     ])
+
+    console.log('[onboarding/GET] DB values:', { onboardingCompleted, permanentTokenConfirmed })
 
     const response = NextResponse.json({
       onboardingCompleted: onboardingCompleted === 'true',
