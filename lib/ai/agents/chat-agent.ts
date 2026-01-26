@@ -151,6 +151,10 @@ const baseResponseSchema = z.object({
     )
     .optional()
     .describe('Fontes utilizadas para gerar a resposta'),
+  shouldQuoteUserMessage: z
+    .boolean()
+    .optional()
+    .describe('Se a resposta deve citar a mensagem do usuário (aparecer como reply)'),
 })
 
 // Campos de handoff (adicionados quando habilitado)
@@ -408,8 +412,9 @@ export async function processChatAgent(
 
     console.log(`[chat-agent] Handoff enabled: ${handoffEnabled}`)
 
-    // Flag para indicar que já respondeu (para stopWhen)
+    // Flags de estado
     let hasResponded = false
+    let shouldQuoteUserMessage = false // Setado pelo tool quoteMessage
 
     const respondTool = tool({
       description: 'Envia uma resposta estruturada ao usuário. Use APENAS quando tiver a resposta final. NÃO use para respostas parciais.',
@@ -423,6 +428,7 @@ export async function processChatAgent(
           message: formattedMessage,
           shouldHandoff: handoffParams.shouldHandoff ?? false,
           sources: sources || params.sources,
+          shouldQuoteUserMessage, // Inclui a flag setada pelo tool quoteMessage
         }
         hasResponded = true // Marca que já respondeu
         return { success: true, message: formattedMessage }
@@ -562,6 +568,22 @@ export async function processChatAgent(
 
       tools.reactToMessage = reactToMessageTool
       console.log(`[chat-agent] 😀 Reaction tool added to tools list`)
+
+      // Quote Message tool - allows the agent to quote/reply to the user's message
+      const quoteMessageTool = tool({
+        description: 'Faz a resposta aparecer como citação da mensagem do usuário (reply). Use para destacar que está respondendo diretamente a algo específico que o usuário disse.',
+        inputSchema: z.object({
+          reason: z.string().optional().describe('Motivo opcional para citar a mensagem'),
+        }),
+        execute: async ({ reason }) => {
+          console.log(`[chat-agent] 💬 LLM requested to quote user message${reason ? `: ${reason}` : ''}`)
+          shouldQuoteUserMessage = true
+          return { willQuote: true, reason }
+        },
+      })
+
+      tools.quoteMessage = quoteMessageTool
+      console.log(`[chat-agent] 💬 Quote tool added to tools list`)
     } else {
       console.log(`[chat-agent] ⚠️ Reaction tool not available: no whatsapp_message_id on last user message`)
     }

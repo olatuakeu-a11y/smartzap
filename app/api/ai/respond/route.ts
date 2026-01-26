@@ -169,11 +169,19 @@ export async function POST(req: NextRequest) {
       const typingDelay = Math.min(Math.max(part.length * 10, 800), 2000)
       await new Promise(r => setTimeout(r, typingDelay))
 
+      // Se shouldQuoteUserMessage e é a primeira parte, envia como reply
+      const shouldQuote = i === 0 && result.response.shouldQuoteUserMessage && typingMessageId
+
       const sendResult = await sendWhatsAppMessage({
         to: conversation.phone,
         type: 'text',
         text: part,
+        replyToMessageId: shouldQuote ? typingMessageId : undefined,
       })
+
+      if (shouldQuote) {
+        console.log(`💬 [AI-RESPOND] First message sent as reply to user message`)
+      }
 
       if (sendResult.success && sendResult.messageId) {
         messageIds.push(sendResult.messageId)
