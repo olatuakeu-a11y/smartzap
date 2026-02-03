@@ -154,6 +154,7 @@ export async function handleInboundMessage(
             const messageForTrigger = {
               id: result.message_id,
               conversation_id: result.conversation_id,
+              whatsapp_message_id: payload.messageId, // Necessário para deduplicação
             } as InboxMessage
 
             triggeredAI = await triggerAIProcessing(conversationForTrigger, messageForTrigger)
