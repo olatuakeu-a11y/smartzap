@@ -338,12 +338,7 @@ async function dispatchToQStash(
   if (!qstash) return false
 
   // URL do endpoint - prioridade para variáveis de produção da Vercel
-  // DEBUG: Log para verificar quais variáveis estão disponíveis
-  console.log(`🔍 [URL-DEBUG] NEXT_PUBLIC_APP_URL=${process.env.NEXT_PUBLIC_APP_URL}`)
-  console.log(`🔍 [URL-DEBUG] VERCEL_PROJECT_PRODUCTION_URL=${process.env.VERCEL_PROJECT_PRODUCTION_URL}`)
-  console.log(`🔍 [URL-DEBUG] VERCEL_URL=${process.env.VERCEL_URL}`)
-  console.log(`🔍 [URL-DEBUG] VERCEL_ENV=${process.env.VERCEL_ENV}`)
-
+  // VERCEL_PROJECT_PRODUCTION_URL sempre retorna o domínio customizado em produção
   const baseUrl =
     process.env.NEXT_PUBLIC_APP_URL ||
     (process.env.VERCEL_PROJECT_PRODUCTION_URL &&
@@ -382,7 +377,8 @@ async function dispatchToQStash(
       headers,
       // DEDUPLICAÇÃO: QStash ignora mensagens com mesmo deduplicationId
       // Janela de 1 hora - evita retry duplicado
-      ...(messageId && { deduplicationId: `ai:respond:${messageId}` }),
+      // NOTA: QStash não aceita ":" no deduplicationId, usar "_"
+      ...(messageId && { deduplicationId: `ai_respond_${messageId.replace(/[^a-zA-Z0-9_-]/g, '_')}` }),
     })
 
     console.log(`✅ [TRIGGER] AI scheduled: delay=${delaySeconds}s, debounceMs=${debounceMs}, dedup=${messageId ? 'enabled' : 'disabled'}`)
